@@ -2,6 +2,10 @@
 
 A reference implementation of the **Nested-Loop Architecture for Agentic SDLC (SDD × TDD × EDD)**, based on the principles in [agentic-sdlc.md](agentic-sdlc.md) and [intent.md](intent.md).
 
+## 🖥️ Live Conference Presentation
+- **Interactive Slide Deck**: [https://johwes.github.io/agentic-sdlc/](https://johwes.github.io/agentic-sdlc/)
+- *Tip: Press **`S`** while viewing the slides to open Presenter Mode with live speaker notes, timers, and previews.*
+
 ## Core Principles
 1. **SDD Inner Loop**: Intake from `intent.md` strictly bounds task scope to generate `spec.md` before code is generated.
 2. **TDD Inner Loop**: Wraps commodity coding agents (`opencode`, `claude`, `antigravity`, `mock`) with deterministic halting (`pytest`) and SHA-256 test anti-tampering verification.
