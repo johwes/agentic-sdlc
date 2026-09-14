@@ -61,6 +61,11 @@ jobs:
             TESTS_PASSED_FLAG="--tests-passed"
           fi
 
+          ALLOW_TESTS_FLAG=""
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            ALLOW_TESTS_FLAG="--allow-test-changes"
+          fi
+
           asdlc eval \
             --spec spec.md \
             --diff pr.diff \
@@ -69,7 +74,8 @@ jobs:
             --sha "${{ github.sha }}" \
             --target-rev "${{ github.base_ref || 'main' }}" \
             --risk-class "Low" \
-            $TESTS_PASSED_FLAG
+            $TESTS_PASSED_FLAG \
+            $ALLOW_TESTS_FLAG
 
       - name: Upload Release Evidence Artifact
         uses: actions/upload-artifact@v4
