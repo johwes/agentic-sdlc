@@ -56,12 +56,20 @@
       gap: 16px;
       text-align: left;
       align-items: stretch;
+      width: 100%;
+      box-sizing: border-box;
     }
     .grid-3 {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 14px;
       text-align: left;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .grid-2 > *, .grid-3 > * {
+      min-width: 0;
+      box-sizing: border-box;
     }
     .card {
       background: var(--card-bg);
@@ -69,6 +77,9 @@
       border-radius: 8px;
       padding: 14px 16px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      min-width: 0;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
     }
     .card h4 {
       margin-top: 0;
@@ -119,6 +130,8 @@
       justify-content: center;
       align-items: center;
       max-height: 230px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     svg {
@@ -138,6 +151,10 @@
       border-radius: 6px;
       margin: 8px 0 !important;
       padding: 8px 12px !important;
+      white-space: pre-wrap !important;
+      word-break: break-word;
+      max-width: 100%;
+      box-sizing: border-box;
     }
   </style>
 </head>
@@ -375,20 +392,22 @@
       <section id="slide-6">
         <span class="badge badge-green">Phase 1</span>
         <h2>The Inner Loop: Workstation TDD</h2>
-        <div class="grid-2">
-          <div class="card">
-            <h4>1. Intake & Specification (SDD)</h4>
-            <p>Developer writes high-level goals into <code>intent.md</code>. The harness validates required sections and derives <code>spec.md</code>.</p>
-            <pre class="code-box"><code>asdlc sdd --intent intent.md --out spec.md</code></pre>
+        <div style="max-width: 880px; margin: 0 auto;">
+          <div class="grid-2">
+            <div class="card">
+              <h4>1. Intake &amp; Specification (SDD)</h4>
+              <p>Developer writes goals into <code>intent.md</code>. The harness validates required sections and derives <code>spec.md</code>.</p>
+              <pre class="code-box"><code>asdlc sdd --intent intent.md</code></pre>
+            </div>
+            <div class="card">
+              <h4>2. Deterministic Halting (TDD)</h4>
+              <p>Verification tests fail first (<strong>RED</strong>). The harness launches the agent and halts strictly on <code>pytest exit 0</code>.</p>
+              <pre class="code-box"><code>asdlc tdd --spec spec.md --agent opencode</code></pre>
+            </div>
           </div>
-          <div class="card">
-            <h4>2. Deterministic Halting (TDD)</h4>
-            <p>Verification tests are generated first. The harness confirms the <strong>RED</strong> failure, launches the agent, and halts strictly on <code>pytest exit 0</code>.</p>
-            <pre class="code-box"><code>asdlc tdd --spec spec.md --agent opencode</code></pre>
+          <div class="card" style="margin-top: 12px; padding: 10px 14px; text-align: center; border-left: 3px solid var(--accent-blue);">
+            <p style="margin: 0; font-size: 0.72em;"><strong class="highlight-text">Zero Human Babysitting:</strong> The agent does not ask if it is done; the deterministic test harness is the sole arbiter of completion.</p>
           </div>
-        </div>
-        <div class="card" style="margin-top: 15px;">
-          <p><strong class="highlight-text">Zero Human Babysitting:</strong> The agent does not ask the human if it is finished. The deterministic test harness is the sole arbiter of completion.</p>
         </div>
         <aside class="notes">
           In traditional AI coding, the human sits there watching the agent type, clicking 'yes' or 'no'.
