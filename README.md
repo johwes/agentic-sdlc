@@ -4,6 +4,7 @@ A reference implementation of the **Nested-Loop Architecture for Agentic SDLC (S
 
 ## 🖥️ Live Conference Presentation
 - **Interactive Slide Deck**: [https://johwes.github.io/agentic-sdlc/](https://johwes.github.io/agentic-sdlc/)
+- **Speaker Guide & Talk Manual**: [docs/speaker-guide.md](docs/speaker-guide.md) (Timing matrix, plain-English analogies, live demo script, and Q&A defense)
 - *Tip: Press **`S`** while viewing the slides to open Presenter Mode with live speaker notes, timers, and previews.*
 
 ## Core Principles
