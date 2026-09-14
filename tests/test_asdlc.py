@@ -213,6 +213,31 @@ def test_tdd_fails_if_initial_tests_already_passing(tmp_path: Path):
         )
 
 
+def test_cli_tdd_handles_initial_tests_already_passing(tmp_path: Path, monkeypatch):
+    """
+    Scenario: User runs 'asdlc tdd' via CLI when tests already pass.
+    Expected: Catches InitialTestsAlreadyPassingError cleanly, returns exit code 3,
+    and does not raise a NameError due to missing import in cli.py.
+    """
+    from asdlc.cli import main
+
+    init_project(tmp_path)
+    src_dir = tmp_path / "src"
+    tests_dir = tmp_path / "tests"
+    src_dir.mkdir()
+    tests_dir.mkdir()
+
+    (src_dir / "app.py").write_text("def add(a, b):\n    return a + b\n")
+    test_py = tests_dir / "test_spec.py"
+    test_py.write_text("from src.app import add\ndef test_add():\n    assert add(2, 3) == 5\n")
+    spec_md = tmp_path / "spec.md"
+    spec_md.write_text("# Spec\n")
+
+    monkeypatch.chdir(tmp_path)
+    exit_code = main(["tdd", "--spec", str(spec_md), "--test-file", str(test_py), "--agent", "mock"])
+    assert exit_code == 3
+
+
 def test_tdd_allows_green_when_flagged(tmp_path: Path):
     """
     REQ-TDD-002: When allow_green=True, run_tdd is permitted to halt immediately on green.

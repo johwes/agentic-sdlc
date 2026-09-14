@@ -14,6 +14,7 @@ from asdlc.core import (
     run_tdd,
     run_eval,
     TestTamperingError,
+    InitialTestsAlreadyPassingError,
 )
 from asdlc.adapters import get_adapter
 

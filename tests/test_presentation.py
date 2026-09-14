@@ -251,8 +251,8 @@ def test_presentation_slide_eleven_cites_accurate_test_count():
     assert "11/11" not in slide_11_text, (
         "Slide 11 contains outdated test count '11/11'."
     )
-    assert "all 28 suite tests" in slide_11_text, (
-        "Slide 11 should accurately cite the full verified test suite count (28 tests)."
+    assert "all 29 suite tests" in slide_11_text, (
+        "Slide 11 should accurately cite the full verified test suite count (29 tests)."
     )
 
 
