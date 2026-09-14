@@ -253,6 +253,7 @@ class AgentAdapter(abc.ABC):
 3. **Outer Loop Isolation & Test Protection**:
    - In CI/CD, the workflow overlays or checks out test definitions directly from the target base branch (`main`), discarding any altered test definitions from the PR before running `pytest`.
    - `asdlc eval` enforces diff isolation: any PR attempting to modify files in `tests/` without `--allow-test-changes` is rejected (`gate_verdict = "REJECTED"`).
+   - **Production Branch Protection Requirement**: Direct pushes to `main` bypass PR-based diff isolation gates (as authorized maintainers legitimately author new test cases). Production repositories using this pattern MUST enable branch protection on `main`, requiring pull requests and mandatory CI status checks so that all agent-generated code is evaluated through the PR isolation gate.
 
 ---
 

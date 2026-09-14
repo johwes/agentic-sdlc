@@ -183,3 +183,60 @@ def test_presentation_svg_text_fits_within_bounding_rects():
 
     assert not overflows, "Detected SVG text overflowing its container rect:\n" + "\n".join(overflows)
 
+
+def test_presentation_claims_contain_no_false_absolutes():
+    """
+    INV-CLAIM-001: Asserts that presentation text does not make ungrounded absolute
+    guarantees or cite speculative/unverified author names.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+
+    forbidden_phrases = [
+        "guarantee agents cannot cheat",
+        "0 test regressions",
+        "Barbaste",
+    ]
+
+    for phrase in forbidden_phrases:
+        assert phrase.lower() not in content.lower(), (
+            f"Found forbidden or unverified claim in presentation: '{phrase}'"
+        )
+
+
+def test_presentation_slide_eleven_cites_accurate_test_count():
+    """
+    INV-CLAIM-002: Asserts that Slide 11 does not cite an outdated/incorrect test count (e.g. 11/11).
+    Must reflect the repository's verified test suite.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    slide_11_match = re.search(r'<section id="slide-11">(.*?)</section>', content, re.DOTALL)
+    assert slide_11_match is not None, "Missing #slide-11"
+    slide_11_text = slide_11_match.group(1)
+
+    assert "11/11" not in slide_11_text, (
+        "Slide 11 contains outdated test count '11/11' (the verified suite now has 24 tests)."
+    )
+    assert "all 24 suite tests" in slide_11_text, (
+        "Slide 11 should accurately cite the full verified test suite count (24 tests)."
+    )
+
+
+def test_presentation_slide_ten_uses_grounded_evidence_taxonomy():
+    """
+    INV-CLAIM-003: Asserts that Slide 10 uses grounded evidence taxonomy
+    ('Machine-Verifiable Release Evidence') rather than hyperbolic 'Cryptographic' claims,
+    and removes unbacked claims (e.g. 'Auto-merged in 15 seconds', 'max 5 nits').
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    slide_10_match = re.search(r'<section id="slide-10">(.*?)</section>', content, re.DOTALL)
+    assert slide_10_match is not None, "Missing #slide-10"
+    slide_10_text = slide_10_match.group(1)
+
+    assert "Cryptographic Release Evidence" not in slide_10_text, (
+        "Slide 10 claims 'Cryptographic Release Evidence' without crypto signatures in evidence schema."
+    )
+    assert "Auto-merged in 15 seconds" not in slide_10_text, (
+        "Slide 10 claims 'Auto-merged in 15 seconds' which is not backed by an automated merge bot."
+    )
+
+

@@ -50,3 +50,9 @@ To run the automated verification suite asserting all architectural invariants:
 ```bash
 pytest tests/ -v
 ```
+
+## Security & Branch Protection
+The agentic SDLC harness implements **multi-tier test isolation and anti-tampering**:
+- **Inner Loop (`asdlc tdd`)**: Computes a SHA-256 hash of the test suite before agent execution; halts immediately with `TestTamperingError` if the agent modifies tests.
+- **Outer Loop CI (`asdlc eval`)**: Runs on pull requests, overlaying test files directly from the base branch (`main`) and rejecting PR diffs that modify protected test directories unless explicitly allowed.
+- **Production Requirement**: Direct pushes to `main` legitimately bypass PR diff checks to permit authoring tests. Production repositories deploying agentic workflows **must enable GitHub branch protection on `main`** (disallowing direct pushes, requiring pull requests, and enforcing passing CI checks) to ensure all agent-authored code is subject to outer-loop isolation.

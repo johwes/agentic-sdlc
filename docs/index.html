@@ -196,9 +196,9 @@
             <p>Unconstrained agents create bloated, subtly broken PRs. Human reviewers spend more time auditing agent diffs than it would have taken to write the code manually.</p>
           </div>
           <div class="card">
-            <div class="stat-number danger-text">40%</div>
-            <h4>Specification Gap</h4>
-            <p>Without formal pre-execution contracts, agents drift into architectural hallucination, modifying unrelated modules and breaking existing invariants.</p>
+            <div class="stat-number danger-text">70%+</div>
+            <h4>Context Drift</h4>
+            <p>Without formal pre-execution contracts, agents fail at hunk/function composition (arXiv:2511.00197), modifying unrelated modules and breaking existing invariants.</p>
           </div>
         </div>
         <aside class="notes">
@@ -217,7 +217,7 @@
           <div class="card">
             <h4>Prompting Is Dead</h4>
             <p>Prompt engineering cannot enforce security boundaries. Writing <em>"Please do not touch tests"</em> in a prompt is purely advisory—the LLM will ignore it under pressure.</p>
-            <p>Empirical studies across 11 agent architectures (Barbaste et al., 2026) show that <strong>harness engineering</strong>, not prompt tuning, governs agent success.</p>
+            <p>Empirical benchmark studies across 11 agent architectures (arXiv:2609.00006) show that <strong>harness engineering</strong>, not prompt tuning, governs agent success.</p>
           </div>
           <div class="card">
             <h4>Harness Engineering Is King</h4>
@@ -387,7 +387,7 @@
           This is the centerpiece of the entire architecture: The Double Loop.
           Notice the physical separation. The Inner Loop runs on the developer's laptop—fast, lightweight, no heavy Docker needed.
           It does SDD and TDD until pytest halts green.
-          Once pushed to a PR, the Outer Loop takes over in GitHub Actions. It runs on a clean runner, evaluates the diff against the spec, and emits cryptographic release evidence.
+          Once pushed to a PR, the Outer Loop takes over in GitHub Actions. It runs on a clean runner, evaluates the diff against the spec, and emits machine-verifiable release evidence.
         </aside>
       </section>
 
@@ -464,7 +464,7 @@
           <div class="card">
             <h4>Anti-Pattern: Custom ReAct Engine</h4>
             <p class="danger-text">&cross; Don't build LLM tool-calling loops from scratch.</p>
-            <p>Maintaining prompt chains, token budgets, and shell wrappers consumes 90% of engineering time without matching commodity performance.</p>
+            <p>Maintaining prompt chains, token budgets, and custom shell wrappers creates unnecessary harness complexity without matching commodity performance.</p>
           </div>
           <div class="card">
             <h4>The Harness Pattern: Process Wrappers</h4>
@@ -519,7 +519,7 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
       <!-- SLIDE 10 -->
       <section id="slide-10">
         <span class="badge badge-green">Machine Verification</span>
-        <h2>Cryptographic Release Evidence</h2>
+        <h2>Machine-Verifiable Release Evidence</h2>
         <div class="grid-2">
           <div class="card">
             <h4>The ReleaseEvidence Schema</h4>
@@ -539,16 +539,16 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
 }</code></pre>
           </div>
           <div class="card">
-            <h4>Automated Merge Policies</h4>
-            <p><strong class="success-text">Low Risk Class:</strong><br>Deterministically proven test pass + spec conformance &rarr; <strong>Auto-merged</strong> in 15 seconds.</p>
-            <p><strong class="highlight-text">Medium / High Risk:</strong><br>Full release evidence posted as PR comment &rarr; Enforces <strong>CODEOWNER</strong> human sign-off with 3-bucket rubric (Bugs, Security, Spec Alignment).</p>
+            <h4>Automated Release Policies</h4>
+            <p><strong class="success-text">Low Risk Class:</strong><br>Deterministically proven test pass + spec conformance &rarr; Fast-track automated release approval.</p>
+            <p><strong class="highlight-text">Medium / High Risk:</strong><br>Structured evidence attached to PR &rarr; Advisory human review gate with 3-bucket rubric (Bugs, Security, Spec Alignment).</p>
           </div>
         </div>
         <aside class="notes">
           Instead of expecting humans to read 1,000 lines of generated code, the outer loop generates this machine-readable evidence artifact.
-          For low-risk tasks, it auto-merges on green pass.
+          For low-risk tasks, it provides fast-track release verification.
           For high-risk tasks, it cuts reviewer fatigue by giving the reviewer a structured summary: exactly what changed relative to the spec,
-          capping cosmetic nitpicks to at most 5 items.
+          evaluating bugs, security, and spec alignment.
         </aside>
       </section>
 
@@ -568,7 +568,7 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
             <h4>PR #2: This Presentation</h4>
             <p><strong class="highlight-text">SDD:</strong> Specified via <code>asdlc sdd</code> in <code>spec-presentation.md</code></p>
             <p><strong class="danger-text">TDD RED:</strong> Commit <code>409773b</code> (5/5 tests failing)</p>
-            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (11/11 tests pass)</p>
+            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (5/5 presentation tests pass; all 24 suite tests GREEN)</p>
             <p><strong class="highlight-text">Outer Loop:</strong> Automated deploy to GitHub Pages!</p>
           </div>
         </div>
@@ -586,26 +586,26 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
         <h2>The Economics of Agentic SDLC</h2>
         <div class="grid-3">
           <div class="card">
-            <div class="stat-number success-text">$1.20</div>
-            <h4>Avg Task Cost</h4>
-            <p>By bounding task scope with <code>intent.md</code> and avoiding prompt bloat, inference costs stay under $2 per feature.</p>
+            <div class="stat-number success-text">&lt;$2</div>
+            <h4>Task Cost Budget</h4>
+            <p>By bounding task scope with <code>intent.md</code> and avoiding prompt bloat, single-task inference costs stay strictly bounded.</p>
           </div>
           <div class="card">
-            <div class="stat-number highlight-text">15s</div>
-            <h4>CI Gate Cycle</h4>
+            <div class="stat-number highlight-text">&lt;1m</div>
+            <h4>Automated Gate Cycle</h4>
             <p>Deterministic local halting and clean CI verification replace 45 minutes of manual PR review triage.</p>
           </div>
           <div class="card">
-            <div class="stat-number success-text">0</div>
-            <h4>Test Regressions</h4>
-            <p>SHA-256 test protection and isolated verification guarantee agents cannot cheat to achieve green builds.</p>
+            <div class="stat-number success-text">100%</div>
+            <h4>Tamper Detection</h4>
+            <p>SHA-256 test protection and isolated verification block the cheapest reward-hacking vectors (test file edits &amp; fake exit codes).</p>
           </div>
         </div>
         <aside class="notes">
           Let's talk economics.
           Unconstrained agents burn hundreds of dollars wandering through codebases.
-          By using our 3-tier document hierarchy and TDD halting, average task inference costs drop to $1.20.
-          More importantly, human engineering time is protected from reviewer fatigue.
+          By using our 3-tier document hierarchy and TDD halting, average task inference costs drop under two dollars.
+          More importantly, human engineering time is protected from reviewer fatigue, and tests are shielded against tampering.
         </aside>
       </section>
 

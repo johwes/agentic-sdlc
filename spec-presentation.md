@@ -75,6 +75,9 @@ Every slide will be enclosed in `<section id="slide-{number}">` and contain an `
 | `test_presentation_css_grid_has_min_width_zero` | Check CSS grid rules | Enforces `min-width: 0` on grid children to prevent horizontal blowout. |
 | `test_presentation_code_boxes_wrap_preformatted_text` | Check `.code-box` style | Enforces `white-space: pre-wrap` on monospace blocks. |
 | `test_presentation_reveal_config_has_responsive_scaling` | Check `Reveal.initialize` | Specifies `minScale` and `maxScale` for automatic viewport fitting. |
+| `test_presentation_claims_contain_no_false_absolutes` | Inspect slide texts | Disallows false absolutes (e.g. "guarantee agents cannot cheat") and unverified names. |
+| `test_presentation_slide_eleven_cites_accurate_test_count` | Inspect slide 11 text | Ensures cited test count accurately matches the verified test suite. |
+| `test_presentation_slide_ten_uses_grounded_evidence_taxonomy` | Inspect slide 10 text | Enforces "Machine-Verifiable Release Evidence" and grounded gating terminology. |
 
 ---
 
@@ -92,3 +95,17 @@ Following human acceptance review, the following permanent invariants are codifi
    - Reveal.js must be configured with explicit canvas dimensions (`width: 1150, height: 700`, `minScale: 0.2, maxScale: 2.0`), forcing proportional auto-scaling on any screen or window dimension.
 5. **INV-VIS-005 (SVG Text Box Containment)**:
    - Any SVG `<text>` element rendered inside an innermost container `<rect>` must have an estimated rendered width $(\text{char\_count} \times \text{font\_size} \times 0.55)$ less than or equal to the `<rect>` width. Text must not visibly overflow its bounding box container.
+
+---
+
+## 7. Claim Grounding, Factual Verifiability & Terminology Invariants
+
+Following external review, the following credibility invariants are codified:
+
+1. **INV-CLAIM-001 (No False Absolutes or Speculative Citations)**:
+   - The presentation must never make ungrounded absolute claims such as `"guarantee agents cannot cheat"` or `"0 test regressions"` (since holdouts, memorization, and prompt injection remain open vectors per whitepaper §4).
+   - Author names for citations must not be speculative (e.g. unverified "Barbaste"); references must cite verified empirical benchmark sources.
+2. **INV-CLAIM-002 (Verifiable Test Metrics on Slide 11)**:
+   - The test pass count cited on Slide 11 must be factually accurate and match the repository's verified test suite count.
+3. **INV-CLAIM-003 (Accurate Evidence Taxonomy)**:
+   - Slide 10 must accurately refer to `"Machine-Verifiable Release Evidence"` (not "Cryptographic Release Evidence"), and distinguish between automated low-risk gating and advisory review.
