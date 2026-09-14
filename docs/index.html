@@ -283,48 +283,84 @@
         <span class="badge badge-green">Core Architecture</span>
         <h2>The Nested Double-Loop</h2>
         <div class="diagram-container" id="visual-double-loop">
-          <svg width="720" height="280" viewBox="0 0 720 280">
-            <!-- Inner Loop Box -->
-            <rect x="20" y="20" width="320" height="240" rx="10" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
-            <text x="180" y="50" fill="#3fb950" font-weight="bold" font-size="16" text-anchor="middle">INNER LOOP (Developer Machine)</text>
+          <svg width="740" height="260" viewBox="0 0 740 260">
+            <defs>
+              <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#3fb950"/>
+              </marker>
+              <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#58a6ff"/>
+              </marker>
+              <marker id="arrow-gray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#8b949e"/>
+              </marker>
+            </defs>
+
+            <!-- LEFT: INNER LOOP (Developer Machine) -->
+            <rect x="15" y="15" width="345" height="235" rx="10" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
+            <text x="187" y="40" fill="#3fb950" font-weight="bold" font-size="14.5" text-anchor="middle">INNER LOOP (Developer Machine)</text>
             
-            <circle cx="80" cy="100" r="22" fill="#21262d" stroke="#58a6ff" stroke-width="2"/>
-            <text x="80" y="105" fill="#58a6ff" font-size="11" font-weight="bold" text-anchor="middle">intent</text>
+            <!-- Step 1: Intake Row -->
+            <rect x="30" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
+            <text x="72" y="73" fill="#58a6ff" font-size="11.5" font-weight="bold" text-anchor="middle">intent.md</text>
 
-            <line x1="102" y1="100" x2="148" y2="100" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
-            
-            <circle cx="170" cy="100" r="22" fill="#21262d" stroke="#d29922" stroke-width="2"/>
-            <text x="170" y="105" fill="#d29922" font-size="11" font-weight="bold" text-anchor="middle">spec</text>
+            <line x1="117" y1="69" x2="138" y2="69" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
-            <line x1="192" y1="100" x2="238" y2="100" stroke="#8b949e" stroke-width="2"/>
+            <rect x="145" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#d29922" stroke-width="1.5"/>
+            <text x="187" y="73" fill="#d29922" font-size="11.5" font-weight="bold" text-anchor="middle">spec.md</text>
 
-            <circle cx="260" cy="100" r="22" fill="#21262d" stroke="#f85149" stroke-width="2"/>
-            <text x="260" y="105" fill="#f85149" font-size="11" font-weight="bold" text-anchor="middle">RED</text>
+            <line x1="232" y1="69" x2="253" y2="69" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
-            <!-- Loop arrows -->
-            <path d="M 260 130 C 260 200, 100 200, 100 130" fill="none" stroke="#3fb950" stroke-width="2" stroke-dasharray="4"/>
-            <text x="180" y="180" fill="#3fb950" font-size="12" font-weight="bold" text-anchor="middle">TDD Iteration &bull; pytest exit 0</text>
-            <text x="180" y="235" fill="#8b949e" font-size="11" text-anchor="middle">Subprocess Agent + Hash Tripwire</text>
+            <rect x="260" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#f85149" stroke-width="1.5"/>
+            <text x="302" y="73" fill="#f85149" font-size="11.5" font-weight="bold" text-anchor="middle">RED Test</text>
 
-            <!-- Connection -->
-            <line x1="340" y1="140" x2="380" y2="140" stroke="#58a6ff" stroke-width="3"/>
-            <polygon points="380,135 395,140 380,145" fill="#58a6ff"/>
-            <text x="367" y="130" fill="#58a6ff" font-size="11" font-weight="bold" text-anchor="middle">PR</text>
+            <!-- Arrow from Intake down to TDD Cycle -->
+            <path d="M 302 85 L 302 105 L 187 105" fill="none" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
-            <!-- Outer Loop Box -->
-            <rect x="395" y="20" width="305" height="240" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
-            <text x="547" y="50" fill="#58a6ff" font-weight="bold" font-size="16" text-anchor="middle">OUTER LOOP (CI/CD Pipeline)</text>
+            <!-- TDD Engine Container -->
+            <rect x="30" y="115" width="315" height="105" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+            <text x="187" y="133" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">TDD ITERATION (Deterministic Halting)</text>
 
-            <rect x="425" y="80" width="245" height="35" rx="6" fill="#21262d" stroke="#30363d"/>
-            <text x="547" y="102" fill="#e6edf3" font-size="12" text-anchor="middle">1. Isolated Clean Test Run</text>
+            <!-- Agent Box -->
+            <rect x="42" y="145" width="115" height="36" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.2"/>
+            <text x="99" y="162" fill="#e6edf3" font-size="11" font-weight="bold" text-anchor="middle">Agent Subprocess</text>
+            <text x="99" y="174" fill="#8b949e" font-size="9.5" text-anchor="middle">opencode / claude / agy</text>
 
-            <rect x="425" y="125" width="245" height="35" rx="6" fill="#21262d" stroke="#30363d"/>
-            <text x="547" y="147" fill="#e6edf3" font-size="12" text-anchor="middle">2. Semantic Delta vs. Spec</text>
+            <!-- pytest Box -->
+            <rect x="218" y="145" width="115" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.2"/>
+            <text x="275" y="162" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">pytest (exit 0?)</text>
+            <text x="275" y="174" fill="#8b949e" font-size="9.5" text-anchor="middle">pass = GREEN</text>
 
-            <rect x="425" y="170" width="245" height="35" rx="6" fill="#21262d" stroke="#3fb950"/>
-            <text x="547" y="192" fill="#3fb950" font-weight="bold" font-size="12" text-anchor="middle">3. release-evidence.json Gate</text>
+            <!-- Cycle Arrows between Agent and pytest -->
+            <line x1="159" y1="156" x2="210" y2="156" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+            <line x1="210" y1="170" x2="162" y2="170" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arrow-gray)"/>
 
-            <text x="547" y="235" fill="#8b949e" font-size="11" text-anchor="middle">GitHub Actions / Tekton Arbiter</text>
+            <text x="187" y="208" fill="#8b949e" font-size="10" text-anchor="middle">&bull; SHA-256 Anti-Tampering Shield Protected &bull;</text>
+
+            <!-- CONNECTOR ARROW: Inner Loop -> Outer Loop -->
+            <line x1="362" y1="163" x2="395" y2="163" stroke="#58a6ff" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+            <text x="378" y="152" fill="#58a6ff" font-size="11" font-weight="bold" text-anchor="middle">PR</text>
+
+            <!-- RIGHT: OUTER LOOP (CI/CD Pipeline) -->
+            <rect x="405" y="15" width="320" height="235" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+            <text x="565" y="40" fill="#58a6ff" font-weight="bold" font-size="14.5" text-anchor="middle">OUTER LOOP (CI/CD Pipeline)</text>
+
+            <!-- Outer Loop Step 1 -->
+            <rect x="425" y="58" width="280" height="42" rx="6" fill="#21262d" stroke="#30363d"/>
+            <text x="565" y="78" fill="#e6edf3" font-size="12" font-weight="bold" text-anchor="middle">1. Isolated Clean Test Run</text>
+            <text x="565" y="93" fill="#8b949e" font-size="10.5" text-anchor="middle">Target base branch verification</text>
+
+            <!-- Outer Loop Step 2 -->
+            <rect x="425" y="110" width="280" height="42" rx="6" fill="#21262d" stroke="#30363d"/>
+            <text x="565" y="130" fill="#e6edf3" font-size="12" font-weight="bold" text-anchor="middle">2. Semantic Delta vs. Spec</text>
+            <text x="565" y="145" fill="#8b949e" font-size="10.5" text-anchor="middle">Bugs, Security, Compliance (max 5 nits)</text>
+
+            <!-- Outer Loop Step 3 -->
+            <rect x="425" y="162" width="280" height="42" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="1.5"/>
+            <text x="565" y="182" fill="#3fb950" font-size="12" font-weight="bold" text-anchor="middle">3. release-evidence.json Gate</text>
+            <text x="565" y="197" fill="#8b949e" font-size="10.5" text-anchor="middle">Auto-merge Low risk &bull; CODEOWNER High risk</text>
+
+            <text x="565" y="235" fill="#8b949e" font-size="10.5" text-anchor="middle">GitHub Actions / Tekton Arbiter</text>
           </svg>
         </div>
         <aside class="notes">
