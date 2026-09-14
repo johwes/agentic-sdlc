@@ -71,4 +71,4 @@ This harness will demonstrate how to wrap existing, commodity coding agents (e.g
 - [x] `asdlc eval` detects unauthorized modifications to protected directories (`tests/`) in diffs and rejects auto-merge (Outer Loop).
 - [x] CI outer loop workflow YAML syntax and required gating structure are verified by automated tests.
 - [x] Standalone runnable reference workspace (`examples/hello/`) with `intent.md`, `spec.md`, `src/app.py`, `tests/test_spec.py`, and `pr.diff` that can be executed copy-paste from the README.
-- [x] Architectural alignment: Directly implements state transitions defined in [agentic-sdlc.md §1.2.2](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md#L91).
+- [x] Architectural alignment: Implements the core RED $\to$ GREEN $\to$ EVALUATED state spine from [agentic-sdlc.md §1.2.2](agentic-sdlc.md#L91) (registry, staged, and operating phases are out of scope for hello-world).

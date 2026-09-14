@@ -112,6 +112,7 @@ class AntigravityAdapter(SubprocessAgentAdapter):
     """
     Adapter invoking the Antigravity CLI in non-interactive print mode
     (`agy --prompt "<prompt>"` or `agy --print`).
+    Assumed interface; uninstalled binary degrades gracefully via the 127 exit code path.
     """
     def __init__(self):
         super().__init__(name="antigravity", cli_command=["agy", "--prompt"])

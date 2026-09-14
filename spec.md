@@ -127,7 +127,7 @@ asdlc run --intent intent.md --agent <agent_name>
 Sequence: `init` (if needed) $\to$ `sdd` $\to$ `tdd`.
 
 #### 5. `asdlc eval`
-Outer-loop evaluator invoked by CI/CD (GitHub Actions / Tekton).
+Outer-loop evaluator invoked by CI/CD (GitHub Actions; Tekton on roadmap).
 - **Flags**:
   - `--spec <FILE>`: Specification file (default: `spec.md`).
   - `--diff <FILE_OR_REF>`: Git diff file or base git ref (e.g. `origin/main...HEAD`).
@@ -240,7 +240,7 @@ class AgentAdapter(abc.ABC):
 3. **`ClaudeAdapter`**:
    - Invokes `claude -p "<prompt>"` in a subprocess.
 4. **`AntigravityAdapter`**:
-   - Invokes `agy --prompt "<prompt>"` in a subprocess (using the verified `agy` non-interactive print mode).
+   - Invokes `agy --prompt "<prompt>"` in a subprocess (assumed interface; absence degrades gracefully via the 127 exit code path).
 
 ---
 
