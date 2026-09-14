@@ -65,7 +65,7 @@ def test_presentation_includes_all_required_visuals():
 
 def test_presentation_svg_font_sizes_meet_minimum_threshold():
     """
-    INV-VIS-001: Asserts that no SVG text element uses font-size below 11.5px.
+    INV-VIS-001: Asserts that no SVG text element uses font-size below 14.0px.
     Prevents unreadable footnote text on presentation slides.
     """
     content = DOCS_HTML.read_text(encoding="utf-8")
@@ -73,12 +73,14 @@ def test_presentation_svg_font_sizes_meet_minimum_threshold():
     assert len(svg_blocks) >= 3
 
     for svg_idx, svg in enumerate(svg_blocks, 1):
-        font_sizes = re.findall(r'font-size=["\'](\d+(?:\.\d+)?)["\']', svg)
-        for fs_str in font_sizes:
-            fs = float(fs_str)
-            assert fs >= 11.5, (
-                f"SVG #{svg_idx} contains font-size='{fs}' below the minimum readability threshold of 11.5px"
-            )
+        text_tags = re.findall(r'(<text[^>]*>.*?</text>)', svg, re.DOTALL)
+        for tag in text_tags:
+            fs_match = re.search(r'font-size=["\'](\d+(?:\.\d+)?)["\']', tag)
+            if fs_match:
+                fs = float(fs_match.group(1))
+                assert fs >= 14.0, (
+                    f"SVG #{svg_idx} contains element with font-size='{fs}' below 14.0px threshold:\n  {tag.strip()}"
+                )
 
 
 def test_presentation_css_grid_has_min_width_zero():
