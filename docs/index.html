@@ -24,6 +24,7 @@
       background: radial-gradient(circle at center, #1a2233 0%, #0d1117 100%);
       color: #e6edf3;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 26px; /* Base font scale for consistent readability */
     }
     .reveal h1, .reveal h2, .reveal h3 {
       color: #ffffff;
@@ -31,20 +32,20 @@
       text-transform: none;
       letter-spacing: -0.02em;
     }
-    .reveal h1 { font-size: 2.0em; line-height: 1.15; }
-    .reveal h2 { font-size: 1.5em; color: var(--accent-blue); margin-top: 0; margin-bottom: 0.35em; }
-    .reveal h3 { font-size: 1.05em; color: #8b949e; margin-top: 0.3em; }
+    .reveal h1 { font-size: 2.1em; line-height: 1.15; }
+    .reveal h2 { font-size: 1.55em; color: var(--accent-blue); margin-top: 0; margin-bottom: 0.35em; }
+    .reveal h3 { font-size: 1.1em; color: #8b949e; margin-top: 0.25em; }
     
     .badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 4px 12px;
       border-radius: 20px;
-      font-size: 0.45em;
+      font-size: 0.5em;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       vertical-align: middle;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
     .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
@@ -53,7 +54,7 @@
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 18px;
       text-align: left;
       align-items: stretch;
       width: 100%;
@@ -62,7 +63,7 @@
     .grid-3 {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 14px;
+      gap: 16px;
       text-align: left;
       width: 100%;
       box-sizing: border-box;
@@ -75,7 +76,7 @@
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 14px 16px;
+      padding: 16px 20px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
       min-width: 0;
       box-sizing: border-box;
@@ -83,22 +84,23 @@
     }
     .card h4 {
       margin-top: 0;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       color: #ffffff;
-      font-size: 0.95em;
+      font-size: 1.05em;
+      font-weight: 700;
     }
     .card p, .card li {
-      font-size: 0.68em;
-      color: #8b949e;
-      line-height: 1.4;
-      margin-bottom: 6px;
+      font-size: 0.76em;
+      color: #c9d1d9; /* High-contrast readable body text */
+      line-height: 1.48;
+      margin-bottom: 8px;
     }
     .card p:last-child, .card ul:last-child {
       margin-bottom: 0;
     }
     .card ul {
-      margin-top: 4px;
-      padding-left: 20px;
+      margin-top: 6px;
+      padding-left: 22px;
     }
     .highlight-text {
       color: var(--accent-blue);
@@ -113,10 +115,10 @@
       font-weight: 600;
     }
     .stat-number {
-      font-size: 2.0em;
+      font-size: 2.2em;
       font-weight: 800;
       line-height: 1;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     /* Diagram Containers */
@@ -124,12 +126,12 @@
       background: #090d13;
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 8px;
+      padding: 12px;
       margin: 10px auto;
       display: flex;
       justify-content: center;
       align-items: center;
-      max-height: 230px;
+      max-height: 260px;
       width: 100%;
       box-sizing: border-box;
     }
@@ -137,7 +139,7 @@
     svg {
       max-width: 100%;
       height: auto;
-      max-height: 220px;
+      max-height: 250px;
     }
 
     svg text {
@@ -145,16 +147,17 @@
     }
     .code-box {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 0.6em !important;
+      font-size: 0.65em !important;
       background: #04070b !important;
       border: 1px solid var(--border-color);
       border-radius: 6px;
       margin: 8px 0 !important;
-      padding: 8px 12px !important;
+      padding: 10px 14px !important;
       white-space: pre-wrap !important;
       word-break: break-word;
       max-width: 100%;
       box-sizing: border-box;
+      color: #e6edf3;
     }
   </style>
 </head>
@@ -272,21 +275,21 @@
             <!-- RIGHT: CALLOUT CARDS WITH AMPLE BREATHING ROOM -->
             <!-- Tier 3 Card -->
             <rect x="305" y="20" width="515" height="65" rx="8" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
-            <text x="325" y="45" fill="#d29922" font-weight="bold" font-size="15">TIER 3: Technical Specification (spec.md)</text>
-            <text x="325" y="68" fill="#8b949e" font-size="12.5">The Contract &bull; Deterministic CLI signatures, schemas, and test matrix</text>
+            <text x="325" y="45" fill="#d29922" font-weight="bold" font-size="16.5">TIER 3: Technical Specification (spec.md)</text>
+            <text x="325" y="68" fill="#c9d1d9" font-size="13.5">The Contract &bull; Deterministic CLI signatures, schemas, and test matrix</text>
 
             <!-- Tier 2 Card -->
             <rect x="305" y="92" width="515" height="65" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
-            <text x="325" y="117" fill="#3fb950" font-weight="bold" font-size="15">TIER 2: Human Intent (intent.md)</text>
-            <text x="325" y="140" fill="#8b949e" font-size="12.5">The Aperture &bull; Bounded problem statement, invariants, non-goals (~800 tokens)</text>
+            <text x="325" y="117" fill="#3fb950" font-weight="bold" font-size="16.5">TIER 2: Human Intent (intent.md)</text>
+            <text x="325" y="140" fill="#c9d1d9" font-size="13.5">The Aperture &bull; Bounded problem statement, invariants, non-goals (~800 tokens)</text>
 
             <!-- Tier 1 Card -->
             <rect x="305" y="165" width="515" height="65" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
-            <text x="325" y="190" fill="#58a6ff" font-weight="bold" font-size="15">TIER 1: System Architecture (agentic-sdlc.md)</text>
-            <text x="325" y="213" fill="#8b949e" font-size="12.5">The Constitution &bull; Organizational state machines &amp; loop mechanics (10k+ tokens)</text>
+            <text x="325" y="190" fill="#58a6ff" font-weight="bold" font-size="16.5">TIER 1: System Architecture (agentic-sdlc.md)</text>
+            <text x="325" y="213" fill="#c9d1d9" font-size="13.5">The Constitution &bull; Organizational state machines &amp; loop mechanics (10k+ tokens)</text>
           </svg>
         </div>
-        <p style="font-size: 0.7em; color: #8b949e;">Architecture is the context. Intent is the lens. Spec is the machine contract.</p>
+        <p style="font-size: 0.76em; color: #8b949e;">Architecture is the context. Intent is the lens. Spec is the machine contract.</p>
         <aside class="notes">
           Here is our first mandatory visual: Document Tiering.
           If you hand a 50KB architecture paper directly to an agent, it hallucinates and burns tokens.
@@ -300,7 +303,7 @@
         <span class="badge badge-green">Core Architecture</span>
         <h2>The Nested Double-Loop</h2>
         <div class="diagram-container" id="visual-double-loop">
-          <svg width="740" height="260" viewBox="0 0 740 260">
+          <svg width="760" height="270" viewBox="0 0 760 270">
             <defs>
               <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                 <path d="M 0 1 L 10 5 L 0 9 z" fill="#3fb950"/>
@@ -314,70 +317,70 @@
             </defs>
 
             <!-- LEFT: INNER LOOP (Developer Machine) -->
-            <rect x="15" y="15" width="345" height="235" rx="10" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
-            <text x="187" y="40" fill="#3fb950" font-weight="bold" font-size="14.5" text-anchor="middle">INNER LOOP (Developer Machine)</text>
+            <rect x="15" y="10" width="355" height="250" rx="10" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
+            <text x="192" y="36" fill="#3fb950" font-weight="bold" font-size="16" text-anchor="middle">INNER LOOP (Developer Machine)</text>
             
             <!-- Step 1: Intake Row -->
-            <rect x="30" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-            <text x="72" y="73" fill="#58a6ff" font-size="11.5" font-weight="bold" text-anchor="middle">intent.md</text>
+            <rect x="28" y="52" width="95" height="32" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
+            <text x="75" y="73" fill="#58a6ff" font-size="13" font-weight="bold" text-anchor="middle">intent.md</text>
 
-            <line x1="117" y1="69" x2="138" y2="69" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+            <line x1="125" y1="68" x2="142" y2="68" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
-            <rect x="145" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#d29922" stroke-width="1.5"/>
-            <text x="187" y="73" fill="#d29922" font-size="11.5" font-weight="bold" text-anchor="middle">spec.md</text>
+            <rect x="145" y="52" width="95" height="32" rx="6" fill="#21262d" stroke="#d29922" stroke-width="1.5"/>
+            <text x="192" y="73" fill="#d29922" font-size="13" font-weight="bold" text-anchor="middle">spec.md</text>
 
-            <line x1="232" y1="69" x2="253" y2="69" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+            <line x1="242" y1="68" x2="259" y2="68" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
-            <rect x="260" y="55" width="85" height="28" rx="6" fill="#21262d" stroke="#f85149" stroke-width="1.5"/>
-            <text x="302" y="73" fill="#f85149" font-size="11.5" font-weight="bold" text-anchor="middle">RED Test</text>
+            <rect x="262" y="52" width="95" height="32" rx="6" fill="#21262d" stroke="#f85149" stroke-width="1.5"/>
+            <text x="309" y="73" fill="#f85149" font-size="13" font-weight="bold" text-anchor="middle">RED Test</text>
 
             <!-- Arrow from Intake down to TDD Cycle -->
-            <path d="M 302 85 L 302 105 L 187 105" fill="none" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+            <path d="M 309 84 L 309 104 L 192 104" fill="none" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
 
             <!-- TDD Engine Container -->
-            <rect x="30" y="115" width="315" height="105" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
-            <text x="187" y="133" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">TDD ITERATION (Deterministic Halting)</text>
+            <rect x="28" y="112" width="329" height="114" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+            <text x="192" y="132" fill="#3fb950" font-size="13" font-weight="bold" text-anchor="middle">TDD ITERATION (Deterministic Halting)</text>
 
             <!-- Agent Box -->
-            <rect x="42" y="145" width="115" height="36" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.2"/>
-            <text x="99" y="162" fill="#e6edf3" font-size="11" font-weight="bold" text-anchor="middle">Agent Subprocess</text>
-            <text x="99" y="174" fill="#8b949e" font-size="9.5" text-anchor="middle">opencode / claude / agy</text>
+            <rect x="40" y="144" width="125" height="44" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.3"/>
+            <text x="102" y="163" fill="#e6edf3" font-size="13.5" font-weight="bold" text-anchor="middle">Agent Subprocess</text>
+            <text x="102" y="179" fill="#c9d1d9" font-size="11.5" text-anchor="middle">opencode / claude / agy</text>
 
             <!-- pytest Box -->
-            <rect x="218" y="145" width="115" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.2"/>
-            <text x="275" y="162" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">pytest (exit 0?)</text>
-            <text x="275" y="174" fill="#8b949e" font-size="9.5" text-anchor="middle">pass = GREEN</text>
+            <rect x="220" y="144" width="125" height="44" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.3"/>
+            <text x="282" y="163" fill="#3fb950" font-size="13.5" font-weight="bold" text-anchor="middle">pytest (exit 0?)</text>
+            <text x="282" y="179" fill="#c9d1d9" font-size="11.5" text-anchor="middle">pass = GREEN</text>
 
             <!-- Cycle Arrows between Agent and pytest -->
-            <line x1="159" y1="156" x2="210" y2="156" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
-            <line x1="210" y1="170" x2="162" y2="170" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arrow-gray)"/>
+            <line x1="167" y1="158" x2="214" y2="158" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow-blue)"/>
+            <line x1="214" y1="174" x2="171" y2="174" stroke="#f85149" stroke-width="1.8" stroke-dasharray="3" marker-end="url(#arrow-gray)"/>
 
-            <text x="187" y="208" fill="#8b949e" font-size="10" text-anchor="middle">&bull; SHA-256 Anti-Tampering Shield Protected &bull;</text>
+            <text x="192" y="215" fill="#3fb950" font-size="12" font-weight="bold" text-anchor="middle">&bull; SHA-256 Anti-Tampering Shield Protected &bull;</text>
 
             <!-- CONNECTOR ARROW: Inner Loop -> Outer Loop -->
-            <line x1="362" y1="163" x2="395" y2="163" stroke="#58a6ff" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
-            <text x="378" y="152" fill="#58a6ff" font-size="11" font-weight="bold" text-anchor="middle">PR</text>
+            <line x1="372" y1="166" x2="408" y2="166" stroke="#58a6ff" stroke-width="3" marker-end="url(#arrow-blue)"/>
+            <text x="390" y="155" fill="#58a6ff" font-size="13" font-weight="bold" text-anchor="middle">PR</text>
 
             <!-- RIGHT: OUTER LOOP (CI/CD Pipeline) -->
-            <rect x="405" y="15" width="320" height="235" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
-            <text x="565" y="40" fill="#58a6ff" font-weight="bold" font-size="14.5" text-anchor="middle">OUTER LOOP (CI/CD Pipeline)</text>
+            <rect x="415" y="10" width="330" height="250" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+            <text x="580" y="36" fill="#58a6ff" font-weight="bold" font-size="16" text-anchor="middle">OUTER LOOP (CI/CD Pipeline)</text>
 
             <!-- Outer Loop Step 1 -->
-            <rect x="425" y="58" width="280" height="42" rx="6" fill="#21262d" stroke="#30363d"/>
-            <text x="565" y="78" fill="#e6edf3" font-size="12" font-weight="bold" text-anchor="middle">1. Isolated Clean Test Run</text>
-            <text x="565" y="93" fill="#8b949e" font-size="10.5" text-anchor="middle">Target base branch verification</text>
+            <rect x="430" y="52" width="300" height="48" rx="6" fill="#21262d" stroke="#30363d"/>
+            <text x="580" y="73" fill="#e6edf3" font-size="14.5" font-weight="bold" text-anchor="middle">1. Isolated Clean Test Run</text>
+            <text x="580" y="90" fill="#c9d1d9" font-size="12.5" text-anchor="middle">Target base branch verification</text>
 
             <!-- Outer Loop Step 2 -->
-            <rect x="425" y="110" width="280" height="42" rx="6" fill="#21262d" stroke="#30363d"/>
-            <text x="565" y="130" fill="#e6edf3" font-size="12" font-weight="bold" text-anchor="middle">2. Semantic Delta vs. Spec</text>
-            <text x="565" y="145" fill="#8b949e" font-size="10.5" text-anchor="middle">Bugs, Security, Compliance (max 5 nits)</text>
+            <rect x="430" y="108" width="300" height="48" rx="6" fill="#21262d" stroke="#30363d"/>
+            <text x="580" y="129" fill="#e6edf3" font-size="14.5" font-weight="bold" text-anchor="middle">2. Semantic Delta vs. Spec</text>
+            <text x="580" y="146" fill="#c9d1d9" font-size="12.5" text-anchor="middle">Bugs, Security, Compliance (max 5 nits)</text>
 
             <!-- Outer Loop Step 3 -->
-            <rect x="425" y="162" width="280" height="42" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="1.5"/>
-            <text x="565" y="182" fill="#3fb950" font-size="12" font-weight="bold" text-anchor="middle">3. release-evidence.json Gate</text>
-            <text x="565" y="197" fill="#8b949e" font-size="10.5" text-anchor="middle">Auto-merge Low risk &bull; CODEOWNER High risk</text>
+            <rect x="430" y="164" width="300" height="48" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="1.5"/>
+            <text x="580" y="185" fill="#3fb950" font-size="14.5" font-weight="bold" text-anchor="middle">3. release-evidence.json Gate</text>
+            <text x="580" y="202" fill="#c9d1d9" font-size="12.5" text-anchor="middle">Auto-merge Low risk &bull; CODEOWNER High risk</text>
 
-            <text x="565" y="235" fill="#8b949e" font-size="10.5" text-anchor="middle">GitHub Actions / Tekton Arbiter</text>
+            <text x="580" y="244" fill="#8b949e" font-size="12.5" text-anchor="middle" font-weight="600">GitHub Actions / Tekton Arbiter</text>
           </svg>
         </div>
         <aside class="notes">
@@ -421,25 +424,27 @@
         <span class="badge badge-amber">Guardrails</span>
         <h2>Hard Guardrails: The Anti-Tampering Shield</h2>
         <div class="diagram-container" id="visual-anti-tampering">
-          <svg width="700" height="220" viewBox="0 0 700 220">
+          <svg width="740" height="230" viewBox="0 0 740 230">
             <!-- Cheating Agent -->
-            <rect x="20" y="30" width="260" height="160" rx="8" fill="#161b22" stroke="#f85149" stroke-width="2"/>
-            <text x="150" y="60" fill="#f85149" font-weight="bold" font-size="14" text-anchor="middle">CHEATING AGENT (Reward Hacking)</text>
-            <text x="150" y="90" fill="#8b949e" font-size="12" text-anchor="middle">Can't fix src/app.py?</text>
-            <text x="150" y="115" fill="#f85149" font-size="12" font-family="monospace" text-anchor="middle">test_spec.py: assert True</text>
-            <text x="150" y="145" fill="#8b949e" font-size="11" text-anchor="middle">Rewrites tests to get exit 0!</text>
+            <rect x="20" y="25" width="280" height="175" rx="8" fill="#161b22" stroke="#f85149" stroke-width="2"/>
+            <text x="160" y="55" fill="#f85149" font-weight="bold" font-size="15" text-anchor="middle">CHEATING AGENT (Reward Hacking)</text>
+            <text x="160" y="88" fill="#c9d1d9" font-size="13" text-anchor="middle">Stuck fixing code in src/app.py?</text>
+            <rect x="40" y="105" width="240" height="30" rx="5" fill="#04070b" stroke="#f85149" stroke-width="1"/>
+            <text x="160" y="125" fill="#f85149" font-size="13.5" font-family="monospace" font-weight="bold" text-anchor="middle">test_spec.py: assert True</text>
+            <text x="160" y="165" fill="#8b949e" font-size="12" text-anchor="middle">Rewrites verification suite to cheat exit 0!</text>
 
             <!-- The Shield -->
-            <polygon points="350,20 400,50 400,160 350,200 300,160 300,50" fill="#21262d" stroke="#58a6ff" stroke-width="3"/>
-            <text x="350" y="110" fill="#58a6ff" font-weight="bold" font-size="20" text-anchor="middle">SHA</text>
-            <text x="350" y="130" fill="#58a6ff" font-weight="bold" font-size="14" text-anchor="middle">256</text>
+            <polygon points="370,18 420,48 420,165 370,210 320,165 320,48" fill="#21262d" stroke="#58a6ff" stroke-width="3"/>
+            <text x="370" y="112" fill="#58a6ff" font-weight="bold" font-size="22" text-anchor="middle">SHA</text>
+            <text x="370" y="136" fill="#58a6ff" font-weight="bold" font-size="16" text-anchor="middle">256</text>
 
             <!-- Blocked Result -->
-            <rect x="420" y="30" width="260" height="160" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
-            <text x="550" y="60" fill="#3fb950" font-weight="bold" font-size="14" text-anchor="middle">HARNESS TRIPWIRE</text>
-            <text x="550" y="95" fill="#e6edf3" font-size="12" text-anchor="middle">Baseline Hash: <code>e3b0c442...</code></text>
-            <text x="550" y="125" fill="#f85149" font-size="12" font-weight="bold" text-anchor="middle">TestTamperingError</text>
-            <text x="550" y="155" fill="#3fb950" font-size="11" text-anchor="middle">&check; Execution instantly aborted</text>
+            <rect x="440" y="25" width="280" height="175" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
+            <text x="580" y="55" fill="#3fb950" font-weight="bold" font-size="15" text-anchor="middle">HARNESS TRIPWIRE</text>
+            <text x="580" y="88" fill="#c9d1d9" font-size="13" text-anchor="middle">Baseline Hash: <code>e3b0c44298fc...</code></text>
+            <rect x="460" y="105" width="240" height="30" rx="5" fill="#04070b" stroke="#f85149" stroke-width="1"/>
+            <text x="580" y="125" fill="#f85149" font-size="14" font-weight="bold" text-anchor="middle">TestTamperingError</text>
+            <text x="580" y="165" fill="#3fb950" font-size="13" font-weight="bold" text-anchor="middle">&check; Execution instantly aborted</text>
           </svg>
         </div>
         <aside class="notes">
@@ -551,26 +556,21 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
       <section id="slide-11">
         <span class="badge badge-green">Proof in Production</span>
         <h2>Case Study: Self-Hosting asdlc</h2>
-        <div class="card" style="text-align: left;">
-          <h4>The Ouroboros Demonstration</h4>
-          <p>This entire harness and presentation was built by following the Nested-Loop SDLC itself:</p>
-          <ul>
-            <li><strong>PR #1 (The Harness)</strong>:
-              <ul>
-                <li><code>intent.md</code> &rarr; <code>spec.md</code></li>
-                <li>RED commit (<code>30a19f8</code>: 6/6 tests failing)</li>
-                <li>GREEN commit (<code>ae23678</code>: core engine & adapters implemented)</li>
-                <li>Outer Loop CI pass &rarr; Merged automatically!</li>
-              </ul>
-            </li>
-            <li><strong>PR #2 (This Presentation)</strong>:
-              <ul>
-                <li>Specified via <code>asdlc sdd</code> in <code>spec-presentation.md</code></li>
-                <li>Verified via <code>tests/test_presentation.py</code></li>
-                <li>Deployed via GitHub Pages!</li>
-              </ul>
-            </li>
-          </ul>
+        <div class="grid-2">
+          <div class="card">
+            <h4>PR #1: The Core Harness</h4>
+            <p><strong class="highlight-text">SDD:</strong> Formulated <code>intent.md</code> &rarr; derived <code>spec.md</code></p>
+            <p><strong class="danger-text">TDD RED:</strong> Commit <code>30a19f8</code> (6/6 tests failing)</p>
+            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>ae23678</code> (engine &amp; adapters)</p>
+            <p><strong class="highlight-text">Outer Loop:</strong> CI evaluation gate &rarr; Auto-merged!</p>
+          </div>
+          <div class="card">
+            <h4>PR #2: This Presentation</h4>
+            <p><strong class="highlight-text">SDD:</strong> Specified via <code>asdlc sdd</code> in <code>spec-presentation.md</code></p>
+            <p><strong class="danger-text">TDD RED:</strong> Commit <code>409773b</code> (5/5 tests failing)</p>
+            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (11/11 tests pass)</p>
+            <p><strong class="highlight-text">Outer Loop:</strong> Automated deploy to GitHub Pages!</p>
+          </div>
         </div>
         <aside class="notes">
           Here is the ultimate proof: this presentation was created by the very system we are presenting!
