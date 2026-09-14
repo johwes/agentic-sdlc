@@ -31,20 +31,20 @@
       text-transform: none;
       letter-spacing: -0.02em;
     }
-    .reveal h1 { font-size: 2.3em; line-height: 1.15; }
-    .reveal h2 { font-size: 1.8em; color: var(--accent-blue); margin-bottom: 0.5em; }
-    .reveal h3 { font-size: 1.3em; color: #8b949e; }
+    .reveal h1 { font-size: 2.0em; line-height: 1.15; }
+    .reveal h2 { font-size: 1.5em; color: var(--accent-blue); margin-top: 0; margin-bottom: 0.35em; }
+    .reveal h3 { font-size: 1.05em; color: #8b949e; margin-top: 0.3em; }
     
     .badge {
       display: inline-block;
-      padding: 4px 12px;
+      padding: 3px 10px;
       border-radius: 20px;
-      font-size: 0.5em;
+      font-size: 0.45em;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       vertical-align: middle;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
     .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
@@ -53,33 +53,41 @@
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 16px;
       text-align: left;
       align-items: stretch;
     }
     .grid-3 {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
+      gap: 14px;
       text-align: left;
     }
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     }
     .card h4 {
       margin-top: 0;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       color: #ffffff;
-      font-size: 1.05em;
+      font-size: 0.95em;
     }
     .card p, .card li {
-      font-size: 0.72em;
+      font-size: 0.68em;
       color: #8b949e;
-      line-height: 1.45;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .card p:last-child, .card ul:last-child {
+      margin-bottom: 0;
+    }
+    .card ul {
+      margin-top: 4px;
+      padding-left: 20px;
     }
     .highlight-text {
       color: var(--accent-blue);
@@ -94,22 +102,29 @@
       font-weight: 600;
     }
     .stat-number {
-      font-size: 2.4em;
+      font-size: 2.0em;
       font-weight: 800;
       line-height: 1;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
 
     /* Diagram Containers */
     .diagram-container {
       background: #090d13;
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 15px;
-      margin: 15px auto;
+      border-radius: 8px;
+      padding: 8px;
+      margin: 10px auto;
       display: flex;
       justify-content: center;
       align-items: center;
+      max-height: 230px;
+    }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+      max-height: 220px;
     }
 
     svg text {
@@ -117,10 +132,12 @@
     }
     .code-box {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 0.65em !important;
+      font-size: 0.6em !important;
       background: #04070b !important;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: 6px;
+      margin: 8px 0 !important;
+      padding: 8px 12px !important;
     }
   </style>
 </head>
@@ -551,6 +568,12 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
       hash: true,
       slideNumber: 'c/t',
       transition: 'fade',
+      width: 1150,
+      height: 700,
+      margin: 0.04,
+      minScale: 0.2,
+      maxScale: 2.0,
+      center: true,
       plugins: [ RevealNotes, RevealHighlight ]
     });
   </script>
