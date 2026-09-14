@@ -13,6 +13,7 @@ from asdlc.core import (
     run_tdd,
     run_eval,
     TestTamperingError,
+    InitialTestsAlreadyPassingError,
     SDLCState,
 )
 from asdlc.adapters import MockAgentAdapter
@@ -30,6 +31,11 @@ def test_init_creates_scaffold(tmp_path: Path):
     with open(state_file, "r") as f:
         state = json.load(f)
     assert state.get("status") == SDLCState.INITIALIZED.value
+
+    # Verify .gitignore entry
+    gitignore_file = tmp_path / ".gitignore"
+    assert gitignore_file.is_file()
+    assert ".asdlc/" in gitignore_file.read_text()
 
 
 def test_sdd_validates_intent(tmp_path: Path):
@@ -169,6 +175,96 @@ def test_tdd_max_turns_exceeded(tmp_path: Path):
 
     assert result["success"] is False
     assert result["turns_taken"] == 2
+    assert result["status"] == SDLCState.ABORTED.value
+
+    # Verify state.json was updated to ABORTED
+    with open(tmp_path / ".asdlc" / "state.json") as f:
+        state = json.load(f)
+    assert state["status"] == SDLCState.ABORTED.value
+
+
+def test_tdd_fails_if_initial_tests_already_passing(tmp_path: Path):
+    """
+    REQ-TDD-002: Asserts that run_tdd halts and raises InitialTestsAlreadyPassingError
+    if the verification suite passes before the agent touches the code (RED invariant),
+    unless allow_green=True is specified.
+    """
+    init_project(tmp_path)
+
+    src_dir = tmp_path / "src"
+    tests_dir = tmp_path / "tests"
+    src_dir.mkdir()
+    tests_dir.mkdir()
+
+    # Implementation is already working (GREEN from the start)
+    (src_dir / "app.py").write_text("def add(a, b):\n    return a + b\n")
+    test_py = tests_dir / "test_spec.py"
+    test_py.write_text("from src.app import add\ndef test_add():\n    assert add(2, 3) == 5\n")
+
+    adapter = MockAgentAdapter(name="idle", solver_fn=lambda w: None)
+
+    with pytest.raises(InitialTestsAlreadyPassingError, match="Tests are already passing before agent invocation"):
+        run_tdd(
+            root_dir=tmp_path,
+            spec_path=tmp_path / "spec.md",
+            test_file=test_py,
+            agent=adapter,
+            allow_green=False,
+        )
+
+
+def test_tdd_allows_green_when_flagged(tmp_path: Path):
+    """
+    REQ-TDD-002: When allow_green=True, run_tdd is permitted to halt immediately on green.
+    """
+    init_project(tmp_path)
+
+    src_dir = tmp_path / "src"
+    tests_dir = tmp_path / "tests"
+    src_dir.mkdir()
+    tests_dir.mkdir()
+
+    (src_dir / "app.py").write_text("def add(a, b):\n    return a + b\n")
+    test_py = tests_dir / "test_spec.py"
+    test_py.write_text("from src.app import add\ndef test_add():\n    assert add(2, 3) == 5\n")
+
+    adapter = MockAgentAdapter(name="idle", solver_fn=lambda w: None)
+
+    result = run_tdd(
+        root_dir=tmp_path,
+        spec_path=tmp_path / "spec.md",
+        test_file=test_py,
+        agent=adapter,
+        allow_green=True,
+    )
+
+    assert result["success"] is True
+    assert result["turns_taken"] == 0
+    assert result["status"] == SDLCState.INTEGRATED.value
+
+
+def test_adapter_subprocess_timeout(tmp_path: Path):
+    """
+    REQ-EXEC-001: Asserts that an agent CLI command that hangs will timeout
+    rather than blocking the harness indefinitely.
+    """
+    import sys
+    from asdlc.adapters import SubprocessAgentAdapter
+    adapter = SubprocessAgentAdapter(
+        name="hanging",
+        cli_command=[sys.executable, "-c", "import time; time.sleep(10)"],
+        timeout_seconds=1,
+    )
+    
+    traces = []
+    returncode = adapter.run_turn(
+        prompt="Test prompt",
+        workdir=tmp_path,
+        trace_logger=lambda t: traces.append(t),
+    )
+    assert returncode == 124  # Standard timeout exit code
+    assert len(traces) == 1
+    assert "timeout" in traces[0]["action"].lower()
 
 
 def test_eval_emits_valid_evidence(tmp_path: Path):

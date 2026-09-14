@@ -105,17 +105,19 @@ Executes the Test-Driven Development inner loop.
 - **Flags**:
   - `--spec <FILE>`: Specification file (default: `spec.md`).
   - `--test-cmd <CMD>`: Deterministic test command (default: `pytest tests/test_spec.py`).
+  - `--allow-green`: Allow execution if tests already pass initially (default: False).
   - `--agent <NAME>`: Coding agent adapter (`mock`, `opencode`, `claude`, `antigravity`; default: `mock`).
   - `--max-turns <INT>`: Maximum agent retry turns before halting (default: 5).
+  - `--timeout <INT>`: Subprocess execution timeout in seconds (default: 180 or `ASDLC_TIMEOUT`).
 - **Behavior**:
   1. Computes SHA-256 hash of `tests/test_spec.py` and records in `.asdlc/test_manifest.json`.
-  2. Runs `--test-cmd`. Verifies that tests initially fail (**RED**). If tests already pass, halts with error unless `--allow-green` is specified.
-  3. Launches agent adapter subprocess targeting implementation code in `src/`.
+  2. Runs `--test-cmd`. Verifies that tests initially fail (**RED**). If tests already pass, halts with `InitialTestsAlreadyPassingError` (exit code 3) unless `--allow-green` is specified.
+  3. Launches agent adapter subprocess targeting implementation code in `src/` with enforced execution timeout.
   4. Intercepts stdout/stderr and streams structured entries into `.asdlc/agent-trace.jsonl`.
-  5. **Anti-Tampering Gate**: Re-verifies SHA-256 hash of `tests/test_spec.py`. If hash changed, halts immediately with `SecurityException: Test suite modified by agent`.
+  5. **Anti-Tampering Gate**: Re-verifies SHA-256 hash of `tests/test_spec.py`. If hash changed, halts immediately with `TestTamperingError` (exit code 2).
   6. Re-executes `--test-cmd`.
   7. If exit code is 0 (**GREEN**), transitions state to `INTEGRATED` and exits 0.
-  8. If exit code is non-zero, increments turn counter and loops back to step 3. If `--max-turns` exceeded, exits with code 1.
+  8. If exit code is non-zero, increments turn counter and loops back to step 3. If `--max-turns` exceeded, transitions state to `ABORTED` and exits with code 1.
 
 #### 4. `asdlc run`
 Composite command executing the full inner loop pipeline:

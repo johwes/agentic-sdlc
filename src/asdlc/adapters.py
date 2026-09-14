@@ -51,12 +51,16 @@ class MockAgentAdapter(AgentAdapter):
         return 0
 
 
+import os
+
+
 class SubprocessAgentAdapter(AgentAdapter):
     """Base class for CLI-wrapped coding agents."""
 
-    def __init__(self, name: str, cli_command: list[str]):
+    def __init__(self, name: str, cli_command: list[str], timeout_seconds: int | None = None):
         super().__init__(name)
         self.cli_command = cli_command
+        self.timeout_seconds = timeout_seconds if timeout_seconds is not None else int(os.getenv("ASDLC_TIMEOUT", "180"))
 
     def run_turn(
         self,
@@ -71,6 +75,7 @@ class SubprocessAgentAdapter(AgentAdapter):
                 cwd=str(workdir),
                 capture_output=True,
                 text=True,
+                timeout=self.timeout_seconds,
             )
             exit_code = proc.returncode
             trace_logger({
@@ -81,6 +86,13 @@ class SubprocessAgentAdapter(AgentAdapter):
                 "stderr_snippet": proc.stderr[:200] if proc.stderr else "",
             })
             return exit_code
+        except subprocess.TimeoutExpired:
+            trace_logger({
+                "action": "timeout",
+                "error": f"Agent command timed out after {self.timeout_seconds}s: {' '.join(cmd)}",
+                "exit_code": 124,
+            })
+            return 124
         except FileNotFoundError as e:
             trace_logger({"action": "error", "error": f"Agent executable not found: {e}"})
             return 127

@@ -38,14 +38,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_tdd = subparsers.add_parser("tdd", help="Run Test-Driven Development inner loop")
     p_tdd.add_argument("--spec", default="spec.md", help="Path to spec.md")
     p_tdd.add_argument("--test-file", default="tests/test_spec.py", help="Test file for verification")
+    p_tdd.add_argument("--test-cmd", default=None, help="Deterministic test command")
+    p_tdd.add_argument("--allow-green", action="store_true", help="Allow execution if tests already pass initially")
     p_tdd.add_argument("--agent", default="mock", help="Agent adapter (mock, opencode, claude, antigravity)")
     p_tdd.add_argument("--max-turns", type=int, default=5, help="Maximum agent iteration turns")
+    p_tdd.add_argument("--timeout", type=int, default=None, help="Subprocess timeout in seconds")
 
     # asdlc run
     p_run = subparsers.add_parser("run", help="Run end-to-end inner loop (init -> sdd -> tdd)")
     p_run.add_argument("--intent", default="intent.md", help="Path to intent.md")
+    p_run.add_argument("--test-cmd", default=None, help="Deterministic test command")
+    p_run.add_argument("--allow-green", action="store_true", help="Allow execution if tests already pass initially")
     p_run.add_argument("--agent", default="mock", help="Agent adapter")
     p_run.add_argument("--max-turns", type=int, default=5, help="Maximum agent turns")
+    p_run.add_argument("--timeout", type=int, default=None, help="Subprocess timeout in seconds")
 
     # asdlc eval
     p_eval = subparsers.add_parser("eval", help="Run outer-loop CI evaluation judge")
@@ -84,12 +90,16 @@ def main(argv: list[str] | None = None) -> int:
             spec_file = Path(args.spec).resolve()
             test_file = Path(args.test_file).resolve()
             adapter = get_adapter(args.agent)
+            if getattr(args, "timeout", None) and hasattr(adapter, "timeout_seconds"):
+                adapter.timeout_seconds = args.timeout
             res = run_tdd(
                 root_dir=cwd,
                 spec_path=spec_file,
                 test_file=test_file,
                 agent=adapter,
                 max_turns=args.max_turns,
+                test_cmd=args.test_cmd,
+                allow_green=args.allow_green,
             )
             if res["success"]:
                 print(f"✓ TDD GREEN: Iteration succeeded in {res['turns_taken']} turn(s).")
@@ -105,12 +115,16 @@ def main(argv: list[str] | None = None) -> int:
             run_sdd(intent_file, spec_file, root_dir=cwd)
             test_file = cwd / "tests" / "test_spec.py"
             adapter = get_adapter(args.agent)
+            if getattr(args, "timeout", None) and hasattr(adapter, "timeout_seconds"):
+                adapter.timeout_seconds = args.timeout
             res = run_tdd(
                 root_dir=cwd,
                 spec_path=spec_file,
                 test_file=test_file,
                 agent=adapter,
                 max_turns=args.max_turns,
+                test_cmd=args.test_cmd,
+                allow_green=args.allow_green,
             )
             return 0 if res["success"] else 1
 
@@ -135,6 +149,9 @@ def main(argv: list[str] | None = None) -> int:
     except TestTamperingError as e:
         print(f"FATAL SECURITY VIOLATION: {e}", file=sys.stderr)
         return 2
+    except InitialTestsAlreadyPassingError as e:
+        print(f"RED INVARIANT FAILURE: {e}", file=sys.stderr)
+        return 3
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

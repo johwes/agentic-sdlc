@@ -28,10 +28,17 @@ class SDLCState(str, Enum):
     INTEGRATED = "INTEGRATED"
     CI_REVIEW_PENDING = "CI_REVIEW_PENDING"
     RELEASE_APPROVED = "RELEASE_APPROVED"
+    ABORTED = "ABORTED"
+    REJECTED = "REJECTED"
 
 
 class TestTamperingError(RuntimeError):
     """Raised when an agent modifies protected verification test files."""
+    __test__ = False
+
+
+class InitialTestsAlreadyPassingError(RuntimeError):
+    """Raised when the verification suite passes before agent invocation without --allow-green."""
     __test__ = False
 
 
@@ -56,12 +63,21 @@ def _update_state(root_dir: Path, status: SDLCState, metadata: dict[str, Any] | 
 
 
 def init_project(root_dir: Path) -> Path:
-    """Initializes the .asdlc scaffold and state file."""
+    """Initializes the .asdlc scaffold, state file, and baseline .gitignore entry."""
     state_dir = root_dir / ".asdlc"
     state_dir.mkdir(parents=True, exist_ok=True)
     state_file = state_dir / "state.json"
     if not state_file.exists():
         _update_state(root_dir, SDLCState.INITIALIZED)
+
+    gitignore_file = root_dir / ".gitignore"
+    if not gitignore_file.exists():
+        gitignore_file.write_text(".asdlc/\n")
+    else:
+        content = gitignore_file.read_text()
+        if ".asdlc/" not in content:
+            gitignore_file.write_text(content.rstrip("\n") + "\n.asdlc/\n")
+
     return state_file
 
 
@@ -102,11 +118,12 @@ def run_tdd(
     agent: AgentAdapter,
     max_turns: int = 5,
     test_cmd: str | None = None,
+    allow_green: bool = False,
 ) -> dict[str, Any]:
     """
     Executes the TDD inner loop:
     1. Records test manifest hash.
-    2. Runs initial test check (must fail RED).
+    2. Runs initial test check (must fail RED unless allow_green=True).
     3. Iterates agent turns with anti-tampering check until GREEN or max_turns.
     """
     state_dir = root_dir / ".asdlc"
@@ -125,7 +142,11 @@ def run_tdd(
             f.write(json.dumps(entry) + "\n")
 
     def run_tests() -> int:
-        cmd = [sys.executable, "-m", "pytest", str(test_file), "-q"]
+        if test_cmd:
+            import shlex
+            cmd = shlex.split(test_cmd)
+        else:
+            cmd = [sys.executable, "-m", "pytest", str(test_file), "-q"]
         env = os.environ.copy()
         env["PYTHONPATH"] = str(root_dir)
         proc = subprocess.run(
@@ -139,6 +160,19 @@ def run_tdd(
 
     # Verify initial tests fail (RED)
     initial_code = run_tests()
+    if initial_code == 0:
+        if not allow_green:
+            raise InitialTestsAlreadyPassingError(
+                "Tests are already passing before agent invocation (RED invariant failed). "
+                "Pass --allow-green to override."
+            )
+        _update_state(root_dir, SDLCState.INTEGRATED)
+        return {
+            "success": True,
+            "turns_taken": 0,
+            "status": SDLCState.INTEGRATED.value,
+        }
+
     _update_state(root_dir, SDLCState.AGENT_ITERATING)
 
     turns_taken = 0
@@ -172,10 +206,11 @@ def run_tdd(
                 "status": SDLCState.INTEGRATED.value,
             }
 
+    _update_state(root_dir, SDLCState.ABORTED)
     return {
         "success": False,
         "turns_taken": turns_taken,
-        "status": SDLCState.AGENT_ITERATING.value,
+        "status": SDLCState.ABORTED.value,
     }
 
 
