@@ -66,6 +66,8 @@ This harness will demonstrate how to wrap existing, commodity coding agents (e.g
 ## 6. Acceptance Criteria
 - [ ] `asdlc init` bootstraps the required directory structure (`.asdlc/`, `intent.md`, `specs/`, `tests/`).
 - [ ] `asdlc run` executes the SDD $\to$ TDD cycle to completion without human intervention.
-- [ ] Test harness detects and halts tampering if the agent attempts to modify verification tests.
-- [ ] GitHub Actions workflow definition (`.github/workflows/agentic_outer_loop.yml`) passes syntax validation and successfully produces `release-evidence.json`.
+- [ ] Test harness detects and halts tampering if the agent attempts to modify verification tests (Inner Loop).
+- [ ] CI outer loop (`.github/workflows/agentic_outer_loop.yml`) isolates tests against target base branch (`main`), preventing PRs from altering verification criteria.
+- [ ] `asdlc eval` detects unauthorized modifications to protected directories (`tests/`) in diffs and rejects auto-merge (Outer Loop).
+- [ ] GitHub Actions workflow passes syntax validation and successfully produces `release-evidence.json`.
 - [ ] Architectural alignment: Directly implements state transitions defined in [agentic-sdlc.md §1.2.2](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md#L91).

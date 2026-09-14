@@ -132,9 +132,11 @@ Outer-loop evaluator invoked by CI/CD (GitHub Actions / Tekton).
   - `--spec <FILE>`: Specification file (default: `spec.md`).
   - `--diff <FILE_OR_REF>`: Git diff file or base git ref (e.g. `origin/main...HEAD`).
   - `--out <FILE>`: Path to write `release-evidence.json` (default: `release-evidence.json`).
+  - `--allow-test-changes`: Permit modifications to protected `tests/` directory (default: False).
   - `--judge-mode <MODE>`: `deterministic` (default) or `llm`.
 - **Behavior**:
   - Generates `semantic_delta` summarizing lines changed and modules touched.
+  - **Protected Path Integrity Guard**: Checks `files_changed`. If any modified file is within `tests/` and `--allow-test-changes` is False, sets `gate_verdict = "REJECTED"`, logs security violation, and rejects auto-merge.
   - Evaluates diff against `spec.md` constraints using 3-bucket rubric (Bugs, Security, Spec Alignment).
   - Emits canonical `release-evidence.json` conforming to the schema in Section 5.
 
@@ -248,8 +250,9 @@ class AgentAdapter(abc.ABC):
    - Any modification to `tests/test_spec.py` by an agent during `asdlc tdd` triggers an immediate uncatchable `TestTamperingError` and aborts the run.
 2. **Deterministic Halting**:
    - Agent execution stops strictly on `pytest` exit code 0 or reaching `--max-turns`. The harness does not ask the agent if it thinks it is done; the test suite is the sole arbiter.
-3. **Outer Loop Isolation**:
-   - In CI/CD, tests are run from the target base branch (`main`) test definitions, ensuring the PR diff cannot alter the verification criteria.
+3. **Outer Loop Isolation & Test Protection**:
+   - In CI/CD, the workflow overlays or checks out test definitions directly from the target base branch (`main`), discarding any altered test definitions from the PR before running `pytest`.
+   - `asdlc eval` enforces diff isolation: any PR attempting to modify files in `tests/` without `--allow-test-changes` is rejected (`gate_verdict = "REJECTED"`).
 
 ---
 
@@ -263,5 +266,8 @@ The `asdlc` implementation will be verified by a pytest suite (`tests/test_asdlc
 | `test_sdd_validates_intent` | Run `asdlc sdd` with valid/invalid `intent.md` | Passes on valid; raises error on missing required sections |
 | `test_tdd_halts_on_green` | Run `asdlc tdd` with `MockAgentAdapter` | Starts RED $\to$ runs turn 1 $\to$ achieves GREEN $\to$ halts with code 0 |
 | `test_tdd_detects_tampering` | Agent attempts to modify `tests/test_spec.py` | Detects SHA-256 mismatch $\to$ raises `TestTamperingError` $\to$ aborts |
-| `test_tdd_max_turns_exceeded`| Agent fails to solve after max turns | Halts with code 1 after exactly $N$ turns |
+| `test_tdd_max_turns_exceeded`| Agent fails to solve after max turns | Halts with code 1 after exactly $N$ turns, persists `ABORTED` |
+| `test_tdd_fails_if_initial_tests_already_passing` | Initial tests pass before agent invocation | Halts and raises `InitialTestsAlreadyPassingError` |
+| `test_adapter_subprocess_timeout` | Agent subprocess hangs | Times out after timeout duration and logs timeout |
 | `test_eval_emits_valid_evidence` | Run `asdlc eval` on diff | Produces valid `release-evidence.json` matching JSON schema |
+| `test_eval_rejects_tampered_test_diff` | PR diff contains modified files in `tests/` | Evaluator sets `gate_verdict = "REJECTED"` with security violation |

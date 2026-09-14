@@ -63,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--target-rev", default="main", help="Target head revision")
     p_eval.add_argument("--risk-class", default="Low", choices=["Low", "Medium", "High", "Critical"])
     p_eval.add_argument("--tests-passed", action="store_true", help="Flag if test suite passed")
+    p_eval.add_argument("--allow-test-changes", action="store_true", help="Permit modifications to protected tests/ directory")
 
     return parser
 
@@ -141,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
                 target_head_revision=args.target_rev,
                 risk_class=args.risk_class,
                 tests_passed=args.tests_passed,
+                allow_test_changes=args.allow_test_changes,
             )
             print(f"✓ Evaluated outer loop. Verdict: {evidence['gate_verdict']}")
             print(f"  Evidence written to: {out_file}")

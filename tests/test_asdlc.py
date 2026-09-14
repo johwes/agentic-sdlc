@@ -306,3 +306,46 @@ def test_eval_emits_valid_evidence(tmp_path: Path):
     assert evidence["risk_class"] == "Low"
     assert evidence["test_evidence"]["all_passed"] is True
     assert "src/app.py" in evidence["semantic_delta"]["files_changed"]
+
+
+def test_eval_rejects_tampered_test_diff(tmp_path: Path):
+    """
+    REQ-SEC-002: Asserts that asdlc eval rejects diffs that tamper with files in tests/
+    even if the tests ostensibly passed, setting gate_verdict='REJECTED'.
+    """
+    init_project(tmp_path)
+
+    spec_file = tmp_path / "spec.md"
+    spec_file.write_text("# Spec\nRequirements here")
+
+    # Tampered diff modifying test file
+    tampered_diff = """diff --git a/tests/test_spec.py b/tests/test_spec.py
+--- a/tests/test_spec.py
++++ b/tests/test_spec.py
+@@ -1,2 +1,2 @@
+-def test_add(): assert add(2, 3) == 5
++def test_add(): assert True
+"""
+    diff_file = tmp_path / "tampered.diff"
+    diff_file.write_text(tampered_diff)
+
+    evidence_file = tmp_path / "release-evidence.json"
+
+    evidence = run_eval(
+        spec_path=spec_file,
+        diff_path=diff_file,
+        out_path=evidence_file,
+        task_id="TASK-TAMPER",
+        git_commit_sha="hack123456",
+        target_head_revision="main@178363a",
+        risk_class="Low",
+        tests_passed=True,  # Even though tests ostensibly passed!
+        allow_test_changes=False,
+    )
+
+    assert evidence["gate_verdict"] == "REJECTED"
+    assert "tests/test_spec.py" in evidence["semantic_delta"]["files_changed"]
+    assert any(
+        "tamper" in issue.lower() or "protected" in issue.lower() or "security violation" in issue.lower()
+        for issue in evidence["evaluator_rubric"]["security_issues"]
+    )

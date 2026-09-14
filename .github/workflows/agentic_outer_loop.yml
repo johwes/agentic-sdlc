@@ -31,12 +31,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Execute Deterministic Verification Tests (Inner Loop Gate)
-        id: test_gate
-        run: |
-          python -m pytest tests/ -v
-        continue-on-error: true
-
       - name: Extract PR Git Diff (Semantic Delta Input)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -44,6 +38,20 @@ jobs:
           else
             git diff HEAD~1...HEAD > pr.diff || touch pr.diff
           fi
+
+      - name: Isolate Verification Suite Against Base Branch (Anti-Tampering)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            echo "🛡️ CI Anti-Tampering: Overwriting PR tests with base branch tests from $BASE_REF..."
+            git checkout "$BASE_REF" -- tests/ || echo "Warning: Base branch tests checkout skipped"
+          fi
+
+      - name: Execute Deterministic Verification Tests (Inner Loop Gate)
+        id: test_gate
+        run: |
+          python -m pytest tests/ -v
+        continue-on-error: true
 
       - name: Execute Outer Loop Evaluation Judge
         id: eval_judge

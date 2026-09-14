@@ -223,23 +223,36 @@ def run_eval(
     target_head_revision: str,
     risk_class: str,
     tests_passed: bool,
+    allow_test_changes: bool = False,
 ) -> dict[str, Any]:
     """
     Outer loop evaluation: evaluates diff compliance against spec.md and outputs ReleaseEvidence.
+    Detects unauthorized alterations to protected paths (tests/, .github/workflows/).
     """
     diff_text = diff_path.read_text() if diff_path.exists() else ""
     files_changed = re.findall(r"diff --git a/(.*?) b/", diff_text)
     if not files_changed:
         files_changed = re.findall(r"--- a/(.*?)\n", diff_text)
 
+    unique_files = sorted(list(set(files_changed)))
+    tampered_test_files = [
+        f for f in unique_files
+        if f.startswith("tests/") or f.startswith(".github/workflows/")
+    ]
+
+    security_issues = []
+    if tampered_test_files and not allow_test_changes:
+        security_issues.append(
+            f"Security Violation: Untrusted modification of protected verification criteria: {', '.join(tampered_test_files)}"
+        )
+
     # Gate verdict logic
-    if tests_passed:
-        if risk_class == "Low":
-            gate_verdict = "AUTO_MERGE_APPROVED"
-        else:
-            gate_verdict = "MANUAL_REVIEW_REQUIRED"
-    else:
+    if not tests_passed or security_issues:
         gate_verdict = "REJECTED"
+    elif risk_class.lower() == "low":
+        gate_verdict = "AUTO_MERGE_APPROVED"
+    else:
+        gate_verdict = "MANUAL_REVIEW_REQUIRED"
 
     evidence = {
         "task_id": task_id,
@@ -247,14 +260,19 @@ def run_eval(
         "target_head_revision": target_head_revision,
         "risk_class": risk_class,
         "test_evidence": {
-            "fail_to_pass_passed": tests_passed,
-            "pass_to_pass_passed": tests_passed,
-            "all_passed": tests_passed,
+            "fail_to_pass_passed": tests_passed and not security_issues,
+            "pass_to_pass_passed": tests_passed and not security_issues,
+            "all_passed": tests_passed and not security_issues,
         },
         "semantic_delta": {
-            "files_changed": sorted(list(set(files_changed))),
-            "summary": f"Diff modifies {len(files_changed)} file(s).",
-            "spec_conformance": True,
+            "files_changed": unique_files,
+            "summary": f"Diff modifies {len(unique_files)} file(s).",
+            "spec_conformance": len(security_issues) == 0,
+        },
+        "evaluator_rubric": {
+            "bugs": [],
+            "security_issues": security_issues,
+            "spec_alignment": "COMPLIANT" if not security_issues else "NON_COMPLIANT",
         },
         "gate_verdict": gate_verdict,
         "evaluated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
