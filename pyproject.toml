@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asdlc"
+version = "0.1.0"
+description = "Minimal Nested-Loop Agentic SDLC Reference Harness (SDD x TDD x EDD)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Johan Westerlund" }
+]
+dependencies = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+asdlc = "asdlc.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
