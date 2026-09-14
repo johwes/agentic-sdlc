@@ -70,3 +70,22 @@ Every slide will be enclosed in `<section id="slide-{number}">` and contain an `
 | `test_presentation_has_speaker_notes_for_all_slides` | Verify every `<section>` has `<aside class="notes">` | 13/13 slides have non-empty speaker notes. |
 | `test_presentation_includes_all_required_visuals` | Check for `#visual-doc-pyramid`, `#visual-double-loop`, `#visual-anti-tampering` | All 3 visual IDs are present in DOM. |
 | `test_presentation_loads_reveal_and_plugins` | Verify script and CSS tags | Contains Reveal.js 5 CDN links and `RevealNotes` plugin initialization. |
+| `test_presentation_svg_font_sizes_meet_minimum_threshold` | Parse all SVG `<text>` elements | No SVG font-size is below 11.5px (ensures readability). |
+| `test_presentation_css_grid_has_min_width_zero` | Check CSS grid rules | Enforces `min-width: 0` on grid children to prevent horizontal blowout. |
+| `test_presentation_code_boxes_wrap_preformatted_text` | Check `.code-box` style | Enforces `white-space: pre-wrap` on monospace blocks. |
+| `test_presentation_reveal_config_has_responsive_scaling` | Check `Reveal.initialize` | Specifies `minScale` and `maxScale` for automatic viewport fitting. |
+
+---
+
+## 6. Visual Design, Typography & Responsive Invariants (Feedback Loop Backport)
+
+Following human acceptance review, the following permanent invariants are codified into the harness:
+
+1. **INV-VIS-001 (SVG Minimum Readability Threshold)**:
+   - Text within SVG architecture diagrams must never drop below `11.5px` (standardizing on `13px`–`16.5px`). Subtext must use high-contrast silver (`#c9d1d9`) rather than dim grey to ensure visibility from the back of a conference room.
+2. **INV-VIS-002 (CSS Grid Bounding)**:
+   - CSS grid layouts (`.grid-2`, `.grid-3`) must explicitly enforce `min-width: 0` on child items to override browser `min-width: auto` defaults.
+3. **INV-VIS-003 (Preformatted Code Wrapping)**:
+   - All `.code-box` elements must specify `white-space: pre-wrap !important` and `word-break: break-word` so terminal commands with long arguments wrap inside their parent card without stretching the slide canvas.
+4. **INV-VIS-004 (Responsive Viewport Canvas)**:
+   - Reveal.js must be configured with explicit canvas dimensions (`width: 1150, height: 700`, `minScale: 0.2, maxScale: 2.0`), forcing proportional auto-scaling on any screen or window dimension.

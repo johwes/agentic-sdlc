@@ -61,3 +61,50 @@ def test_presentation_includes_all_required_visuals():
         assert f'id="{visual_id}"' in content or f"id='{visual_id}'" in content, (
             f"Missing required visual representation: #{visual_id}"
         )
+
+
+def test_presentation_svg_font_sizes_meet_minimum_threshold():
+    """
+    INV-VIS-001: Asserts that no SVG text element uses font-size below 11.5px.
+    Prevents unreadable footnote text on presentation slides.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    svg_blocks = re.findall(r'<svg[^>]*>(.*?)</svg>', content, re.DOTALL)
+    assert len(svg_blocks) >= 3
+
+    for svg_idx, svg in enumerate(svg_blocks, 1):
+        font_sizes = re.findall(r'font-size=["\'](\d+(?:\.\d+)?)["\']', svg)
+        for fs_str in font_sizes:
+            fs = float(fs_str)
+            assert fs >= 11.5, (
+                f"SVG #{svg_idx} contains font-size='{fs}' below the minimum readability threshold of 11.5px"
+            )
+
+
+def test_presentation_css_grid_has_min_width_zero():
+    """
+    INV-VIS-002: Asserts CSS grid child items enforce min-width: 0 to prevent column blowout.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    assert "min-width: 0" in content, "Missing min-width: 0 rule for grid bounding"
+    assert ".grid-2 > *" in content, "Missing child bounding rule for .grid-2"
+
+
+def test_presentation_code_boxes_wrap_preformatted_text():
+    """
+    INV-VIS-003: Asserts .code-box wraps monospace code lines.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    assert "white-space: pre-wrap" in content, "Missing white-space: pre-wrap for .code-box"
+    assert "word-break: break-word" in content, "Missing word-break: break-word for .code-box"
+
+
+def test_presentation_reveal_config_has_responsive_scaling():
+    """
+    INV-VIS-004: Asserts Reveal.js is configured with explicit scaling constraints.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    assert "minScale:" in content, "Missing minScale configuration in Reveal.initialize"
+    assert "maxScale:" in content, "Missing maxScale configuration in Reveal.initialize"
+    assert "width:" in content and "height:" in content, "Missing explicit width/height in Reveal.initialize"
+
