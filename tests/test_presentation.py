@@ -110,3 +110,76 @@ def test_presentation_reveal_config_has_responsive_scaling():
     assert "maxScale:" in content, "Missing maxScale configuration in Reveal.initialize"
     assert "width:" in content and "height:" in content, "Missing explicit width/height in Reveal.initialize"
 
+
+def test_presentation_svg_text_fits_within_bounding_rects():
+    """
+    INV-VIS-005: Asserts that text labels rendered within SVG rect containers
+    do not overflow their container boundaries horizontally.
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    svg_blocks = re.findall(r'<svg[^>]*>(.*?)</svg>', content, re.DOTALL)
+    assert len(svg_blocks) >= 3
+
+    overflows = []
+    for svg_idx, svg in enumerate(svg_blocks, 1):
+        rects = []
+        for m in re.finditer(r'<rect\s+([^>]+)/?>', svg):
+            attrs = dict(re.findall(r'([\w-]+)=["\']([^"\']+)["\']', m.group(1)))
+            if "x" in attrs and "y" in attrs and "width" in attrs and "height" in attrs:
+                w = float(attrs["width"])
+                h = float(attrs["height"])
+                rects.append({
+                    "x": float(attrs["x"]),
+                    "y": float(attrs["y"]),
+                    "w": w,
+                    "h": h,
+                    "area": w * h,
+                })
+
+        texts = re.findall(r'<text\s+([^>]+)>(.*?)</text>', svg, re.DOTALL)
+        for text_attrs, text_body in texts:
+            attrs = dict(re.findall(r'([\w-]+)=["\']([^"\']+)["\']', text_attrs))
+            if "x" not in attrs or "y" not in attrs:
+                continue
+            tx = float(attrs["x"])
+            ty = float(attrs["y"])
+            fs = float(attrs.get("font-size", 14.0))
+            anchor = attrs.get("text-anchor", "start")
+
+            clean_text = re.sub(r'<[^>]+>', '', text_body).strip()
+            clean_text = clean_text.replace("&bull;", "•").replace("&check;", "✓")
+            if not clean_text:
+                continue
+
+            # Find innermost containing rect
+            containing = [
+                r for r in rects
+                if r["x"] <= tx <= r["x"] + r["w"] and r["y"] <= ty <= r["y"] + r["h"]
+            ]
+            if not containing:
+                continue
+            innermost = min(containing, key=lambda r: r["area"])
+
+            # Skip outer background wrapper frames
+            if innermost["w"] > 700 and innermost["h"] > 200:
+                continue
+
+            est_width = len(clean_text) * fs * 0.55
+            if anchor == "middle":
+                left_edge = tx - est_width / 2
+                right_edge = tx + est_width / 2
+            else:
+                left_edge = tx
+                right_edge = tx + est_width
+
+            rect_right = innermost["x"] + innermost["w"]
+            rect_left = innermost["x"]
+
+            if right_edge > rect_right + 1.0 or left_edge < rect_left - 1.0:
+                overflows.append(
+                    f"SVG #{svg_idx}: text '{clean_text}' (est_w={est_width:.1f}px) overflows rect "
+                    f"[x={rect_left}, w={innermost['w']}] bounds (span=[{left_edge:.1f}, {right_edge:.1f}])"
+                )
+
+    assert not overflows, "Detected SVG text overflowing its container rect:\n" + "\n".join(overflows)
+
