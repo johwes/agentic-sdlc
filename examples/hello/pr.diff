@@ -1,0 +1,9 @@
+diff --git a/src/app.py b/src/app.py
+index 9235084..8a32b6e 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -1,4 +1,4 @@
+ def add(a: int, b: int) -> int:
+     """Returns the sum of two integers."""
+-    return 0  # Failing implementation (enforces initial RED state)
++    return a + b

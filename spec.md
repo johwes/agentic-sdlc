@@ -137,7 +137,7 @@ Outer-loop evaluator invoked by CI/CD (GitHub Actions / Tekton).
 - **Behavior**:
   - Generates `semantic_delta` summarizing lines changed and modules touched.
   - **Protected Path Integrity Guard**: Checks `files_changed`. If any modified file is within `tests/` and `--allow-test-changes` is False, sets `gate_verdict = "REJECTED"`, logs security violation, and rejects auto-merge.
-  - Evaluates diff against `spec.md` constraints using 3-bucket rubric (Bugs, Security, Spec Alignment).
+  - Evaluates diff against `spec.md` constraints using 3-bucket rubric scaffold (Security policy enforced; Bugs & Spec Alignment in roadmap).
   - Emits canonical `release-evidence.json` conforming to the schema in Section 5.
 
 ---
@@ -240,7 +240,7 @@ class AgentAdapter(abc.ABC):
 3. **`ClaudeAdapter`**:
    - Invokes `claude -p "<prompt>"` in a subprocess.
 4. **`AntigravityAdapter`**:
-   - Invokes `agy --prompt "<prompt>"` in a subprocess.
+   - Invokes `agy --prompt "<prompt>"` in a subprocess (using the verified `agy` non-interactive print mode).
 
 ---
 
@@ -273,6 +273,8 @@ The `asdlc` implementation will be verified by a pytest suite (`tests/test_asdlc
 | `test_eval_emits_valid_evidence` | Run `asdlc eval` on diff | Produces valid `release-evidence.json` matching JSON schema |
 | `test_eval_rejects_tampered_test_diff` | PR diff contains modified files in `tests/` | Evaluator sets `gate_verdict = "REJECTED"` with security violation |
 | `test_examples_hello_workspace_is_runnable` | Run `asdlc tdd` inside `examples/hello/` | Starts RED on buggy code $\to$ turns GREEN with mock adapter $\to$ exits 0 |
+| `test_outer_loop_workflow_yaml_syntax_and_structure` | Parse outer loop GitHub Actions workflow | Verifies valid YAML, required triggers, evaluation job, and gate enforcement |
+| `test_examples_hello_pr_diff_evaluates_cleanly` | Run `asdlc eval` on `examples/hello/pr.diff` | Evaluates cleanly with `AUTO_MERGE_APPROVED` on `src/app.py` |
 
 ---
 
@@ -283,3 +285,4 @@ The repository provides a self-contained, copy-paste runnable reference workspac
 - `examples/hello/spec.md`: Interface contract and invariants.
 - `examples/hello/src/app.py`: Initial failing implementation to enforce the initial RED phase.
 - `examples/hello/tests/test_spec.py`: Deterministic verification tests asserting expected outputs.
+- `examples/hello/pr.diff`: Sample pull request diff fixing `src/app.py` against baseline for outer-loop evaluation.

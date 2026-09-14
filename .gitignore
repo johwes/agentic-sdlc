@@ -33,6 +33,7 @@ htmlcov/
 
 # Agentic SDLC operational traces & state
 .asdlc/
+release-evidence.json
 
 # Environment / IDE
 .env

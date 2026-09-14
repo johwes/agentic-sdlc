@@ -32,17 +32,29 @@ asdlc init
 # 2. Run SDD intake on intent.md to produce/verify spec.md
 asdlc sdd --intent intent.md --out spec.md
 
-# 3. Run the TDD loop with a coding agent
-# Uses mock adapter by default (zero tokens, deterministic):
+# 3. Observe Deterministic Halting & TDD Loop
+# Act 1: Run with default mock adapter (inert no-op) to observe the halting guarantee:
 asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent mock
+# -> Starts RED (test_add fails on baseline return 0)
+# -> Executes 5 turns without solution
+# -> Deterministically halts with exit code 1:
+#    ✗ TDD RED: Max turns (5) reached without achieving green.
+#    (Persists terminal state {"status": "ABORTED"} in .asdlc/state.json)
 
-# Or run with live commodity agents if installed:
+# Act 2: Run with a live coding agent to reach GREEN:
 # asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent opencode
 # asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent claude
 # asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent antigravity
+# -> Agent implements `return a + b` in src/app.py
+# -> pytest runner detects exit code 0 and halts immediately:
+#    ✓ TDD GREEN: Iteration succeeded in 1 turn(s).
+#    (Persists terminal state {"status": "INTEGRATED"} in .asdlc/state.json)
 
-# 4. Outer loop CI evaluation
+# 4. Outer Loop CI Evaluation
+# Evaluates the committed sample pull request diff (pr.diff) against spec.md:
 asdlc eval --spec spec.md --diff pr.diff --tests-passed
+# -> ✓ Evaluated outer loop. Verdict: AUTO_MERGE_APPROVED
+#    Evidence written to: release-evidence.json (modifies 1 file: src/app.py)
 ```
 
 ### Running Test Verification

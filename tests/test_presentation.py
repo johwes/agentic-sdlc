@@ -184,21 +184,54 @@ def test_presentation_svg_text_fits_within_bounding_rects():
     assert not overflows, "Detected SVG text overflowing its container rect:\n" + "\n".join(overflows)
 
 
+def normalize_html(html_text: str) -> str:
+    """
+    Normalizes HTML for text content assertions:
+    - Strips script and style tags completely
+    - Strips inline formatting tags (<strong>, <em>, <code>, <span>, <a>, <u>) without adding space,
+      preventing tag-split evasion (e.g. 'Auto-<strong>merged</strong>' -> 'Auto-merged')
+    - Replaces block/structure tags with whitespace
+    - Decodes HTML entities and collapses whitespace
+    """
+    import html as html_lib
+    clean = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html_text, flags=re.DOTALL)
+    clean = re.sub(r"</?(?:strong|b|em|i|span|code|a|u)[^>]*>", "", clean)
+    clean = re.sub(r"<[^>]+>", " ", clean)
+    clean = html_lib.unescape(clean)
+    return " ".join(clean.split())
+
+
+def test_presentation_normalization_helper_detects_tag_split_phrases():
+    """
+    Negative control: Asserts that normalize_html successfully detects banned phrases
+    even when obscured across inline HTML tag boundaries.
+    """
+    evasive_html = '<p>Auto-<strong>merged</strong> in 15 seconds by <em>Barbaste</em> et al.</p>'
+    assert "Auto-merged in 15 seconds" not in evasive_html
+    normalized = normalize_html(evasive_html)
+    assert "Auto-merged in 15 seconds" in normalized
+    assert "Barbaste" in normalized
+
+
 def test_presentation_claims_contain_no_false_absolutes():
     """
     INV-CLAIM-001: Asserts that presentation text does not make ungrounded absolute
-    guarantees or cite speculative/unverified author names.
+    guarantees, cite nonexistent threat vectors, or cite speculative/unverified author names.
+    Uses normalized text so inline tags cannot evade detection.
     """
     content = DOCS_HTML.read_text(encoding="utf-8")
+    normalized_content = normalize_html(content)
 
     forbidden_phrases = [
         "guarantee agents cannot cheat",
         "0 test regressions",
         "Barbaste",
+        "fake exit codes",
+        "tekton arbiter",
     ]
 
     for phrase in forbidden_phrases:
-        assert phrase.lower() not in content.lower(), (
+        assert phrase.lower() not in normalized_content.lower(), (
             f"Found forbidden or unverified claim in presentation: '{phrase}'"
         )
 
@@ -206,7 +239,9 @@ def test_presentation_claims_contain_no_false_absolutes():
 def test_presentation_slide_eleven_cites_accurate_test_count():
     """
     INV-CLAIM-002: Asserts that Slide 11 does not cite an outdated/incorrect test count (e.g. 11/11).
-    Must reflect the repository's verified test suite.
+    Must reflect the repository's verified test suite (28 tests).
+    NOTE: Enforcing the exact count is an intentional architectural forcing function
+    compelling synchronized documentation updates whenever the test suite expands.
     """
     content = DOCS_HTML.read_text(encoding="utf-8")
     slide_11_match = re.search(r'<section id="slide-11">(.*?)</section>', content, re.DOTALL)
@@ -214,10 +249,10 @@ def test_presentation_slide_eleven_cites_accurate_test_count():
     slide_11_text = slide_11_match.group(1)
 
     assert "11/11" not in slide_11_text, (
-        "Slide 11 contains outdated test count '11/11' (the verified suite now has 24 tests)."
+        "Slide 11 contains outdated test count '11/11'."
     )
-    assert "all 24 suite tests" in slide_11_text, (
-        "Slide 11 should accurately cite the full verified test suite count (24 tests)."
+    assert "all 28 suite tests" in slide_11_text, (
+        "Slide 11 should accurately cite the full verified test suite count (28 tests)."
     )
 
 
@@ -230,7 +265,7 @@ def test_presentation_slide_ten_uses_grounded_evidence_taxonomy():
     content = DOCS_HTML.read_text(encoding="utf-8")
     slide_10_match = re.search(r'<section id="slide-10">(.*?)</section>', content, re.DOTALL)
     assert slide_10_match is not None, "Missing #slide-10"
-    slide_10_text = slide_10_match.group(1)
+    slide_10_text = normalize_html(slide_10_match.group(1))
 
     assert "Cryptographic Release Evidence" not in slide_10_text, (
         "Slide 10 claims 'Cryptographic Release Evidence' without crypto signatures in evidence schema."
@@ -238,5 +273,21 @@ def test_presentation_slide_ten_uses_grounded_evidence_taxonomy():
     assert "Auto-merged in 15 seconds" not in slide_10_text, (
         "Slide 10 claims 'Auto-merged in 15 seconds' which is not backed by an automated merge bot."
     )
+
+
+def test_presentation_slide_two_cites_accurate_localization_metrics():
+    """
+    INV-CLAIM-004: Asserts that Slide 2 cites empirical localization metrics from literature
+    (arXiv:2511.00197: ~27% function hit rate vs ~80% file localization) rather than imprecise
+    or unsourced generalizations (e.g. '70%+ Context Drift').
+    """
+    content = DOCS_HTML.read_text(encoding="utf-8")
+    slide_2_match = re.search(r'<section id="slide-2">(.*?)</section>', content, re.DOTALL)
+    assert slide_2_match is not None, "Missing #slide-2"
+    slide_2_text = normalize_html(slide_2_match.group(1))
+
+    assert "70%+" not in slide_2_text, "Slide 2 still cites imprecise '70%+' Context Drift"
+    assert "27%" in slide_2_text, "Slide 2 must cite the reported ~27% function-level hit rate"
+    assert "arXiv:2511.00197" in slide_2_text, "Slide 2 must cite arXiv:2511.00197"
 
 

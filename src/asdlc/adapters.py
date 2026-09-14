@@ -109,6 +109,10 @@ class ClaudeAdapter(SubprocessAgentAdapter):
 
 
 class AntigravityAdapter(SubprocessAgentAdapter):
+    """
+    Adapter invoking the Antigravity CLI in non-interactive print mode
+    (`agy --prompt "<prompt>"` or `agy --print`).
+    """
     def __init__(self):
         super().__init__(name="antigravity", cli_command=["agy", "--prompt"])
 

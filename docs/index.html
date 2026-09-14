@@ -196,9 +196,9 @@
             <p>Unconstrained agents create bloated, subtly broken PRs. Human reviewers spend more time auditing agent diffs than it would have taken to write the code manually.</p>
           </div>
           <div class="card">
-            <div class="stat-number danger-text">70%+</div>
-            <h4>Context Drift</h4>
-            <p>Without formal pre-execution contracts, agents fail at hunk/function composition (arXiv:2511.00197), modifying unrelated modules and breaking existing invariants.</p>
+            <div class="stat-number danger-text">27%</div>
+            <h4>Localization Gap</h4>
+            <p>Agents locate the right file ~80% of the time, but the right function only 27% of the time (arXiv:2511.00197)—drifting into unrelated code without formal contracts.</p>
           </div>
         </div>
         <aside class="notes">
@@ -380,7 +380,7 @@
             <text x="580" y="185" fill="#3fb950" font-size="15" font-weight="bold" text-anchor="middle">3. release-evidence.json Gate</text>
             <text x="580" y="202" fill="#c9d1d9" font-size="14" text-anchor="middle">Low risk: Auto-merge &bull; High: Review</text>
 
-            <text x="580" y="244" fill="#8b949e" font-size="14" text-anchor="middle" font-weight="600">GitHub Actions / Tekton Arbiter</text>
+            <text x="580" y="244" fill="#8b949e" font-size="14" text-anchor="middle" font-weight="600">GitHub Actions CI Arbiter</text>
           </svg>
         </div>
         <aside class="notes">
@@ -541,14 +541,13 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
           <div class="card">
             <h4>Automated Release Policies</h4>
             <p><strong class="success-text">Low Risk Class:</strong><br>Deterministically proven test pass + spec conformance &rarr; Fast-track automated release approval.</p>
-            <p><strong class="highlight-text">Medium / High Risk:</strong><br>Structured evidence attached to PR &rarr; Advisory human review gate with 3-bucket rubric (Bugs, Security, Spec Alignment).</p>
+            <p><strong class="highlight-text">Medium / High Risk:</strong><br>Structured evidence attached to PR &rarr; Advisory review rubric scaffold (Security enforced; Bugs &amp; Spec Alignment roadmap).</p>
           </div>
         </div>
         <aside class="notes">
           Instead of expecting humans to read 1,000 lines of generated code, the outer loop generates this machine-readable evidence artifact.
           For low-risk tasks, it provides fast-track release verification.
-          For high-risk tasks, it cuts reviewer fatigue by giving the reviewer a structured summary: exactly what changed relative to the spec,
-          evaluating bugs, security, and spec alignment.
+          For high-risk tasks, it cuts reviewer fatigue with a structured rubric scaffold: enforcing security path isolation today, with automated bug and spec-alignment checkers on the roadmap.
         </aside>
       </section>
 
@@ -568,7 +567,7 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
             <h4>PR #2: This Presentation</h4>
             <p><strong class="highlight-text">SDD:</strong> Specified via <code>asdlc sdd</code> in <code>spec-presentation.md</code></p>
             <p><strong class="danger-text">TDD RED:</strong> Commit <code>409773b</code> (5/5 tests failing)</p>
-            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (5/5 presentation tests pass; all 24 suite tests GREEN)</p>
+            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (5/5 presentation tests pass; all 28 suite tests GREEN)</p>
             <p><strong class="highlight-text">Outer Loop:</strong> Automated deploy to GitHub Pages!</p>
           </div>
         </div>
@@ -598,13 +597,13 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
           <div class="card">
             <div class="stat-number success-text">100%</div>
             <h4>Tamper Detection</h4>
-            <p>SHA-256 test protection and isolated verification block the cheapest reward-hacking vectors (test file edits &amp; fake exit codes).</p>
+            <p>SHA-256 test protection and isolated CI diff-gating strictly block test file tampering.</p>
           </div>
         </div>
         <aside class="notes">
           Let's talk economics.
           Unconstrained agents burn hundreds of dollars wandering through codebases.
-          By using our 3-tier document hierarchy and TDD halting, average task inference costs drop under two dollars.
+          By using our 3-tier document hierarchy and TDD halting, single-task inference costs remain tightly bounded under narrow task aperture.
           More importantly, human engineering time is protected from reviewer fatigue, and tests are shielded against tampering.
         </aside>
       </section>

@@ -75,9 +75,10 @@ Every slide will be enclosed in `<section id="slide-{number}">` and contain an `
 | `test_presentation_css_grid_has_min_width_zero` | Check CSS grid rules | Enforces `min-width: 0` on grid children to prevent horizontal blowout. |
 | `test_presentation_code_boxes_wrap_preformatted_text` | Check `.code-box` style | Enforces `white-space: pre-wrap` on monospace blocks. |
 | `test_presentation_reveal_config_has_responsive_scaling` | Check `Reveal.initialize` | Specifies `minScale` and `maxScale` for automatic viewport fitting. |
-| `test_presentation_claims_contain_no_false_absolutes` | Inspect slide texts | Disallows false absolutes (e.g. "guarantee agents cannot cheat") and unverified names. |
-| `test_presentation_slide_eleven_cites_accurate_test_count` | Inspect slide 11 text | Ensures cited test count accurately matches the verified test suite. |
-| `test_presentation_slide_ten_uses_grounded_evidence_taxonomy` | Inspect slide 10 text | Enforces "Machine-Verifiable Release Evidence" and grounded gating terminology. |
+| `test_presentation_claims_contain_no_false_absolutes` | Inspect normalized slide text | Disallows false absolutes (e.g. "guarantee agents cannot cheat", "fake exit codes") and unverified names using tag-stripped normalized text. |
+| `test_presentation_slide_eleven_cites_accurate_test_count` | Inspect slide 11 text | Ensures cited test count matches the verified test suite count (serves as an intentional forcing function). |
+| `test_presentation_slide_ten_uses_grounded_evidence_taxonomy` | Inspect slide 10 text | Enforces "Machine-Verifiable Release Evidence" and rubric scaffold terminology (Security enforced; Bugs & Spec Alignment roadmap). |
+| `test_presentation_slide_two_cites_accurate_localization_metrics` | Inspect slide 2 text | Asserts quantitative claims cite reported literature figures (27% function hit rate vs ~80% file localization, arXiv:2511.00197). |
 
 ---
 
@@ -102,10 +103,16 @@ Following human acceptance review, the following permanent invariants are codifi
 
 Following external review, the following credibility invariants are codified:
 
-1. **INV-CLAIM-001 (No False Absolutes or Speculative Citations)**:
+1. **INV-CLAIM-001 (No False Absolutes, Speculative Citations, or Nonexistent Threat Vectors)**:
    - The presentation must never make ungrounded absolute claims such as `"guarantee agents cannot cheat"` or `"0 test regressions"` (since holdouts, memorization, and prompt injection remain open vectors per whitepaper §4).
    - Author names for citations must not be speculative (e.g. unverified "Barbaste"); references must cite verified empirical benchmark sources.
-2. **INV-CLAIM-002 (Verifiable Test Metrics on Slide 11)**:
+   - Named threat vectors must map to implemented controls; nonexistent threats (e.g. "fake exit codes", which the harness structurally precludes) must not be claimed.
+   - Verification tests MUST run against normalized text (stripping HTML tags, unescaping entities, collapsing whitespace) so tag formatting cannot evade assertions.
+2. **INV-CLAIM-002 (Verifiable Test Metrics on Slide 11 & Intentional Forcing Function)**:
    - The test pass count cited on Slide 11 must be factually accurate and match the repository's verified test suite count.
-3. **INV-CLAIM-003 (Accurate Evidence Taxonomy)**:
+   - Enforcing the exact count in tests is an intentional architectural forcing function compelling synchronized documentation updates whenever the test suite expands.
+3. **INV-CLAIM-003 (Accurate Evidence Taxonomy & Rubric Scaffold Status)**:
    - Slide 10 must accurately refer to `"Machine-Verifiable Release Evidence"` (not "Cryptographic Release Evidence"), and distinguish between automated low-risk gating and advisory review.
+   - The 3-bucket rubric must be explicitly labeled as a scaffold with security path-isolation enforced today and automated bug / spec-alignment checks on the roadmap.
+4. **INV-CLAIM-004 (Empirical Localization Metrics on Slide 2)**:
+   - Quantitative citations on Slide 2 must match published literature findings (e.g. 27% function localization vs ~80% file localization from arXiv:2511.00197) rather than rounded or unsourced generalizations.

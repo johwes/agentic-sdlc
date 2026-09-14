@@ -64,10 +64,11 @@ This harness will demonstrate how to wrap existing, commodity coding agents (e.g
 ---
 
 ## 6. Acceptance Criteria
-- [ ] `asdlc init` bootstraps the required directory structure (`.asdlc/`, `intent.md`, `specs/`, `tests/`).
-- [ ] `asdlc run` executes the SDD $\to$ TDD cycle to completion without human intervention.
-- [ ] Test harness detects and halts tampering if the agent attempts to modify verification tests (Inner Loop).
-- [ ] CI outer loop (`.github/workflows/agentic_outer_loop.yml`) isolates tests against target base branch (`main`), preventing PRs from altering verification criteria.
-- [ ] `asdlc eval` detects unauthorized modifications to protected directories (`tests/`) in diffs and rejects auto-merge (Outer Loop).
-- [ ] Standalone runnable reference workspace (`examples/hello/`) with `intent.md`, `spec.md`, `src/app.py`, and `tests/test_spec.py` that can be executed copy-paste from the README.
-- [ ] Architectural alignment: Directly implements state transitions defined in [agentic-sdlc.md §1.2.2](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md#L91).
+- [x] `asdlc init` bootstraps the required directory structure (`.asdlc/`, `intent.md`, `specs/`, `tests/`).
+- [x] `asdlc run` executes the SDD $\to$ TDD cycle to completion without human intervention.
+- [x] Test harness detects and halts tampering if the agent attempts to modify verification tests (Inner Loop).
+- [x] CI outer loop (`.github/workflows/agentic_outer_loop.yml`) isolates tests against target base branch (`main`), preventing PRs from altering verification criteria.
+- [x] `asdlc eval` detects unauthorized modifications to protected directories (`tests/`) in diffs and rejects auto-merge (Outer Loop).
+- [x] CI outer loop workflow YAML syntax and required gating structure are verified by automated tests.
+- [x] Standalone runnable reference workspace (`examples/hello/`) with `intent.md`, `spec.md`, `src/app.py`, `tests/test_spec.py`, and `pr.diff` that can be executed copy-paste from the README.
+- [x] Architectural alignment: Directly implements state transitions defined in [agentic-sdlc.md §1.2.2](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md#L91).

@@ -394,3 +394,82 @@ def test_examples_hello_workspace_is_runnable():
         assert res["success"] is True
         assert res["turns_taken"] == 1
         assert res["status"] == SDLCState.INTEGRATED.value
+
+
+def test_outer_loop_workflow_yaml_syntax_and_structure():
+    """
+    Acceptance criterion: GitHub Actions outer loop workflow must be valid YAML,
+    trigger on pull_request and push to main, execute test isolation against base branch,
+    run asdlc eval, and enforce gate verdict.
+    """
+    import yaml
+
+    repo_root = Path(__file__).resolve().parent.parent
+    workflow_path = repo_root / ".github" / "workflows" / "agentic_outer_loop.yml"
+    assert workflow_path.is_file(), f"Workflow file missing: {workflow_path}"
+
+    with open(workflow_path, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    assert isinstance(data, dict), "Workflow YAML must parse as a dictionary"
+    
+    # 1. Triggers
+    triggers = data.get("on") or data.get(True, {})
+    assert "pull_request" in triggers, "Workflow must trigger on pull_request"
+    assert "push" in triggers, "Workflow must trigger on push"
+
+    # 2. Jobs
+    jobs = data.get("jobs", {})
+    assert "outer-loop-governance" in jobs, "Workflow missing outer-loop-governance job"
+
+    governance_steps = jobs["outer-loop-governance"].get("steps", [])
+    step_names = [step.get("name", "") for step in governance_steps]
+    step_runs = [step.get("run", "") for step in governance_steps]
+
+    # 3. Test Isolation step
+    assert any("Isolate Verification Suite Against Base Branch" in name for name in step_names), (
+        "Missing test isolation step against base branch"
+    )
+    assert any('git checkout "$BASE_REF" -- tests/' in run for run in step_runs), (
+        "Test isolation step must overlay base branch tests"
+    )
+
+    # 4. Evaluation and Enforcement steps
+    assert any("asdlc eval" in run for run in step_runs), (
+        "Workflow must execute asdlc eval"
+    )
+    assert any("Enforce Gate Verdict" in name for name in step_names), (
+        "Workflow must have a step to enforce gate verdict"
+    )
+
+
+def test_examples_hello_pr_diff_evaluates_cleanly(tmp_path: Path):
+    """
+    Scenario: Verify that examples/hello/ contains a valid sample pr.diff
+    fixing src/app.py, and running asdlc eval on it yields AUTO_MERGE_APPROVED
+    over exactly ['src/app.py'].
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    hello_dir = repo_root / "examples" / "hello"
+    pr_diff = hello_dir / "pr.diff"
+
+    assert pr_diff.is_file(), "Missing sample examples/hello/pr.diff"
+    diff_content = pr_diff.read_text(encoding="utf-8")
+    assert "src/app.py" in diff_content, "pr.diff must modify src/app.py"
+    assert "tests/" not in diff_content, "pr.diff must not tamper with tests/"
+
+    evidence = run_eval(
+        spec_path=hello_dir / "spec.md",
+        diff_path=pr_diff,
+        out_path=tmp_path / "release-evidence.json",
+        task_id="HELLO-PR-1",
+        git_commit_sha="SAMPLE_SHA",
+        target_head_revision="main",
+        risk_class="Low",
+        tests_passed=True,
+        allow_test_changes=False,
+    )
+
+    assert evidence["gate_verdict"] == "AUTO_MERGE_APPROVED"
+    assert evidence["semantic_delta"]["files_changed"] == ["src/app.py"]
+    assert evidence["evaluator_rubric"]["security_issues"] == []
