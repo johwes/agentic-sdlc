@@ -271,3 +271,14 @@ The `asdlc` implementation will be verified by a pytest suite (`tests/test_asdlc
 | `test_adapter_subprocess_timeout` | Agent subprocess hangs | Times out after timeout duration and logs timeout |
 | `test_eval_emits_valid_evidence` | Run `asdlc eval` on diff | Produces valid `release-evidence.json` matching JSON schema |
 | `test_eval_rejects_tampered_test_diff` | PR diff contains modified files in `tests/` | Evaluator sets `gate_verdict = "REJECTED"` with security violation |
+| `test_examples_hello_workspace_is_runnable` | Run `asdlc tdd` inside `examples/hello/` | Starts RED on buggy code $\to$ turns GREEN with mock adapter $\to$ exits 0 |
+
+---
+
+## 9. Reference Workspace (`examples/hello/`)
+
+The repository provides a self-contained, copy-paste runnable reference workspace under `examples/hello/`:
+- `examples/hello/intent.md`: Intent document specifying a simple arithmetic module.
+- `examples/hello/spec.md`: Interface contract and invariants.
+- `examples/hello/src/app.py`: Initial failing implementation to enforce the initial RED phase.
+- `examples/hello/tests/test_spec.py`: Deterministic verification tests asserting expected outputs.

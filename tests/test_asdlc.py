@@ -349,3 +349,48 @@ def test_eval_rejects_tampered_test_diff(tmp_path: Path):
         "tamper" in issue.lower() or "protected" in issue.lower() or "security violation" in issue.lower()
         for issue in evidence["evaluator_rubric"]["security_issues"]
     )
+
+
+def test_examples_hello_workspace_is_runnable():
+    """
+    Scenario: Verify that examples/hello/ exists, has intent.md, spec.md, src/app.py,
+    and tests/test_spec.py, and can be executed via asdlc tdd using MockAgentAdapter.
+    """
+    import shutil
+    import tempfile
+
+    repo_root = Path(__file__).resolve().parent.parent
+    hello_dir = repo_root / "examples" / "hello"
+
+    assert hello_dir.is_dir(), "Missing examples/hello/ workspace directory"
+    assert (hello_dir / "intent.md").is_file(), "Missing examples/hello/intent.md"
+    assert (hello_dir / "spec.md").is_file(), "Missing examples/hello/spec.md"
+    assert (hello_dir / "src" / "app.py").is_file(), "Missing examples/hello/src/app.py"
+    assert (hello_dir / "tests" / "test_spec.py").is_file(), "Missing examples/hello/tests/test_spec.py"
+
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp_hello = Path(tmp_str) / "hello"
+        shutil.copytree(hello_dir, tmp_hello)
+
+        init_project(tmp_hello)
+
+        def fix_calculator(workdir: Path):
+            (workdir / "src" / "app.py").write_text(
+                "def add(a: int, b: int) -> int:\n"
+                "    \"\"\"Returns the sum of two integers.\"\"\"\n"
+                "    return a + b\n"
+            )
+
+        adapter = MockAgentAdapter(name="mock", solver_fn=fix_calculator)
+
+        res = run_tdd(
+            root_dir=tmp_hello,
+            spec_path=tmp_hello / "spec.md",
+            test_file=tmp_hello / "tests" / "test_spec.py",
+            agent=adapter,
+            max_turns=3,
+        )
+
+        assert res["success"] is True
+        assert res["turns_taken"] == 1
+        assert res["status"] == SDLCState.INTEGRATED.value

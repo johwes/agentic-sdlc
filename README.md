@@ -15,20 +15,38 @@ A reference implementation of the **Nested-Loop Architecture for Agentic SDLC (S
 
 ### Installation
 ```bash
+git clone https://github.com/johwes/agentic-sdlc.git
+cd agentic-sdlc
 pip install -e .
 ```
 
-### CLI Usage
+### Try the Runnable Reference Project (`examples/hello/`)
+The repository includes a ready-to-run reference project in `examples/hello/`:
+
 ```bash
-# 1. Initialize project
+cd examples/hello
+
+# 1. Initialize harness in the project
 asdlc init
 
-# 2. Run SDD intake on intent.md
+# 2. Run SDD intake on intent.md to produce/verify spec.md
 asdlc sdd --intent intent.md --out spec.md
 
-# 3. Run TDD inner loop wrapping an agent
+# 3. Run the TDD loop with a coding agent
+# Uses mock adapter by default (zero tokens, deterministic):
 asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent mock
+
+# Or run with live commodity agents if installed:
+# asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent opencode
+# asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent claude
+# asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent antigravity
 
 # 4. Outer loop CI evaluation
 asdlc eval --spec spec.md --diff pr.diff --tests-passed
+```
+
+### Running Test Verification
+To run the automated verification suite asserting all architectural invariants:
+```bash
+pytest tests/ -v
 ```
