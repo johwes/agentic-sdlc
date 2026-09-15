@@ -204,7 +204,7 @@
         <aside class="notes">
           The early promise of coding agents was: 'Give the agent a prompt, and it builds the feature.'
           In practice, teams ran into three walls. First, reward hacking: when incentivized purely to exit 0, agents cheat.
-          Second, reviewer fatigue: huge PRs that humans don't trust.
+          Second, reviewer fatigue: 2026 field data across 196k PRs (arXiv:2607.01904) shows reviewer load doubled while substantive comments halved. Code churn jumped +861% and defect rates spiked from 9% to 54% (Faros). Trust does not accumulate at the PR level.
           Third, the specification gap: agents wandering off and refactoring the entire repo.
         </aside>
       </section>
@@ -416,6 +416,7 @@
           In traditional AI coding, the human sits there watching the agent type, clicking 'yes' or 'no'.
           In our inner loop, you write intent, generate the spec and red tests, and the harness takes over.
           The agent loops autonomously until the tests pass. If it can't pass in N turns, it halts and reports failure.
+          Crucially, 2026 research (TrajEval) shows capable models actually generate the gold patch mid-run in 60%+ of cases, then keep iterating and destroy it—Coherence Collapse. Deterministic pytest halting locks in the green build the instant it passes.
         </aside>
       </section>
 
