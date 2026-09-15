@@ -20,7 +20,7 @@ Key shift:
 | Single aggregate metric (coverage, build green) | Metric mix: outcome + step-level + trajectory + cost + safety, sliced by task/cohort/tool-path |
 | Fixed benchmarks | Pinned baselines + adaptive probes triggered by drift, uncertainty spikes, incidents |
 | Human as gatekeeper | Hybrid oversight: LLM-judge by default, escalate to human on risk/confidence triggers |
-| Passive registry/catalog | Active control plane: DRAFT→APPROVED→PUBLISHED→DEPRECATED→RETIRED gated exclusively by eval evidence (registry namespace — distinct from change states, see §1.2.1; cf. AWS AgentCore EDDOps instantiation, arXiv:2607.00345) |
+| Passive registry/catalog | Active control plane: DRAFT→APPROVED→PUBLISHED→DEPRECATED→RETIRED gated exclusively by eval evidence (registry namespace — distinct from change states, see §1.2.1; cf. AWS AgentCore EDDOps instantiation at PoC scale — 30 single-turn invocations / 6 agents / 9 multi-turn evals, arXiv:2607.00345) |
 
 In production coding-agent teams (OpenAI Codex harness engineering Feb 2026; Anthropic harness design Mar 2026 / demystifying evals Jan 2026) this materializes as a **Nested Loop Architecture**:
 
@@ -485,7 +485,7 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - [R] OpenHands issue-resolution index (aggregate leaderboard) — https://index.openhands.dev/issue-resolution
 - [B] NVIDIA, *Mastering Agentic Techniques: AI Agent Evaluation* — https://developer.nvidia.com/blog/mastering-agentic-techniques-ai-agent-evaluation/
 - [B] LangChain, *Evaluating AI Agents at the Run, Trace, and Thread Level* (scope-ladder framing) — https://www.langchain.com/resources/agent-evals
-- [X] Kapoor et al., *AI Agents That Matter* (accuracy-cost Pareto; holdouts; reproducibility) — https://arxiv.org/abs/2407.1502
+- [X] Kapoor et al., *AI Agents That Matter* (accuracy-cost Pareto; holdouts; reproducibility) — https://arxiv.org/abs/2407.01502
 - [X] *Beyond Accuracy: A Multi-Dimensional Framework for Evaluating Enterprise Agentic AI Systems (CLEAR)* (Cost/Latency/Efficacy/Assurance/Reliability; 50× cost spread; expert ρ=0.83, N=15) — https://arxiv.org/abs/2511.14136
 - [X] *Matching Matters (AgentMeter)* (LM–CLI pair matching; quality-efficiency score) — https://arxiv.org/abs/2606.21140
 - [X] *DIVERT: Efficient Agent Evaluation via Diversity-Guided User Simulation* (snapshot/branch beats linear rollouts) — https://arxiv.org/abs/2604.21480
