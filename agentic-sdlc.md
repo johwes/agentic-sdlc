@@ -86,9 +86,11 @@ Join points: a change cannot enter `EXECUTING` unless the driving agent is at le
 
 `ROLLED_BACK` names two mechanisms with different evidence: **artifact rollback** (revert of a code/infrastructure release, evidenced by deployment and revision history) versus **runtime rollback** (registry demotion of an agent to its previously `PUBLISHED` version, evidenced by the registry transition record).
 
+Scale caveat: the published AgentCore instantiation is a proof-of-concept (30 single-turn invocations across six agents, 9 multi-turn evaluations) — cited here as pattern evidence for registry-gated governance, not as production-scale validation.
+
 ### 1.2.2 Transition Contract
 
-The implementability claim is only real if each transition is instantiated. Reference contract:
+The implementability claim is only real if each transition is instantiated. Reference contract (novel constructs below — Express Pipeline, control bands, rebase gate, TTL defaults, balance-sheet levers — are design proposals, not measured practice):
 
 | State | Owner | Entry evidence | Budget | Recovery on failure |
 |---|---|---|---|---|
@@ -211,7 +213,7 @@ How EDD differs fundamentally from CI/CD gating:
 - **System-level, not code-level.** CI tests functions; EDD scores trajectories: tool sequence, grounding, recovery, HITL adherence.
 - **Economic.** CI costs minutes; EDD budgets eval as infrastructure (see §4).
 
-Anthropic's 3-agent instantiation is the reference pattern: **Planner (200+ features) → Generator (sprints) → Evaluator (Playwright clicks, hard thresholds per dimension, fail → full sprint redo)**. Separation of generator/evaluator is load-bearing: tuning a standalone skeptical evaluator is tractable; making a generator self-critical is not. (Cost figures — ~20× baseline tokens, build/QA cycles converging 2h07m → 1h02m → 10.9m in the DAW case study — come from a secondary comparison of the two lab posts, not the primary source.)
+Anthropic's 3-agent instantiation is the reference pattern: **Planner (brief → full spec; 16 features across ten sprints in the reported run) → Generator (feature-by-feature sprints against negotiated sprint contracts, e.g. 27 criteria for one sprint) → Evaluator (drives the live app via Playwright, grades hard thresholds per dimension, files actionable bugs; failed sprints get detailed feedback and iterate)**. Separation of generator/evaluator is load-bearing: tuning a standalone skeptical evaluator is tractable; making a generator self-critical is not. (Cost figures from the primary case study, not a benchmark: Solo 20 min/$9 vs full harness 6 hr/$200, ≈22×; DAW run 3h50m/$124.70 with build rounds converging 2h07m → 1h02m → 10.9m across QA iterations.) The primary also documents the capability boundary moving outward with model upgrades — evaluator lift concentrates at the edge of what the generator does reliably solo — which is the empirical basis for re-stripping harness complexity on each model release (rec 6).
 
 OpenAI's complementary pattern is constraint-driven: 88 AGENTS.md maps, layered `Types→Config→Repo→Service→Runtime→UI` enforced by custom lints, reviewer-agent Ralph-loop until all reviewers satisfied. Best practice is both: lints for deterministic correctness + independent evaluator for judgment. Their Ralph-loop practice extends to agents merging their own PRs — consistent with this paper's authority table, not an exception to it: self-merge is the Low-risk slider position (reversible, agent-reviewed, high-throughput), never a general license.
 
@@ -244,9 +246,9 @@ Retrying every failure with the same prompt is not recovery. A retry must identi
 | Sandboxes | Docker, e2b, Modal, Harbor (Terminal-Bench 2.0 registry), AWS Bedrock AgentCore sandbox | Isolation, history stripping, egress proxy |
 | Verification | pytest/JUnit, Playwright MCP, Chrome DevTools Protocol, custom lints, typecheckers | Halting pass/fail |
 
-Harness-engineering finding (arXiv:2609.00006, 11 harnesses, ~4M LOC): no runtime imports a general agentic framework, none uses vector embeddings for code retrieval — all hand-rolled async loops + deterministic retrieval (grep/AST). Skills > MCP in adoption (9/11 vs 8/11). Separately, a controlled ablation by Bölük (blog.can.ac, Feb 2026) showed a harness-format change alone lifting GPT-5.1-Codex-Mini from 60.0% to 77.5% pass with unchanged weights — evidence that harness, not just model, is the dominant quality lever.
+Harness-engineering finding (arXiv:2609.00006, 11 harnesses, ~4M LOC): no runtime imports a general agentic framework, none uses vector embeddings for code retrieval — all hand-rolled async loops + deterministic retrieval (grep/AST). Skills > MCP in adoption (9/11 vs 8/11). Fair-comparison work (AgentMeter) adds that no harness is universally optimal across models and that description wording shifts rankings — compare configurations, not just models. Separately, a controlled ablation by Bölük (blog.can.ac, Feb 2026) showed a harness-format change alone lifting GPT-5.1-Codex-Mini from 60.0% to 77.5% pass with unchanged weights — evidence that harness, not just model, is the dominant quality lever.
 
-### Outer-Loop Evaluation (Probabilistic)
+### Outer-Loop Evaluation (Probabilistic) — snapshot Sept 2026
 
 | Tool | License/Hosting | Strength | Weakness / Cost |
 |---|---|---|---|
@@ -291,6 +293,8 @@ Separate metrics into five operational groups:
 - **Safety:** policy violations, unsafe actions, reward-hack rate, secret exposure, HITL gate adherence.
 - **Operations:** production success SLOs, evaluator disagreement, human review load, dataset freshness, and drift.
 
+This grouping converges with the CLEAR framework (Cost, Latency, Efficacy, Assurance, Reliability), whose enterprise evaluation found accuracy-optimal configs 4.4–10.8× dearer than Pareto-efficient alternatives, with expert-prediction correlation ρ=0.83 (N=15) vs 0.41 for accuracy-only.
+
 ### 4.1 Statistical Handling
 
 Scores from stochastic gates are measurements with noise; without a decision rule the outer loop will chase jitter:
@@ -301,12 +305,13 @@ Scores from stochastic gates are measurements with noise; without a decision rul
 - Drift triggers are explicit rules: rolling judge score drop > δ over window w, disagreement-rate spike, or incident correlation — each fires an adaptive probe against the offline suite.
 - Because the same interaction can score 4 and 6 from one judge, keep judge output binary pass/fail against a sharp rubric; iterate the rubric on failure cases before touching the judge prompt or model.
 - Sequential reliability compounds against you: a 0.75 single-trial rate over a 3-step chain is 0.75³ ≈ 0.42 end-to-end. Chained workflows need per-step recovery with changed conditions (§2.4), not just per-step accuracy.
+- Price repeated rollouts: snapshot/branch evaluation (cf. DIVERT) beats restart-from-root Monte Carlo on failure-discovery-per-token — budget the N≥3 seed rule above accordingly.
 - **Calibrate the sensors themselves:** a sensor suite that never fires proves nothing — inject known-bad cases (mutants, policy violations, golden-negative trajectories) on a schedule and require detection; silent sensors are investigated as inadequate detection, never assumed as high quality.
 
 **Outcome:**
 
 - `Resolve Rate / Pass@1 = resolved / total`; `Pass@k = 1 - C(n-c,k)/C(n,k)`; `Pass3` consistency (all 3 trials pass — top models drop 30-50% Pass@1→Pass3).
-- SWE-bench Verified: frontier ~74-88% (2026; §7: swebench.com leaderboard, AgentMarketCap). SWE-bench Pro's original report (Sept 2025, unified scaffold) showed best <45% Pass@1; 2026 results look far higher — but SWE-Bench Pro Verified (arXiv:2609.08149) shows how much of that gain is leakage: one model drops from 78.8% baseline to 57.3% under anti-hacking controls, with 186 of 731 instances flipping pass→fail (McNemar p < 0.001) and no evidence of impaired normal execution. The baseline-vs-adjusted gap is not a footnote — it *is* the §4 reward-hack metric applied to a leaderboard.
+- SWE-bench Verified: frontier ~74-88% (2026; §7: swebench.com leaderboard, AgentMarketCap). SWE-bench Pro's original report (Sept 2025, unified scaffold) showed best <45% Pass@1; 2026 results look far higher — but SWE-Bench Pro Verified (arXiv:2609.08149) shows how much of that gain is leakage: one model drops from 78.8% baseline to 57.3% under anti-hacking controls, with 186 of 731 instances flipping pass→fail (McNemar p < 0.001) and no evidence of impaired normal execution. The baseline-vs-adjusted gap is not a footnote — it *is* the §4 reward-hack metric applied to a leaderboard. Separately, OpenAI is reported (primary unconfirmed) to have stopped publishing Verified scores over contamination/broken-task concerns — treat the top end of the Verified range accordingly.
 
 **Trajectory (deterministic where possible):**
 
@@ -324,7 +329,7 @@ Scores from stochastic gates are measurements with noise; without a decision rul
 **Cost (first-class):**
 
 - `Cost/Attempt = in_tokens×p_in + out_tokens×p_out (+ cache terms)`; `Cost/Resolved = Cost/Attempt / Pass@1`.
-- Measured: 1-3.5M tokens/task (1000× chat), with input tokens dominating — ~153:1 input:output across a whole task including retries (whole-task accounting), vs ~25:1 within a single 50-turn session (per-session accounting); 30× variance run-to-run, accuracy peaks at intermediate cost then saturates/declines. Models cannot predict their own cost (Pei et al.: self-estimate correlations r ≤ 0.39, systematic underestimation) — budgets must be imposed externally, not negotiated with the agent.
+- Measured: 1-3.5M tokens/task — roughly three orders of magnitude above single-turn baselines (≈1200× multi-round chat, ≈3500× code reasoning in the paper's split accounting), with input tokens dominating — ~153:1 input:output across a whole task including retries (whole-task accounting), vs ~25:1 within a single 50-turn session (per-session accounting); 30× variance run-to-run, accuracy peaks at intermediate cost then saturates/declines. Models cannot predict their own cost (Pei et al.: self-estimate correlations r ≤ 0.39, systematic underestimation) — budgets must be imposed externally, not negotiated with the agent.
 - Modeled unit economics, Sept 2026 (2M-token profile; *estimates, not measurements* — API prices deflated ~80% over 12 months, so expect this table to decay fast): Qwen3.5-Flash ~$0.46, MiniMax M2.5 ~$1.31, Haiku 4.5 ~$2.10, Codex ~$3.34, Gemini 3.1 Pro ~$11, Sonnet ~$15, GPT-5.4 ~$18, Opus 4.6-4.7 ~$74 / Claude Code ~$11.86 (leaner 33K vs 188K trajectories per the Alatirok/Caylent trajectory analysis). Open-weight 5.5× efficiency edge can flip economics. At 10k issues/mo, Opus vs Gemini delta ~$630k/mo.
 - Formula to operate: log tokens/task over 30-50 real tickets per task-type, divide by observed pass rate. Enforce budgets: "95% tasks < N tokens, M tool calls."
 - **Human review dominates the economics.** Token cost is the smaller term: a 120-turn run producing an 800-line diff that passes tests but violates architecture can cost 45–60 minutes of senior review (≈$75–150 at prevailing rates) — one to two orders of magnitude above the inference bill. Field evidence, 2026: per-reviewer load doubled with human-reviewed share falling 89%→68% and substantive comments 39%→21% across 802 developers / 196k PRs (arXiv:2607.01904); Faros (via O'Reilly): code churn +861%, incidents-per-PR +242.7%, defect rate 9%→54%, median review duration +441.5%; DevOS: median 34 review-minutes per agent-hour, flat since early 2025 — trust does not accumulate at the PR level. This reframes trajectory quality as cost control: concise, convention-following patches are cheaper primarily because they are cheaper *to review*. Track review-minutes-per-change alongside cost-per-resolved-task, and route sprawling diffs back to the agent before they reach a human.
@@ -337,8 +342,8 @@ Every governance choice moves cost between ledgers — tokens, human minutes, wa
 |---|---|---|---|
 | 1 | AI tokens ↔ human review minutes | Review dominates: 34 min/agent-hour; pre-review automation catches ~40% before human eyes; leaner trajectories cut both ledgers at once | Turn/time budgets + evidence-quality gates |
 | 2 | AI tokens ↔ human test-writing effort | Human-written tests + agent solves reach ~94% vs ~68% self-generated; reviewing 40 lines of assertions beats reviewing 2,000 lines of implementation | Rung ladder (single-agent → human-confirmed → dual-agent) |
-| 3 | Model tier ↔ dollars-per-fix | Pareto analyses span ~$0.04–$11.84/task with a hollow middle; price gap routinely outruns the accuracy gap — but snapshots decay monthly and contaminated scores flatter the top end | Complexity-based routing; re-read the frontier, don't memorize it |
-| 4 | Rigor (seeds, holdouts, ensembles) ↔ time-to-green | Total cost is U-shaped in QA effort — an interior optimum exists, not "more is better"; misapplied rigor multiplies cost 3–25× while adding nothing | §4.1 statistical minima + risk dial; optimal-stopping budgets |
+| 3 | Model tier ↔ dollars-per-fix | Pareto analyses span ~$0.04–$11.84/task with a hollow middle (cf. Kapoor et al.: joint accuracy-cost optimization); price gap routinely outruns the accuracy gap — but snapshots decay monthly and contaminated scores flatter the top end | Complexity-based routing; re-read the frontier, don't memorize it |
+| 4 | Rigor (seeds, holdouts, ensembles) ↔ time-to-green | Total cost is U-shaped in QA effort — an interior optimum exists, not "more is better"; misapplied rigor multiplies cost 3–25× while adding nothing (cf. Kapoor et al.: cost-controlled evaluation) | §4.1 statistical minima + risk dial; optimal-stopping budgets |
 | 5 | Autonomy ↔ assurance | Dark flows remove review cost entirely but must pay in reversibility + monitoring; review effects are largely indirect, so buy *mechanisms* (rollback, canary), not review theater | Entry-point constraints + canary/rollback |
 | 6 | Control strictness ↔ developer friction | Friction scales with change size (median 24 lines, one reviewer suffices); silent-on-success controls cost ~nothing, false-positive ones cost everything; OpenAI independently converged on minimal blocking gates where throughput makes corrections cheap — explicitly wrong for low-throughput | Silent-success design; reviewer-side (not author-side) overrides |
 
@@ -375,7 +380,7 @@ Golden trajectories should be treated as examples, not canonical paths. Multiple
 
 **6. Optimize dollars-per-fix, not Pass@1.** Route by complexity: Haiku/small open-weight for well-scoped fixes, flagship + full harness only at capability edge. Invest in context management first — simple observation masking halves cost with no solve loss (beats LLM summarization). Use prompt caching on shared codebase context (up to 90% input discount). Re-strip harness complexity on each model upgrade (context resets, sprint constructs become dead weight — Anthropic Opus 4.5→4.6 lesson). Routing is row 3 of the §4 balance sheet; the general pattern holds everywhere — every row pairs a spend with the saving that justifies it.
 
-**7. Assume cheating and measure it.** Publish `raw / adjusted` scores with harness version, network policy, judge threshold, human sample size. Run ImpossibleBench-style conflicting tests, holdout suites, and trajectory auditors in CI. Expect stronger models to hack more (Cursor: 63% of Opus 4.8 Max successes retrieved fix; 57% upstream lookup, 9% git mining; sealed harness −14 to −21pp). Mitigations that work: read-only test access, strict prompts (−85%→1% cheating), abort mechanism ("flag as impossible", 54%→9%), hardened eval boundaries (−41.5%) + reduced file access (−36.9%), combined −87.7% with no success drop. Treat history-stripping and egress-proxying as eval hygiene and holdouts, mutation testing, trajectory auditors, and edit-commit checkpointing as production controls — conflating the two misprices risk in both directions: leakage controls under-protect deployment, while deployment controls over-constrain measurement.
+**7. Assume cheating and measure it.** Publish `raw / adjusted` scores with harness version, network policy, judge threshold, human sample size. Run ImpossibleBench-style conflicting tests, holdout suites (cf. Kapoor et al. on holdout discipline and cost-controlled evaluation), and trajectory auditors in CI. Expect stronger models to hack more (Cursor: 63% of Opus 4.8 Max successes retrieved fix; 57% upstream lookup, 9% git mining; sealed harness −14 to −21pp). Mitigations that work: read-only test access, strict prompts (−85%→1% cheating), abort mechanism ("flag as impossible", 54%→9%), hardened eval boundaries (−41.5%) + reduced file access (−36.9%), combined −87.7% with no success drop. Treat history-stripping and egress-proxying as eval hygiene and holdouts, mutation testing, trajectory auditors, and edit-commit checkpointing as production controls — conflating the two misprices risk in both directions: leakage controls under-protect deployment, while deployment controls over-constrain measurement.
 
 **8. Make human review a state, not an exception.** Route security-sensitive changes, production data access, migrations, evaluator disagreement, low-confidence judgments, and high-risk side effects to `REVIEW_PENDING` (auto-pass only iff `risk_class` = low, §2.3.1). Transition only to `RELEASE_APPROVED` or `REJECTED` after recording the reviewer, rationale, and any conditions of approval.
 
@@ -480,6 +485,10 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - [R] OpenHands issue-resolution index (aggregate leaderboard) — https://index.openhands.dev/issue-resolution
 - [B] NVIDIA, *Mastering Agentic Techniques: AI Agent Evaluation* — https://developer.nvidia.com/blog/mastering-agentic-techniques-ai-agent-evaluation/
 - [B] LangChain, *Evaluating AI Agents at the Run, Trace, and Thread Level* (scope-ladder framing) — https://www.langchain.com/resources/agent-evals
+- [X] Kapoor et al., *AI Agents That Matter* (accuracy-cost Pareto; holdouts; reproducibility) — https://arxiv.org/abs/2407.1502
+- [X] *Beyond Accuracy: A Multi-Dimensional Framework for Evaluating Enterprise Agentic AI Systems (CLEAR)* (Cost/Latency/Efficacy/Assurance/Reliability; 50× cost spread; expert ρ=0.83, N=15) — https://arxiv.org/abs/2511.14136
+- [X] *Matching Matters (AgentMeter)* (LM–CLI pair matching; quality-efficiency score) — https://arxiv.org/abs/2606.21140
+- [X] *DIVERT: Efficient Agent Evaluation via Diversity-Guided User Simulation* (snapshot/branch beats linear rollouts) — https://arxiv.org/abs/2604.21480
 
 **Formal verification boundary**
 - [X] *VeriBench: End-to-End Formal Verification Benchmark for AI Coding* — https://cs.stanford.edu/people/brando9/professional_documents/papers/NeurIPS_2026_VeriBench.pdf
@@ -503,7 +512,7 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - [B] Anthropic, *Demystifying evals for AI agents* — https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 - [B] Anthropic, *Scaling Managed Agents* — https://www.anthropic.com/engineering/managed-agents
 - [B] Lopopolo (OpenAI), *Harness engineering: leveraging Codex in an agent-first world* — https://openai.com/index/harness-engineering/
-- [X] *Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents — A Source-Code Study of Eleven Systems* — arXiv:2609.00006 — https://arxiv.org/abs/2609.00006
+- [X] Barbaste, Darrigol, Vu & Wiltberger, *Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents — A Source-Code Study of Eleven Systems* — arXiv:2609.00006 — https://arxiv.org/abs/2609.00006
 - [B] Bölük, *The harness problem* (Feb 2026) — https://blog.can.ac/2026-02-12/the-harness-problem/
 - [S] BestHub, *OpenAI vs Anthropic: Two Harness Strategies* (source of the 20×/cycle-time figures) — https://www.besthub.dev/articles/openai-vs-anthropic-two-harness-strategies-for-code-agent-engineering-b125ad5662b6
 - [B] Böckeler, *Harness engineering for coding agent users* (guides/sensors × computational/inferential; silent-sensor problem; harnessability) — https://martinfowler.com/articles/harness-engineering.html

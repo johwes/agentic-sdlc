@@ -105,7 +105,7 @@ Following external review, the following credibility invariants are codified:
 
 1. **INV-CLAIM-001 (No False Absolutes, Speculative Citations, or Nonexistent Threat Vectors)**:
    - The presentation must never make ungrounded absolute claims such as `"guarantee agents cannot cheat"` or `"0 test regressions"` (since holdouts, memorization, and prompt injection remain open vectors per whitepaper §4).
-   - Author names for citations must not be speculative (e.g. unverified "Barbaste"); references must cite verified empirical benchmark sources.
+   - Research citations must carry full author attribution (all authors), venue, and year — e.g. Barbaste, Darrigol, Vu & Wiltberger for the harness-anatomy study — never a lone surname, and never a speculative author name; references must cite verified empirical benchmark sources.
    - Named threat vectors must map to implemented controls; nonexistent threats (e.g. "fake exit codes", which the harness structurally precludes) must not be claimed.
    - Verification tests MUST run against normalized text (stripping HTML tags, unescaping entities, collapsing whitespace) so tag formatting cannot evade assertions.
 2. **INV-CLAIM-002 (Verifiable Test Metrics on Slide 11 & Intentional Forcing Function)**:

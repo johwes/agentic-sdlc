@@ -206,11 +206,11 @@ def test_presentation_normalization_helper_detects_tag_split_phrases():
     Negative control: Asserts that normalize_html successfully detects banned phrases
     even when obscured across inline HTML tag boundaries.
     """
-    evasive_html = '<p>Auto-<strong>merged</strong> in 15 seconds by <em>Barbaste</em> et al.</p>'
+    evasive_html = '<p>Auto-<strong>merged</strong> in 15 seconds by <em>Dr. Fakename</em> et al.</p>'
     assert "Auto-merged in 15 seconds" not in evasive_html
     normalized = normalize_html(evasive_html)
     assert "Auto-merged in 15 seconds" in normalized
-    assert "Barbaste" in normalized
+    assert "Fakename" in normalized
 
 
 def test_presentation_claims_contain_no_false_absolutes():
@@ -225,7 +225,6 @@ def test_presentation_claims_contain_no_false_absolutes():
     forbidden_phrases = [
         "guarantee agents cannot cheat",
         "0 test regressions",
-        "Barbaste",
         "fake exit codes",
         "tekton arbiter",
     ]
