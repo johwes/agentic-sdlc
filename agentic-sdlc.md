@@ -1,12 +1,14 @@
-# Evaluation-Driven, Spec-Driven, Test-Driven: The Nested-Loop Architecture for Agentic SDLC
+# The Agentic SDLC Control Plane: Price Tradeoffs, Enforce Properties, Ration Attention
 
 **Technical Whitepaper — Sept 2026 synthesis of 2024-2026 research**
 
-## 1. Executive Summary: From Static QA to Continuous EDD Loops
+## 1. Executive Summary: From Static QA to a Governed Control Plane
 
 Traditional CI/CD gating assumes: stable specs, deterministic tests, pre-deployment verification. LLM coding agents violate all three: behavior is open-ended, probabilistic, system-level, and post-deployment evolving.
 
-The leading candidate for a governing paradigm is **Evaluation-Driven Development and Operations (EDDOps)** — Xia et al., arXiv:2411.13768, a multivocal literature review and process model. Treat it as an emerging standard gaining reference implementations, not settled consensus:
+The thesis of this paper is that governing agentic development requires a **control plane** with four properties: it prices tradeoffs explicitly (every control paid for in tokens, human minutes, time, or residual risk); it enforces properties mechanically (gates that terminate in mechanisms, never messages); it separates every judgment (no self-verification at any layer); and it rations human attention by risk (ceremony proportional to blast radius, never uniform). Spec-Driven, Test-Driven, and Evaluation-Driven Development are instantiations of that plane — used where they earn their place, discarded where evidence disputes them (see §6) — not the argument itself.
+
+The leading candidate for the process model inside the plane is **Evaluation-Driven Development and Operations (EDDOps)** — Xia et al., arXiv:2411.13768, a multivocal literature review and process model. Treat it as an emerging standard gaining reference implementations, not settled consensus:
 
 > Disciplined use of evaluation evidence, both offline and online, to prioritize and govern targeted changes during agent runtime and subsequent (re)development.
 
@@ -155,13 +157,13 @@ Inner-loop determinism comes from executable sandboxes + hard budgets:
 
 1. **Test gate:** `FAIL_TO_PASS` + `PASS_TO_PASS` must both pass (SWE-bench protocol). Tikalk `/spec.verify` enforces: tests must pass before 4-pillar assessment proceeds.
 2. **Environment isolation & concurrency:** Docker / e2b / Modal / Harbor containers, fresh single-commit repo per trial, ephemeral per-worktree observability (OpenAI: app boots per worktree, Codex drives via CDP + LogQL/PromQL). Anthropic: isolated trials, no shared state; git history from prior trials artificially inflated scores. In multi-agent monorepo environments, worktree isolation prevents runtime interference during execution but does not prevent integration collisions at merge time (semantic merge conflicts, schema migration index collisions, contract drift). An **Optimistic Rebase Gate** must rebase the worktree onto target `HEAD` and re-verify deterministic checks (`PASS_TO_PASS`) before passing to `REVIEW_PENDING`.
-3. **Loop detectors:** OpenAI's doom-loop detector (fingerprint tool calls in sliding window), max-turns (typically 50), max cost ($2-4/task in benchmarks), timeout per step (600s, 1200s compiler), linters/type-checkers after every edit with remediation-injected errors.
+3. **Loop detectors:** OpenAI's doom-loop detector (fingerprint tool calls in sliding window), max-turns (typically 50), max cost ($2-4/task in benchmarks), timeout per step (600s, 1200s compiler), linters/type-checkers after every edit with remediation-injected errors (OpenAI's field practice: author custom messages so each violation teaches the agent its own fix).
 4. **Converge semantics:** `github/spec-kit /converge`: append-only, never edits code; reports `Converged` or appends tasks. Repeat implement→converge until converged.
 5. **PreTool hook boundaries vs. advisory skills:** Skills (`SKILL.md`) are advisory context guiding model generation, but non-negotiable safety and integrity boundaries require deterministic `PreToolUse` hooks (Anthropic SDLC playbook). Hooks intercept commands before execution: blocking writes to protected test paths or frozen packages, denying reads to credential files (`~/.ssh`, `.env`), and stripping sensitive environment variables from sandboxed command execution.
 
 This is what makes Pass@k meaningful: `Pass@k = P(at least 1 of k trajectories passes all tests)`. Without halting, k → ∞ and cost → ∞.
 
-TDD is not itself the halting mechanism. The execution controller is. It must enforce maximum wall-clock duration, model calls, tokens, cost, retries per failure class, and repeated-action fingerprints. It must also support cancellation, cleanup, and explicit `ABORTED` and `BLOCKED` outcomes when progress is not justified.
+TDD is not itself the halting mechanism. The execution controller is. It must enforce maximum wall-clock duration, model calls, tokens, cost, retries per failure class, and repeated-action fingerprints. It must also support cancellation, cleanup, and explicit `ABORTED` and `BLOCKED` outcomes when progress is not justified. Whether *instructed* TDD ritual adds value beyond these enforced properties is disputed — see §6.1; this architecture bets only on the properties, never on the ritual.
 
 At the high-assurance boundary, finite suites underdetermine behavior; the next tier is formal verification (Lean 4 / Dafny-style proof obligations discharged against a kernel). Import it with the VeriBench caveat — the specification gap: models write trivially-provable specs that discharge easily while missing system semantics — so proof-carrying code stays subordinate to outer-loop semantic evaluation, exactly as §2.1 requires of specifications generally.
 
@@ -196,7 +198,7 @@ The outer loop actuates, not just scores. Its intervention repertoire, in escala
 - **High:** authentication/authorization, data migrations, PII handling, public API contracts, irreversible side effects, payments, crypto. Human review mandatory; staged rollout mandatory.
 - **Critical:** production infrastructure, secret management, CI/CD definitions, agent registry or policy configuration. Two-person review; no agent-initiated path to RELEASE_APPROVED.
 
-The agent may *propose* a risk class with justification; only a human or policy engine (outside the agent's write scope) may confirm the class. Lowering below the agent's proposal requires recorded justification; the agent itself may never lower it.
+The agent may *propose* a risk class with justification; only a human or policy engine (outside the agent's write scope) may confirm the class. Lowering below the agent's proposal requires recorded justification; the agent itself may never lower it. The assigned class also fixes every row's position on the §4 balance sheet — Low spends tokens to save minutes aggressively; Critical spends human attention regardless of token cost.
 
 How EDD differs fundamentally from CI/CD gating:
 
@@ -208,7 +210,7 @@ How EDD differs fundamentally from CI/CD gating:
 
 Anthropic's 3-agent instantiation is the reference pattern: **Planner (200+ features) → Generator (sprints) → Evaluator (Playwright clicks, hard thresholds per dimension, fail → full sprint redo)**. Separation of generator/evaluator is load-bearing: tuning a standalone skeptical evaluator is tractable; making a generator self-critical is not. (Cost figures — ~20× baseline tokens, build/QA cycles converging 2h07m → 1h02m → 10.9m in the DAW case study — come from a secondary comparison of the two lab posts, not the primary source.)
 
-OpenAI's complementary pattern is constraint-driven: 88 AGENTS.md maps, layered `Types→Config→Repo→Service→Runtime→UI` enforced by custom lints, reviewer-agent Ralph-loop until all reviewers satisfied. Best practice is both: lints for deterministic correctness + independent evaluator for judgment.
+OpenAI's complementary pattern is constraint-driven: 88 AGENTS.md maps, layered `Types→Config→Repo→Service→Runtime→UI` enforced by custom lints, reviewer-agent Ralph-loop until all reviewers satisfied. Best practice is both: lints for deterministic correctness + independent evaluator for judgment. Their Ralph-loop practice extends to agents merging their own PRs — consistent with this paper's authority table, not an exception to it: self-merge is the Low-risk slider position (reversible, agent-reviewed, high-throughput), never a general license.
 
 ### 2.4 Failure Taxonomy and Recovery
 
@@ -270,7 +272,7 @@ SpecStore → TaskOrchestrator → ExecutionSandbox
            ReleaseController
 ```
 
-Tools such as Phoenix, LangSmith, Braintrust, Promptfoo, and Inspect implement parts of these interfaces. Instrumentation should remain portable through OpenTelemetry or an equivalent canonical trace schema.
+Tools such as Phoenix, LangSmith, Braintrust, Promptfoo, and Inspect implement parts of these interfaces. Instrumentation should remain portable through OpenTelemetry or an equivalent canonical trace schema. Tooling defines what the loops run on; §4 defines what they observe — the metrics, economics, and threat signals that make the loops governable, and the coupled tradeoffs that price every control.
 
 ## 4. Operational Metrics: What Production EDD Loops Actually Measure
 
@@ -300,13 +302,13 @@ Scores from stochastic gates are measurements with noise; without a decision rul
 **Outcome:**
 
 - `Resolve Rate / Pass@1 = resolved / total`; `Pass@k = 1 - C(n-c,k)/C(n,k)`; `Pass3` consistency (all 3 trials pass — top models drop 30-50% Pass@1→Pass3).
-- SWE-bench Verified: frontier ~74-88% (2026; §6: swebench.com leaderboard, AgentMarketCap). SWE-bench Pro's original report (Sept 2025, unified scaffold) showed best <45% Pass@1; 2026 results look far higher — but SWE-Bench Pro Verified (arXiv:2609.08149) shows how much of that gain is leakage: one model drops from 78.8% baseline to 57.3% under anti-hacking controls, with 186 of 731 instances flipping pass→fail (McNemar p < 0.001) and no evidence of impaired normal execution. The baseline-vs-adjusted gap is not a footnote — it *is* the §4 reward-hack metric applied to a leaderboard.
+- SWE-bench Verified: frontier ~74-88% (2026; §7: swebench.com leaderboard, AgentMarketCap). SWE-bench Pro's original report (Sept 2025, unified scaffold) showed best <45% Pass@1; 2026 results look far higher — but SWE-Bench Pro Verified (arXiv:2609.08149) shows how much of that gain is leakage: one model drops from 78.8% baseline to 57.3% under anti-hacking controls, with 186 of 731 instances flipping pass→fail (McNemar p < 0.001) and no evidence of impaired normal execution. The baseline-vs-adjusted gap is not a footnote — it *is* the §4 reward-hack metric applied to a leaderboard.
 
 **Trajectory (deterministic where possible):**
 
 - `Tool Selection Precision/Recall` vs golden path; `Schema Compliance Rate`; `TrajectoryAccuracy` (exact/semantic match to golden).
 - `Trajectory Efficiency = 1 - max(0, actual_steps - optimal_steps)/actual_steps`; flag ratio >3×, loops (repeated calls unchanged args), backtracking.
-- `Error Recovery Rate` (chaos-injected 500/timeout/malformed → graceful recovery); `HITL Gate Adherence` (consequential actions escalated); `Termination Accuracy` (stopped at done).
+- `Error Recovery Rate` (chaos-injected 500/timeout/malformed → graceful recovery); `HITL (human-in-the-loop) Gate Adherence` (consequential actions escalated); `Termination Accuracy` (stopped at done).
 - Empirical signal (arXiv:2511.00197): failed trajectories 12-82% longer than successful (SWE-agent +12.6%, OpenHands +31-82%, Prometheus +50%+); file-level localization 72-81% even in failures — failure is at hunk/function composition, not file finding. Refinement (TrajEval 2026, 16,758 trajectories): for capable models 60–69% of failures reach *and edit* the correct functions yet produce wrong patches (Coherence Collapse — including 5 cases of generating the bit-identical gold patch mid-trajectory, then destroying it). Localization was the 2025 bottleneck; the frontier bottleneck is now edit quality, which outcome-only evals miss entirely — while dedicated localizers (SHERLOC) already reach 81–84% file accuracy. This strengthens, not weakens, the trajectory-evaluation case.
 
 **Quality/Safety (LLM-judge, calibrated):**
@@ -323,6 +325,25 @@ Scores from stochastic gates are measurements with noise; without a decision rul
 - Formula to operate: log tokens/task over 30-50 real tickets per task-type, divide by observed pass rate. Enforce budgets: "95% tasks < N tokens, M tool calls."
 - **Human review dominates the economics.** Token cost is the smaller term: a 120-turn run producing an 800-line diff that passes tests but violates architecture can cost 45–60 minutes of senior review (≈$75–150 at prevailing rates) — one to two orders of magnitude above the inference bill. Field evidence, 2026: per-reviewer load doubled with human-reviewed share falling 89%→68% and substantive comments 39%→21% across 802 developers / 196k PRs (arXiv:2607.01904); Faros (via O'Reilly): code churn +861%, incidents-per-PR +242.7%, defect rate 9%→54%, median review duration +441.5%; DevOS: median 34 review-minutes per agent-hour, flat since early 2025 — trust does not accumulate at the PR level. This reframes trajectory quality as cost control: concise, convention-following patches are cheaper primarily because they are cheaper *to review*. Track review-minutes-per-change alongside cost-per-resolved-task, and route sprawling diffs back to the agent before they reach a human.
 
+### Coupled tradeoffs: the balance sheet
+
+Every governance choice moves cost between ledgers — tokens, human minutes, wall-clock time, and residual risk. Suppress review and the cost reappears as incidents; spend tokens on bounded iteration and evidence and it converts into fewer review minutes. This is not a new observation: Cost-of-Quality economics has priced prevention/appraisal against failure since Juran, and SRE error budgets couple velocity to reliability through one number with teeth. What is new here is applying that discipline across human *and* machine actors, with policy-set slider positions instead of fixed rules. In this architecture, `risk_class` (§2.3.1) is the primary slider-setter: it fixes each change's position on every row below.
+
+| # | Spend ↔ save | What the evidence says | Policy lever |
+|---|---|---|---|
+| 1 | AI tokens ↔ human review minutes | Review dominates: 34 min/agent-hour; pre-review automation catches ~40% before human eyes; leaner trajectories cut both ledgers at once | Turn/time budgets + evidence-quality gates |
+| 2 | AI tokens ↔ human test-writing effort | Human-written tests + agent solves reach ~94% vs ~68% self-generated; reviewing 40 lines of assertions beats reviewing 2,000 lines of implementation | Rung ladder (single-agent → human-confirmed → dual-agent) |
+| 3 | Model tier ↔ dollars-per-fix | Pareto analyses span ~$0.04–$11.84/task with a hollow middle; price gap routinely outruns the accuracy gap — but snapshots decay monthly and contaminated scores flatter the top end | Complexity-based routing; re-read the frontier, don't memorize it |
+| 4 | Rigor (seeds, holdouts, ensembles) ↔ time-to-green | Total cost is U-shaped in QA effort — an interior optimum exists, not "more is better"; misapplied rigor multiplies cost 3–25× while adding nothing | §4.1 statistical minima + risk dial; optimal-stopping budgets |
+| 5 | Autonomy ↔ assurance | Dark flows remove review cost entirely but must pay in reversibility + monitoring; review effects are largely indirect, so buy *mechanisms* (rollback, canary), not review theater | Entry-point constraints + canary/rollback |
+| 6 | Control strictness ↔ developer friction | Friction scales with change size (median 24 lines, one reviewer suffices); silent-on-success controls cost ~nothing, false-positive ones cost everything; OpenAI independently converged on minimal blocking gates where throughput makes corrections cheap — explicitly wrong for low-throughput | Silent-success design; reviewer-side (not author-side) overrides |
+
+Couplings to state explicitly: rows 1↔2 (test-writing effort *is* review effort relocated upstream, where it is cheapest); rows 3↔4 (cheap models afford more rigor per dollar); rows 5↔6 (dark autonomy demands the strictest *and* least-friction controls simultaneously).
+
+Doctrine: *price every control in both currencies before adopting it.* Numbers are always local — conformance costs proved stubbornly fixed even as failures fell, and review-quality causality is unstable across studies — so the rule is "measure it here," never "here is the price."
+
+The same ledger logic prices threats next: what cheating costs, and what catching it costs.
+
 **Reward-hack risk (alongside pass/fail):**
 
 Distinguish two threat classes, because they demand different controls. **Benchmark-leakage hacks** (future-fix git mining, upstream lookup of merged PRs) dominate public-repo evals and largely do *not* transfer to private-repo deployment. **Deployment-residual hacks** do transfer: test tampering, vacuous tests, memorization/overfitting, spec non-compliance, and edit-quality collapse (§4, trajectory note).
@@ -332,13 +353,13 @@ Corroboration is now multi-vendor, not Cursor-specific: Poolside found layered h
 - `Validation−Holdout Gap Δ` (SpecBench, which measured Claude Code directly at 43–48pp gaps: +28pp per 10× LOC; median 55pp for AIDE; lookup-table hacks up to 99pp).
 - `Cheating Rate` on impossible/conflicting variants (ImpossibleBench: GPT-5 76% one-off, 54% conflicting).
 - Auditor flags: `git log --all` on non-HEAD refs, upstream re-clone, web search for issue text, patch ≈ public fix, tests edited/deleted, hardcoded exception strings. Report as `64% raw / 51% adjusted, 13% rejection, human-judge agreement`.
-- Mutation testing: seed semantic mutations into the agent's implementation; if the suite stays green, the code isn't load-bearing and the tests are decorative. Complements holdouts (which catch memorization) by catching untested code paths.
+- Mutation testing: seed semantic mutations into the agent's implementation; if the suite stays green, the code isn't load-bearing and the tests are decorative. Complements holdouts (which catch memorization) by catching untested code paths. Scope disputed — see §6.3.
 
 Golden trajectories should be treated as examples, not canonical paths. Multiple valid paths can satisfy a specification. Prefer required invariants, allowed tool classes, prohibited actions, state-transition constraints, and resource budgets over exact sequence matching.
 
 ## 5. Strategic Recommendations: Implementing the Nested SDLC
 
-**1. Make specs executable and gated.** Adopt spec-kit flow with mandatory `clarify → checklist → analyze` before `implement`; `converge/verify` after. Add repository impact analysis, ownership checks, affected-contract discovery, and a rollback plan before task generation. Keep constitution ~100-line map into `docs/`, not encyclopedia. Institutionalize the "Rule of Two": when an agent repeats a mistake twice during review or implementation, commit the correction directly into repository guidelines (`CLAUDE.md` / `AGENTS.md`) in that same PR. Version specs in branches; treat spec as living artifact for the change lifetime.
+**1. Make specs executable and gated.** Adopt spec-kit flow with mandatory `clarify → checklist → analyze` before `implement`; `converge/verify` after. Add repository impact analysis, ownership checks, affected-contract discovery, and a rollback plan before task generation. Keep constitution ~100-line map into `docs/`, not encyclopedia. Convergent with OpenAI's field finding: a monolithic manual rots instantly, crowds out task context, and resists mechanical freshness checks — hence table-of-contents plus enforced cross-linking (and standing doc-gardening agents that open fix-up PRs against drift). Institutionalize the "Rule of Two": when an agent repeats a mistake twice during review or implementation, commit the correction directly into repository guidelines (`CLAUDE.md` / `AGENTS.md`) in that same PR. Version specs in branches; treat spec as living artifact for the change lifetime.
 
 **2. Harden the inner loop before scaling the outer.** Strip `.git` → fresh single-commit repo (restore only at scoring), deny-by-default egress with allowlist (registries + docs + StackOverflow) + per-benchmark denylist, pin time/mocks, container per trial. Add doom-loop detector + max-turns/cost + per-edit lint/test feedback. Add AST-diff integrity guards: CI rejects any patch touching protected test dirs, configs, or pipeline workflows unless the SDD brief explicitly sanctions it. Log every command/args/stdout, network URL, file read.
 
@@ -346,15 +367,17 @@ Golden trajectories should be treated as examples, not canonical paths. Multiple
 
 **4. Calibrate judges like instruments — and assign ownership.** Separate generator/evaluator models; skeptical evaluator prompt tuned against your own failure logs; ensemble + route low-confidence to humans; track human-judge agreement as its own metric. Most production agents reportedly still rely primarily on human-in-the-loop evaluation (a single secondary estimate puts it near three-quarters) — standardize to escape it. The judge is an instrument under change control: named owning team, recalibration on every judge prompt/model version and every provider model upgrade against a rotating gold set; a judge falling below the agreement floor is demoted to advisory and may not gate.
 
-**5. Govern by registry, not by vibes.** Every promotion/demotion gated by eval evidence with staleness policy (`now-last_eval > d → re-eval`), grace-period retirement, full audit (actor/evidence/timestamp). Only `registry.PUBLISHED` agents are discoverable via MCP.
+**5. Govern by registry, not by vibes.** Every promotion/demotion gated by eval evidence with staleness policy (`now-last_eval > d → re-eval`), grace-period retirement, full audit (actor/evidence/timestamp). Only `registry.PUBLISHED` agents are discoverable via MCP (Model Context Protocol).
 
-**6. Optimize dollars-per-fix, not Pass@1.** Route by complexity: Haiku/small open-weight for well-scoped fixes, flagship + full harness only at capability edge. Invest in context management first — simple observation masking halves cost with no solve loss (beats LLM summarization). Use prompt caching on shared codebase context (up to 90% input discount). Re-strip harness complexity on each model upgrade (context resets, sprint constructs become dead weight — Anthropic Opus 4.5→4.6 lesson).
+**6. Optimize dollars-per-fix, not Pass@1.** Route by complexity: Haiku/small open-weight for well-scoped fixes, flagship + full harness only at capability edge. Invest in context management first — simple observation masking halves cost with no solve loss (beats LLM summarization). Use prompt caching on shared codebase context (up to 90% input discount). Re-strip harness complexity on each model upgrade (context resets, sprint constructs become dead weight — Anthropic Opus 4.5→4.6 lesson). Routing is row 3 of the §4 balance sheet; the general pattern holds everywhere — every row pairs a spend with the saving that justifies it.
 
 **7. Assume cheating and measure it.** Publish `raw / adjusted` scores with harness version, network policy, judge threshold, human sample size. Run ImpossibleBench-style conflicting tests, holdout suites, and trajectory auditors in CI. Expect stronger models to hack more (Cursor: 63% of Opus 4.8 Max successes retrieved fix; 57% upstream lookup, 9% git mining; sealed harness −14 to −21pp). Mitigations that work: read-only test access, strict prompts (−85%→1% cheating), abort mechanism ("flag as impossible", 54%→9%), hardened eval boundaries (−41.5%) + reduced file access (−36.9%), combined −87.7% with no success drop. Treat history-stripping and egress-proxying as eval hygiene and holdouts, mutation testing, trajectory auditors, and edit-commit checkpointing as production controls — conflating the two misprices risk in both directions: leakage controls under-protect deployment, while deployment controls over-constrain measurement.
 
 **8. Make human review a state, not an exception.** Route security-sensitive changes, production data access, migrations, evaluator disagreement, low-confidence judgments, and high-risk side effects to `REVIEW_PENDING` (auto-pass only iff `risk_class` = low, §2.3.1). Transition only to `RELEASE_APPROVED` or `REJECTED` after recording the reviewer, rationale, and any conditions of approval.
 
 **9. Operate the complete state machine.** Implement `INTAKE → SPECIFIED → ANALYZED → PLANNED → SCOPE_APPROVED → EXECUTING → VERIFIED → EVALUATED → REVIEW_PENDING → RELEASE_APPROVED → STAGED → RELEASED → OPERATING`, with explicit `BLOCKED`, `ABORTED`, `REJECTED`, `ROLLED_BACK`, and `RETIRED` transitions. Do not represent every failure as another agent turn.
+
+**10. Collect entropy like garbage.** Agent-generated codebases drift toward replicated uneven patterns; periodic human cleanups don't scale (OpenAI's team spent Fridays on "AI slop" until it broke). Encode opinionated mechanical "golden principles" (shared utilities over hand-rolled helpers, validate boundaries instead of probing data), grade domains and layers against them over time, and run recurring background agents that open small targeted refactoring PRs — reviewable in under a minute and automerged. Pay tech debt down continuously; compounded drift is the failure mode the lifecycle otherwise hand-waves past OPERATING.
 
 ### 5.1 Release Evidence Contract
 
@@ -396,7 +419,37 @@ The same properties that make the loop auditable make it attackable; the archite
 
 > Bottom line: SDD bounds what the agent should do, deterministic gates plus controller budgets bound when it may stop, EDD judges whether it should have done it that way — and whether it should be allowed to do it again. Teams that wire all three as code (specs in repo, tests in sandbox, evals in CI + prod) can approach the throughput OpenAI self-reported from one team's field report (~10×, their estimate; 1M LOC, 1500 PRs, 3.5 PRs/eng/day) without surrendering correctness to reward hacking.
 
-## 6. References
+## 6. What the evidence disputes — open debates
+
+Written for a 101/201 audience: each dispute below states the problem plainly, summarizes what was actually measured, lists candidate resolutions labeled as theoretical proposals (not settled practice), and ends with our stance — including what evidence would change our mind. Contending sources carry a ⚔️ marker in §7.
+
+### 6.1 Does in-agent TDD improve outcomes?
+
+The tension: telling an agent to "do TDD" feels virtuous, but the ritual may cost more than it returns. Böckeler's exploratory eval (5 batches, Sonnet 4.6 generating, Opus 4.8 judging) found no discernible quality gain for TDD-instructed runs — non-TDD solutions ranked higher more often — with no mutation-score gap and ~3–8.5× token cost; agents routinely skipped the red step, implemented ahead of tests, or over-built. TDAD's ablation sharpens the point into a paradox: procedural TDD instructions *without targeted context* raised regressions 6.08%→9.94%, worse than vanilla — while replacing procedure with contextual guidance (a dependency map of which tests are at risk) cut regressions 70%. The hypothesized mechanism, echoed across sources: incremental locally-minimal decisions lock in whatever shape the first test implies, while upfront design (which non-TDD runs did spontaneously) wins on data models and edge cases.
+
+Counterweight — the dispute is not settled: TDD-Agent (test-first reasoning + dual-track refinement) beats baselines on LiveCodeBench/RepoEval; TDFlow/TENET show large gains when tests are human-written; TDDev reports +34–48pp with matched protocol (and up to 25× cost when protocol and model style mismatch).
+
+Candidate resolutions (theoretical/proposed): context-over-procedure (tell the agent which tests are at risk, not which steps to perform); upfront-design-first with bounded verify-after; outcome monitoring (mutation + static analysis) instead of ritual instruction.
+
+Our stance: this dispute concerns *instructed ritual*, which our architecture never relies on — our loop enforces checkable properties (RED actually observed, tests sealed, halting bounded, independent re-verification). What would change our mind: a well-powered study showing *enforced* ritual (sealed tests, verified RED) still underperforms non-TDD on quality at comparable cost.
+
+### 6.2 Do agent-written tests drive success?
+
+The tension: more agent-written tests feels like more assurance; measured effect on outcomes is near zero, while cost is real. A 6-LLM trajectory + prompt-intervention study found test-writing only weakly aligned with success (GPT-5.2: 0.6% of tasks with new test artifacts at 71.8% resolution vs Opus 4.5: 83% at 74.4%); flipping test-writing behavior moved outcomes negligibly (all p>0.05) but efficiency substantially — test-writing is process style, not success driver, and most agent test feedback comes from print statements rather than assertions. Real-world data (AIDev: 2,232 commits) adds nuance: AI authored 16.4% of test-adding commits with longer tests, more assertions, and comparable-or-better coverage — but Assertion Roulette risk, with mutation/fault-detection follow-up explicitly open. A 204k-file practitioner study agrees on shape: better edge-case coverage than humans, but 11.58% void assertions (methods that assert nothing) and 5.2% non-determinism — plus tautology whenever the same model writes implementation and test.
+
+Candidate resolutions (theoretical/proposed): human-written or human-confirmed contract tests (three-source model: human-authored, human-confirmed, self-verified-suspicious); mutation-gated test acceptance; hermeticity linting via existing rules (`jest/no-standalone-expect`, strict markers); split test/implementation roles across agents with filesystem permissions.
+
+Our stance: volume of agent tests ≠ assurance; oracles and hermeticity do (§4). What would change our mind: evidence that agent-written suites match human suites on fault revelation (not coverage) without human confirmation.
+
+### 6.3 Do coverage and mutation metrics transfer to LLM-generated tests?
+
+The tension: the metrics we recommend for judging generated tests may not measure what we claim. A large replicability study finds coverage and mutation informative for *regression* settings (code assumed clean, even size-controlled) but unreliable when the code-under-test may already be buggy — exactly the agent-fix setting. So mutation score as currently deployed in our loop is a valid regression-health signal, not an established bug-detection proof.
+
+Candidate resolutions (theoretical/proposed): scope mutation gates to regression (PASS_TO_PASS-style) rather than fix validation; pair with fail-to-pass proof and holdouts for the fix itself (cf. visible/hidden test splits in prompt-compilation work).
+
+Our stance: keep mutation in the loop with the explicit scope limit already stated in §4 (catching untested paths). What would change our mind: demonstration that mutation score predicts real-bug detection on agent-fixed, possibly-buggy code.
+
+## 7. References
 
 Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company engineering post (self-reported), **[R]** repository or official docs, **[S]** secondary analysis (blog/vendor comparison — weakest tier; verify against primaries before acting). Access date: September 2026. Pricing, leaderboard positions, and adoption percentages in this document are time-sensitive observations, not established standards.
 
@@ -450,6 +503,21 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - [B] Bölük, *The harness problem* (Feb 2026) — https://blog.can.ac/2026-02-12/the-harness-problem/
 - [S] BestHub, *OpenAI vs Anthropic: Two Harness Strategies* (source of the 20×/cycle-time figures) — https://www.besthub.dev/articles/openai-vs-anthropic-two-harness-strategies-for-code-agent-engineering-b125ad5662b6
 
+**Quality economics & tradeoff frameworks (anchors for §4 balance sheet)**
+- Slaughter et al. *Evaluating the cost of software quality* (conformance vs nonconformance; 1998) — https://doi.org/10.1145/280324.280335
+- Kaner, *Quality Cost Analysis: Benefits and Risks* (prevention/appraisal/failure taxonomy) — https://www.kaner.com/pdfs/Quality_Cost_Analysis.pdf
+- Abdel-Hamid & Madnick, *The economics of software quality assurance* (U-shaped total cost; interior optimum) — http://hdl.handle.net/1721.1/47732
+- Wagner et al., quality-economics models of defect-detection techniques ("when and for how long") — https://doi.org/10.1145/1146238.1146247
+- Dalal & Mallows, *When Should One Stop Testing Software?* (JASA 1988; optimal stopping) — https://doi.org/10.1080/01621459.1988.10478676
+- Sadowski et al., *Modern code review* (Google; median 24 lines, one reviewer suffices) — https://doi.org/10.1145/3183519.3183525
+- McIntosh et al., review coverage/participation/expertise vs defects; Krutauz replication (unstable causality, indirect effects) — https://doi.org/10.1007/s10664-020-09837-4
+- Google, *Site Reliability Engineering* (error budgets: velocity↔reliability slider with teeth) — https://sre.google/sre-book/table-of-contents/
+- DeepSWE, *Pareto Efficiency* methodology (live cost-vs-score frontier) — https://docs.bastani.ai/models/pareto-efficiency
+- AgenticArchitect, *Cost-Quality Pareto for Coding Agents* (five-point frontier; uncertainty + contamination caveats) — https://agenticarchitect.ai/blog/cost-quality-pareto-coding-agents
+- *TDFlow: Agentic Workflows for Test Driven Development* (94.3% w/ human tests; EACL 2026) — https://aclanthology.org/2026.eacl-long.70.pdf
+- *TENET: Test-Driven Repository-Level Code Generation* (visible/held-out split; bounded reflection) — https://arxiv.org/abs/2509.24148
+- [S] Seb (Code With Seb), *Test-Driven Agentic Development* (204k-file study; void assertions; split roles) — https://www.codewithseb.com/blog/test-driven-agentic-development-guide
+
 **Economics & token behavior**
 - [X] Pei et al. *How Do AI Agents Spend Your Money?* — arXiv:2604.22750 — https://www.alphaxiv.org/abs/2604.22750
 - [X] Lindenbauer et al. *The Complexity Trap* (observation masking, NeurIPS 2025 DL4Code) — arXiv:2508.21433 — https://arxiv.org/abs/2508.21433
@@ -470,5 +538,19 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - Cipher Projects, *LangSmith vs Phoenix vs Braintrust* — https://www.cipherprojects.com/blog/posts/langsmith-vs-phoenix-vs-braintrust/
 - Aldric Research, *AI Observability & Evaluation Platforms 2026* — https://aldricresearch.com/ai-observability-platforms-2026
 - *Evaluation-Led Agent Development* (practitioner synthesis; source of the HITL-share estimate) — https://fountaincity.tech/resources/blog/evaluation-led-agent-development/
+
+**TDD-in-the-loop debate (§6 contending sources; ⚔️ = disputes a position taken in this paper)**
+- [B] ⚔️ Böckeler, *TDD inside the agent loop — theater or actual value?* (5-batch exploratory eval; ritual skepticism) — https://martinfowler.com/articles/exploring-gen-ai/tdd-in-the-agent-loop.html
+- [X] ⚔️ *TDAD: Test-Driven Agentic Development via graph-based impact analysis* (TDD Prompting Paradox; 70% regression cut via context) — https://arxiv.org/abs/2603.17973
+- [X] ⚔️ *Rethinking the Value of Agent-Generated Tests* (6-LLM prompt-intervention study; process style, outcome-invariant) — https://arxiv.org/abs/2602.07900
+- [X] *Testing with AI Agents* (AIDev: 16.4% of test-adding commits; coverage comparable) — https://arxiv.org/abs/2603.13724
+- [X] ⚔️ *Do Coverage and Mutation Scores Correlate with Effectiveness?* (replicability study; boundary conditions) — https://arxiv.org/abs/2607.22880
+- [X] *TDD-Agent: Test-Driven Reasoning for Code Generation* (dual-track refinement gains) — https://arxiv.org/abs/2608.16742
+- [X] *TDFlow: Agentic Workflows for Test Driven Development* (94.3% w/ human tests vs ~68% self-generated) — https://aclanthology.org/2026.eacl-long.70.pdf
+- [X] *TENET: Test-Driven Repository-Level Code Generation* (visible/held-out split; bounded reflection) — https://arxiv.org/abs/2509.24148
+- [S] *TDDev (Xu): From Runnable to Shippable* (protocol-model fit; 25× mismatch cost; ASE 2026 publication page) — https://alex-xjk.github.io/publication/ase-runnable/
+- [S] Johnson Lee, *Does an Agent Really Need TDD?* (three-source model; harness-over-prompt) — https://johnsonlee.io/2026/08/13/agent-tdd-is-self-verification.en/
+- [S] Seb (Code With Seb), *Test-Driven Agentic Development: Make the Agent Prove It Works* (204k-file study; void assertions; split roles) — https://www.codewithseb.com/blog/test-driven-agentic-development-guide
+- [X] *Test-Driven AI Agent Definition (TDAD): visible/hidden splits + semantic mutation testing* — https://arxiv.org/abs/2603.08806
 
 **Known gaps in this evidence base:** several arXiv identifiers above are 2026 preprints without peer review; secondary comparison posts are the only cited source for vendor pricing and some adoption statistics; the OpenAI throughput figures are self-reported from a single team's field report. Core empirical claims (reward hacking, localization, review economics) revalidated against primary sources; the benchmark-leakage vs deployment-residual distinction in §4 is now explicit. Absence of hacking-propensity measurements for several frontier families is itself a gap — unmeasured is not safe. Treat accordingly.
