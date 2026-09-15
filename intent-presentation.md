@@ -1,20 +1,19 @@
-# Intent: Conference Presentation on Nested-Loop Agentic SDLC
+# Intent: Conference Presentation on the Agentic SDLC Control Plane
 
 ## 1. Problem Statement
-Software engineering conferences are saturated with hype around AI copilots, but engineering leaders and senior developers face harsh operational realities: agent reward hacking (63% on benchmark tasks), test erosion, prompt bloat, and review fatigue. 
+Software engineering conferences are saturated with hype around AI copilots, but engineering leaders and senior developers face harsh operational realities: autonomy without governance relocates cost (tokens $\to$ review minutes $\to$ incidents), agents bypass advisory instructions under pressure, and review capacity does not scale with generated output.
 
-We need an engaging, visually compelling conference presentation hosted on GitHub Pages that clearly explains the **Nested-Loop Architecture for Agentic SDLC (SDD × TDD × EDD)**. The deck must demystify autonomous coding, present hard empirical evidence, showcase the architecture, and demonstrate the working reference implementation (`asdlc`).
+We need an engaging, visually compelling conference presentation hosted on GitHub Pages that clearly explains the **Agentic SDLC Control Plane** for a 101/201 audience: what an Agentic SDLC is (a control plane that prices tradeoffs, enforces mechanically, and rations attention — with SDD $\times$ TDD $\times$ EDD as instantiations), what the tradeoffs are (coupled cost ledgers and the evidence behind them, scoped honestly), and which implementation choices teams can make (inner-loop options, outer-loop options, human vs event-triggered entries). The deck must demystify autonomous coding, present hard empirical evidence with scoping caveats, showcase the architecture, and demonstrate the working reference implementation (`asdlc`).
 
 ---
 
 ## 2. Scope & Target Audience
 - **Target Audience**: General Tech / Conference audience (Engineers, Tech Leads, Architects, Engineering Managers).
 - **Format**: Responsive, self-contained HTML5 presentation using **Reveal.js** (CDN-backed, zero node build tooling required) located at `docs/index.html`.
-- **Slide Count**: ~13 curated slides following a 4-Act narrative arc:
-  1. *Act I: The Reality & Failure Modes* (The Honeymoon is Over, Reward Hacking, The Harness Problem).
-  2. *Act II: The Architecture* (Document Tiering, Inner Loop TDD, Outer Loop EDD).
-  3. *Act III: Guardrails & Mechanics* (Anti-tampering tripwires, Subprocess wrapper model).
-  4. *Act IV: Live Proof & Economics* (Self-hosting case study, token ROI, call to action).
+- **Slide Count**: ~13 curated slides following a 3-Act narrative arc:
+  1. *Act I: What an Agentic SDLC Is* (control-plane thesis, problem-in-one-frame, the loop concretely, enforcement-not-instruction).
+  2. *Act II: Tradeoffs* (balance sheet, grounded evidence with scoping, 60-second open disputes).
+  3. *Act III: Implementation Choices* (inner-loop options, outer-loop options, entries/autonomy/proof, economics, takeaways).
 - **Visual Representations (Mandatory)**:
   1. *The Nested Double-Loop Diagram*: Visualizing the fast local inner loop vs. the governed CI/CD outer loop.
   2. *The Anti-Tampering Shield*: Showing how SHA-256 test manifests prevent agent cheating.

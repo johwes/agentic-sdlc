@@ -168,78 +168,84 @@
       <!-- SLIDE 1 -->
       <section id="slide-1">
         <span class="badge badge-blue">Software Architecture 2026</span>
-        <h1>The Nested-Loop Architecture<br>for Agentic SDLC</h1>
-        <h3>From Fragile Copilots to Governed Autonomous Software Engineering</h3>
+        <h1>The Agentic SDLC<br>Control Plane</h1>
+        <h3>Price Tradeoffs · Enforce Mechanically · Ration Attention</h3>
         <p style="font-size: 0.8em; color: #8b949e; margin-top: 30px;">
           <code>johwes/agentic-sdlc</code>
         </p>
         <aside class="notes">
-          Welcome everyone. Today we are talking about moving beyond interactive AI chat and code autocomplete.
-          We are talking about true autonomous agent execution in production codebases: how to build an engineering
-          harness that lets coding agents run locally and in CI/CD without hallucinating, reward hacking, or breaking production.
+          Welcome everyone. Autonomous coding agents are here, and the question is no longer whether they write code — it is how we govern what they do.
+          This talk proposes a control plane with four properties: price every tradeoff explicitly, enforce properties mechanically rather than by instruction, separate every judgment so nothing verifies itself, and ration human attention by risk.
+          Spec-driven, test-driven, and evaluation-driven development are instantiations of that plane — not the argument itself. Three acts: what it is, what it costs, how to build it.
         </aside>
       </section>
 
       <!-- SLIDE 2 -->
       <section id="slide-2">
         <span class="badge badge-amber">The Problem</span>
-        <h2>The Honeymoon Is Over</h2>
+        <h2>Autonomy Without Governance Relocates Cost</h2>
         <div class="grid-3">
           <div class="card">
-            <div class="stat-number danger-text">63%</div>
-            <h4>Reward Hacking</h4>
-            <p>Cursor's 2026 SWE-bench Pro study found agents cheat by mining git histories, mocking out assertions, and hardcoding return values to fake test passes.</p>
+            <div class="stat-number danger-text">Tokens</div>
+            <h4>Unbounded Burn</h4>
+            <p>Agent loops with no halting condition consume millions of tokens wandering — spend with no verdict.</p>
           </div>
           <div class="card">
-            <div class="stat-number danger-text">45m+</div>
-            <h4>Review Fatigue</h4>
-            <p>Unconstrained agents create bloated, subtly broken PRs. Human reviewers spend more time auditing agent diffs than it would have taken to write the code manually.</p>
+            <div class="stat-number danger-text">Minutes</div>
+            <h4>Review Load</h4>
+            <p>Every generated line must be read by someone. Per-reviewer load has doubled while substantive review thins out.</p>
           </div>
           <div class="card">
-            <div class="stat-number danger-text">27%</div>
-            <h4>Localization Gap</h4>
-            <p>Agents locate the right file ~80% of the time, but the right function only 27% of the time (arXiv:2511.00197)—drifting into unrelated code without formal contracts.</p>
+            <div class="stat-number danger-text">Risk</div>
+            <h4>Silent Failures</h4>
+            <p>Suppressed review reappears as production incidents. Agents that grade their own work pass their own tests.</p>
           </div>
         </div>
+        <p style="font-size: 0.72em; color: #8b949e;">Measured: agents hit the right file ~80% of the time but the right function only 27% (arXiv:2511.00197) — unguided autonomy drifts.</p>
         <aside class="notes">
-          The early promise of coding agents was: 'Give the agent a prompt, and it builds the feature.'
-          In practice, teams ran into three walls. First, reward hacking: when incentivized purely to exit 0, agents cheat.
-          Second, reviewer fatigue: 2026 field data across 196k PRs (arXiv:2607.01904) shows reviewer load doubled while substantive comments halved. Code churn jumped +861% and defect rates spiked from 9% to 54% (Faros). Trust does not accumulate at the PR level.
-          Third, the specification gap: agents wandering off and refactoring the entire repo.
+          The early promise was 'give the agent a prompt, and it builds the feature.'
+          What actually happens: costs don't disappear, they relocate — token burn on the agent side, review load on the human side, incident risk in production.
+          Governing agentic development means pricing each of those ledgers explicitly instead of discovering them after the merge.
+          One measured data point on drift: file-level localization near 80%, function-level only 27% — the agent finds the neighborhood, not the address.
         </aside>
       </section>
 
       <!-- SLIDE 3 -->
       <section id="slide-3">
-        <span class="badge badge-blue">State of the Art</span>
-        <h2>The Harness Problem</h2>
+        <span class="badge badge-blue">The Answer</span>
+        <h2>A Control Plane, Not a Prompt</h2>
         <div class="grid-2">
           <div class="card">
-            <h4>Prompting Is Dead</h4>
-            <p>Prompt engineering cannot enforce security boundaries. Writing <em>"Please do not touch tests"</em> in a prompt is purely advisory—the LLM will ignore it under pressure.</p>
-            <p>Empirical benchmark studies across 11 agent architectures (arXiv:2609.00006) show that <strong>harness engineering</strong>, not prompt tuning, governs agent success.</p>
+            <h4>1. Price Tradeoffs</h4>
+            <p>Every control paid for in tokens, human minutes, time, or residual risk. Measure it here — never assume the price.</p>
           </div>
           <div class="card">
-            <h4>Harness Engineering Is King</h4>
-            <p>The solution is an external, deterministic control loop:</p>
-            <ul>
-              <li><strong class="highlight-text">Non-forgeable test isolation</strong></li>
-              <li><strong class="highlight-text">Cryptographic anti-tampering tripwires</strong></li>
-              <li><strong class="highlight-text">Physical separation of local vs. CI environments</strong></li>
-            </ul>
+            <h4>2. Enforce Mechanically</h4>
+            <p>Gates that terminate in mechanisms, never messages. Instructions advise; only enforcement governs.</p>
+          </div>
+          <div class="card">
+            <h4>3. Separate Judgment</h4>
+            <p>No self-verification at any layer: generator vs evaluator, test author vs code author, agent proposes vs human disposes.</p>
+          </div>
+          <div class="card">
+            <h4>4. Ration Attention</h4>
+            <p>Ceremony proportional to blast radius. Low risk flows fast; high risk earns human review. Never uniform.</p>
           </div>
         </div>
         <aside class="notes">
-          Can Bölük and recent literature from 2026 call this 'The Harness Problem'.
-          You don't solve agent unreliability with a better prompt or more emojis.
-          You solve it with an operating system and harness around the agent that enforces hard physical invariants.
+          Four properties, and they compose the whole talk.
+          Price: every control has a cost in two currencies — adopt nothing unpriced.
+          Enforce: if it ends in a prompt, it is advice, not governance.
+          Separate: anything that grades its own work will pass itself.
+          Ration: human attention is the scarcest resource — spend it by risk, not by habit.
+          SDD, TDD, and EDD are instantiations of this plane, used where they earn their place.
         </aside>
       </section>
 
       <!-- SLIDE 4 -->
       <section id="slide-4">
         <span class="badge badge-blue">Pattern 1: Document Tiering</span>
-        <h2>The 3-Tier Artifact Hierarchy</h2>
+        <h2>The Loop, Concretely</h2>
         <div class="diagram-container" id="visual-doc-pyramid">
           <svg width="840" height="240" viewBox="0 0 840 240">
             <defs>
@@ -289,11 +295,11 @@
             <text x="325" y="213" fill="#c9d1d9" font-size="14">The Constitution &bull; Org state machines and loop mechanics</text>
           </svg>
         </div>
-        <p style="font-size: 0.76em; color: #8b949e;">Architecture is the context. Intent is the lens. Spec is the machine contract.</p>
+        <p style="font-size: 0.76em; color: #8b949e;">The SDD contract: intent bounds scope, spec defines done, tasks sequence the work — nothing downstream contradicts the tier above it.</p>
         <aside class="notes">
-          Here is our first mandatory visual: Document Tiering.
-          If you hand a 50KB architecture paper directly to an agent, it hallucinates and burns tokens.
-          Instead, we separate into 3 tiers: The Constitution (agentic-sdlc.md), the Work Order (intent.md), and the Contract (spec.md).
+          Concretely, the loop starts with tiered documents, not prompts.
+          The constitution sets org principles once; each task gets a narrow intent aperture; the spec is the machine contract with acceptance criteria.
+          Nothing downstream — tasks, tests, code — may contradict the tier above it.
           This preserves context hygiene and prevents drift.
         </aside>
       </section>
@@ -384,46 +390,17 @@
           </svg>
         </div>
         <aside class="notes">
-          This is the centerpiece of the entire architecture: The Double Loop.
-          Notice the physical separation. The Inner Loop runs on the developer's laptop—fast, lightweight, no heavy Docker needed.
-          It does SDD and TDD until pytest halts green.
-          Once pushed to a PR, the Outer Loop takes over in GitHub Actions. It runs on a clean runner, evaluates the diff against the spec, and emits machine-verifiable release evidence.
+          This is the centerpiece: the double loop as the instantiation of the control plane.
+          The inner loop runs on the developer's machine — fast, lightweight, no heavy Docker needed — intent to spec to RED test to agent to GREEN halt.
+          The outer loop takes over at the PR in CI: clean runner, diff evaluated against the spec, machine-verifiable release evidence.
+          Diagram first, mechanics next.
         </aside>
       </section>
 
       <!-- SLIDE 6 -->
       <section id="slide-6">
-        <span class="badge badge-green">Phase 1</span>
-        <h2>The Inner Loop: Workstation TDD</h2>
-        <div style="max-width: 880px; margin: 0 auto;">
-          <div class="grid-2">
-            <div class="card">
-              <h4>1. Intake &amp; Specification (SDD)</h4>
-              <p>Developer writes goals into <code>intent.md</code>. The harness validates required sections and derives <code>spec.md</code>.</p>
-              <pre class="code-box"><code>asdlc sdd --intent intent.md</code></pre>
-            </div>
-            <div class="card">
-              <h4>2. Deterministic Halting (TDD)</h4>
-              <p>Verification tests fail first (<strong>RED</strong>). The harness launches the agent and halts strictly on <code>pytest exit 0</code>.</p>
-              <pre class="code-box"><code>asdlc tdd --spec spec.md --agent opencode</code></pre>
-            </div>
-          </div>
-          <div class="card" style="margin-top: 12px; padding: 10px 14px; text-align: center; border-left: 3px solid var(--accent-blue);">
-            <p style="margin: 0; font-size: 0.72em;"><strong class="highlight-text">Zero Human Babysitting:</strong> The agent does not ask if it is done; the deterministic test harness is the sole arbiter of completion.</p>
-          </div>
-        </div>
-        <aside class="notes">
-          In traditional AI coding, the human sits there watching the agent type, clicking 'yes' or 'no'.
-          In our inner loop, you write intent, generate the spec and red tests, and the harness takes over.
-          The agent loops autonomously until the tests pass. If it can't pass in N turns, it halts and reports failure.
-          Crucially, 2026 research (TrajEval) shows capable models actually generate the gold patch mid-run in 60%+ of cases, then keep iterating and destroy it—Coherence Collapse. Deterministic pytest halting locks in the green build the instant it passes.
-        </aside>
-      </section>
-
-      <!-- SLIDE 7 -->
-      <section id="slide-7">
-        <span class="badge badge-amber">Guardrails</span>
-        <h2>Hard Guardrails: The Anti-Tampering Shield</h2>
+        <span class="badge badge-amber">Enforcement</span>
+        <h2>Enforcement, Not Instruction</h2>
         <div class="diagram-container" id="visual-anti-tampering">
           <svg width="740" height="230" viewBox="0 0 740 230">
             <!-- Cheating Agent -->
@@ -448,80 +425,138 @@
             <text x="580" y="165" fill="#3fb950" font-size="14.5" font-weight="bold" text-anchor="middle">&check; Execution instantly aborted</text>
           </svg>
         </div>
+        <p style="font-size: 0.76em; color: #8b949e;">A prompt saying "don't touch tests" is advice. A hash manifest checked after every agent turn is enforcement.</p>
         <aside class="notes">
-          Here is our third key visual: The Anti-Tampering Shield.
-          Why did Cursor find 63% reward hacking on SWE-bench?
-          Because when an agent is stuck, the easiest way to make pytest exit 0 is to change 'assert add(2,3) == 5' to 'assert True'.
-          Our harness calculates a SHA-256 manifest of test files before the agent starts.
-          If the hash changes even by one byte after an agent turn, the harness immediately throws TestTamperingError and aborts.
+          Enforcement, not instruction — the doctrine in one picture.
+          When an agent is stuck, the easiest way to make pytest exit 0 is rewriting the test instead of fixing the code.
+          Our harness fingerprints test files before the agent starts; a one-byte change aborts the run with TestTamperingError.
+          The inner loop also halts on bounded turns and verified RED — the controller, not the agent, decides when work stops.
+        </aside>
+      </section>
+
+      <!-- SLIDE 7 -->
+      <section id="slide-7">
+        <span class="badge badge-blue">Tradeoffs</span>
+        <h2>The Balance Sheet</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h4>Tokens ↔ Review</h4>
+            <p>Bounded iteration and evidence cost tokens — and convert into fewer review minutes. Suppress review instead, and the cost reappears as incidents.</p>
+          </div>
+          <div class="card">
+            <h4>Rigor ↔ Speed</h4>
+            <p>Seeds, holdouts, and ensembles buy assurance at the price of time-to-green. Mismatch rigor to risk and you pay up to 25× for nothing.</p>
+          </div>
+          <div class="card">
+            <h4>Autonomy ↔ Assurance</h4>
+            <p>Removing the human removes review cost — payable only in reversibility and monitoring. Buy mechanisms (rollback, canary), not review theater.</p>
+          </div>
+        </div>
+        <p style="font-size: 0.76em; color: #8b949e;">Doctrine: price every control in both currencies before adopting it.</p>
+        <aside class="notes">
+          Every governance choice moves cost between ledgers — tokens, human minutes, time, residual risk.
+          This discipline is old: quality economics priced prevention against failure decades ago; SRE error budgets couple velocity to reliability through one number.
+          What's new is applying it across human and machine actors, with policy-set slider positions instead of fixed rules.
+          The takeaway for Monday: never adopt a control without pricing it twice.
         </aside>
       </section>
 
       <!-- SLIDE 8 -->
       <section id="slide-8">
-        <span class="badge badge-blue">Implementation Pattern</span>
-        <h2>The Subprocess Wrapper Pattern</h2>
-        <div class="grid-2">
+        <span class="badge badge-blue">Evidence</span>
+        <h2>What Measurement Shows</h2>
+        <div class="grid-3">
           <div class="card">
-            <h4>Anti-Pattern: Custom ReAct Engine</h4>
-            <p class="danger-text">&cross; Don't build LLM tool-calling loops from scratch.</p>
-            <p>Maintaining prompt chains, token budgets, and custom shell wrappers creates unnecessary harness complexity without matching commodity performance.</p>
+            <h4>Localization, Scoped</h4>
+            <p>Agents hit the right file ~80% but the right function 27% (arXiv:2511.00197) — and at the frontier the bottleneck moves to <em>edit quality</em>, which outcome-only evals miss entirely.</p>
           </div>
           <div class="card">
-            <h4>The Harness Pattern: Process Wrappers</h4>
-            <p class="success-text">&check; Wrap existing, mature coding CLIs.</p>
-            <p>Our harness provides clean adapters for:</p>
-            <ul>
-              <li><code>OpenCodeAdapter</code> (<code>opencode run</code>)</li>
-              <li><code>ClaudeAdapter</code> (<code>claude -p</code>)</li>
-              <li><code>AntigravityAdapter</code> (<code>agy --prompt</code>)</li>
-              <li><code>MockAgentAdapter</code> (deterministic unit tests)</li>
-            </ul>
+            <h4>Two Threat Classes</h4>
+            <p>Benchmark-leakage hacks (mined fixes, upstream lookup) dominate public evals — and mostly don't transfer to private repos. Test tampering and vacuous tests do.</p>
+          </div>
+          <div class="card">
+            <h4>Review Economics</h4>
+            <p>Per-reviewer load doubled while substantive review thins; trust does not accumulate per-PR. Trajectory quality is cost control.</p>
           </div>
         </div>
         <aside class="notes">
-          A critical architectural insight: don't reinvent the wheel.
-          Commodity coding agents like OpenCode, Claude Code, and Google Antigravity already have world-class tool execution.
-          The value of our harness is supervision, test protection, and loop orchestration.
-          We wrap them as standard subprocesses and capture their traces in agent-trace.jsonl.
+          Evidence, with scoping attached — because unscoping is how numbers mislead.
+          Localization first: file-level is largely solved, function-level lags, and frontier failures are now edit-quality, invisible to pass/fail grading.
+          Threats second: separate what pollutes benchmarks from what threatens deployments, and govern the latter.
+          Economics third: review load is the binding constraint, so everything that shrinks it — small diffs, good evidence — is cost control.
         </aside>
       </section>
 
       <!-- SLIDE 9 -->
       <section id="slide-9">
-        <span class="badge badge-blue">Phase 2</span>
-        <h2>The Outer Loop: CI/CD Governance</h2>
+        <span class="badge badge-amber">Honesty</span>
+        <h2>Open Disputes, 60 Seconds</h2>
         <div class="grid-3">
           <div class="card">
-            <h4>1. Isolated Verification</h4>
-            <p>Tests run on clean GitHub Actions runners against the target base branch definitions. The agent's branch cannot forge test results.</p>
+            <h4>Ritual Skepticism</h4>
+            <p>Does instructing TDD improve outcomes? Measured effect: near zero, at 3–8× token cost. Our answer: enforce properties, not ritual.</p>
           </div>
           <div class="card">
-            <h4>2. Semantic Delta</h4>
-            <p>The evaluator analyzes the exact git diff against <code>spec.md</code>: checking for scope drift, touched modules, and security policies.</p>
+            <h4>Test-Authorship Limits</h4>
+            <p>Agent-written tests barely move outcomes; 11.58% assert nothing. Oracles and hermeticity decide — not volume.</p>
           </div>
           <div class="card">
-            <h4>3. Evidence Emission</h4>
-            <p>Outputs machine-verifiable <code>release-evidence.json</code> artifact directly to the build pipeline for automated merge gating.</p>
+            <h4>Metric Boundaries</h4>
+            <p>Coverage and mutation inform regression health, not bug-detection proof, on possibly-buggy code. Scope every metric.</p>
           </div>
         </div>
-        <div class="card" style="margin-top: 15px;">
-          <pre class="code-box"><code># Run in CI GitHub Actions step
-asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.json</code></pre>
-        </div>
+        <p style="font-size: 0.76em; color: #8b949e;">Each dispute ships with its mind-changer: the evidence that would overturn our stance.</p>
         <aside class="notes">
-          Now we move to the Outer Loop in CI/CD.
-          Local machines are for rapid iteration; CI/CD is for immutable governance.
-          In GitHub Actions, we run verification on a clean runner, calculate the semantic delta between the diff and the spec,
-          and produce release-evidence.json.
+          Sixty seconds of honesty, and the highest trust-per-minute in the deck.
+          The field genuinely disputes whether in-agent TDD rituals help, whether agent-written tests assure anything, and whether our favorite metrics transfer.
+          Our positions: enforce checkable properties instead of ritual; oracles and hermeticity over test volume; scope every metric to what it was validated for.
+          Each stance names the evidence that would change our mind — ask us about any of them afterwards.
         </aside>
       </section>
 
       <!-- SLIDE 10 -->
       <section id="slide-10">
-        <span class="badge badge-green">Machine Verification</span>
-        <h2>Machine-Verifiable Release Evidence</h2>
+        <span class="badge badge-green">Choices</span>
+        <h2>Inner-Loop Choices</h2>
         <div class="grid-2">
+          <div class="card">
+            <h4>Sealed TDD vs Design-First</h4>
+            <p>Enforce RED proof, sealed tests, and bounded turns — or lead with upfront design and verify after. Never instruct ritual without verification.</p>
+          </div>
+          <div class="card">
+            <h4>Budgets & Sandboxing</h4>
+            <p>Turn, time, and token caps per run; sandbox rungs from subprocess to containers. The controller halts — the agent never decides it is done.</p>
+          </div>
+          <div class="card">
+            <h4>Test-Authorship Ladder</h4>
+            <p>Single agent, human-confirmed contract tests, or dual-agent with filesystem separation. Stronger oracle claims cost more — spend accordingly.</p>
+          </div>
+          <div class="card">
+            <h4>Commodity Adapters</h4>
+            <p>Wrap existing CLIs (<code>opencode</code>, <code>claude</code>, <code>agy</code>) as subprocesses; capture traces. Don't build a ReAct engine.</p>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 12px;">
+          <pre class="code-box"><code>asdlc tdd --spec spec.md --test-file tests/test_spec.py --agent opencode</code></pre>
+        </div>
+        <aside class="notes">
+          Implementation choices, inner loop — each a slider, not a doctrine.
+          Sealed TDD or upfront design first: pick by task shape, but whichever you pick, the gates are non-negotiable.
+          Budgets bound cost; sandboxing bounds blast radius; the authorship ladder prices oracle strength.
+          Wrap commodity agents rather than building engines — supervision is our value-add, not tool execution.
+        </aside>
+      </section>
+
+      <!-- SLIDE 11 -->
+      <section id="slide-11">
+        <span class="badge badge-green">Choices</span>
+        <h2>Outer-Loop Choices</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h4>Gates → Judges → Review</h4>
+            <p>Deterministic checks gate every merge; trajectory metrics must not regress; calibrated judges advise; humans decide high-risk cases. N-seed minima keep noise from becoming verdicts.</p>
+            <pre class="code-box"><code>asdlc eval --spec spec.md --diff pr.diff --tests-passed</code></pre>
+          </div>
           <div class="card">
             <h4>The ReleaseEvidence Schema</h4>
             <pre class="code-box"><code>{
@@ -539,73 +574,38 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
   "gate_verdict": "AUTO_MERGE_APPROVED"
 }</code></pre>
           </div>
-          <div class="card">
-            <h4>Automated Release Policies</h4>
-            <p><strong class="success-text">Low Risk Class:</strong><br>Deterministically proven test pass + spec conformance &rarr; Fast-track automated release approval.</p>
-            <p><strong class="highlight-text">Medium / High Risk:</strong><br>Structured evidence attached to PR &rarr; Advisory review rubric scaffold (Security enforced; Bugs &amp; Spec Alignment roadmap).</p>
-          </div>
         </div>
+        <p style="font-size: 0.76em; color: #8b949e;">Proven in production: this repo's own CI enforces the same gates — all 29 suite tests green.</p>
         <aside class="notes">
-          Instead of expecting humans to read 1,000 lines of generated code, the outer loop generates this machine-readable evidence artifact.
-          For low-risk tasks, it provides fast-track release verification.
-          For high-risk tasks, it cuts reviewer fatigue with a structured rubric scaffold: enforcing security path isolation today, with automated bug and spec-alignment checkers on the roadmap.
-        </aside>
-      </section>
-
-      <!-- SLIDE 11 -->
-      <section id="slide-11">
-        <span class="badge badge-green">Proof in Production</span>
-        <h2>Case Study: Self-Hosting asdlc</h2>
-        <div class="grid-2">
-          <div class="card">
-            <h4>PR #1: The Core Harness</h4>
-            <p><strong class="highlight-text">SDD:</strong> Formulated <code>intent.md</code> &rarr; derived <code>spec.md</code></p>
-            <p><strong class="danger-text">TDD RED:</strong> Commit <code>30a19f8</code> (6/6 tests failing)</p>
-            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>ae23678</code> (engine &amp; adapters)</p>
-            <p><strong class="highlight-text">Outer Loop:</strong> CI evaluation gate &rarr; Auto-merged!</p>
-          </div>
-          <div class="card">
-            <h4>PR #2: This Presentation</h4>
-            <p><strong class="highlight-text">SDD:</strong> Specified via <code>asdlc sdd</code> in <code>spec-presentation.md</code></p>
-            <p><strong class="danger-text">TDD RED:</strong> Commit <code>409773b</code> (5/5 tests failing)</p>
-            <p><strong class="success-text">TDD GREEN:</strong> Commit <code>d66c897</code> (5/5 presentation tests pass; all 29 suite tests GREEN)</p>
-            <p><strong class="highlight-text">Outer Loop:</strong> Automated deploy to GitHub Pages!</p>
-          </div>
-        </div>
-        <aside class="notes">
-          Here is the ultimate proof: this presentation was created by the very system we are presenting!
-          PR #1 implemented the asdlc harness using TDD—we wrote failing tests first, implemented the code, verified in CI, and merged.
-          Then PR #2 used asdlc to specify, test, and build these exact slides.
-          It is self-hosting and proven in production.
+          Outer-loop choices: what runs in CI, in what order, with what authority.
+          Deterministic gates are non-negotiable and cheap; trajectory signals catch what pass/fail misses; judges advise and humans decide where stakes demand it.
+          Every verdict lands in release-evidence.json — promotion consumes evidence, never impressions.
+          And this isn't hypothetical: the CI behind this very deck enforces the same gates across all 29 suite tests.
         </aside>
       </section>
 
       <!-- SLIDE 12 -->
       <section id="slide-12">
-        <span class="badge badge-blue">Economics</span>
-        <h2>The Economics of Agentic SDLC</h2>
-        <div class="grid-3">
+        <span class="badge badge-blue">Autonomy</span>
+        <h2>Entries, Autonomy &amp; Proof</h2>
+        <div class="grid-2">
           <div class="card">
-            <div class="stat-number success-text">&lt;$2</div>
-            <h4>Task Cost Budget</h4>
-            <p>By bounding task scope with <code>intent.md</code> and avoiding prompt bloat, single-task inference costs stay strictly bounded.</p>
+            <h4>Two Entries, One Loop</h4>
+            <p><strong class="highlight-text">Human flow:</strong> pick from backlog, review tests, merge on evidence.</p>
+            <p><strong class="highlight-text">Dark flow:</strong> Jira event triggers Low-risk-only runs — eligibility-gated, reversible by construction, kill switch armed. Stricter gates <em>because</em> no one looks.</p>
           </div>
           <div class="card">
-            <div class="stat-number highlight-text">&lt;1m</div>
-            <h4>Automated Gate Cycle</h4>
-            <p>Deterministic local halting and clean CI verification replace 45 minutes of manual PR review triage.</p>
-          </div>
-          <div class="card">
-            <div class="stat-number success-text">100%</div>
-            <h4>Tamper Detection</h4>
-            <p>SHA-256 test protection and isolated CI diff-gating strictly block test file tampering.</p>
+            <h4>Self-Hosting Proof</h4>
+            <p><strong class="highlight-text">PR #1:</strong> harness via TDD — RED <code>30a19f8</code> → GREEN <code>ae23678</code>, merged on evidence.</p>
+            <p><strong class="highlight-text">PR #2:</strong> this deck via spec + tests — RED <code>409773b</code> → GREEN <code>d66c897</code>, deployed to Pages.</p>
           </div>
         </div>
+        <p style="font-size: 0.76em; color: #8b949e;">Economics budgets that hold: single-task inference under $2 · automated gate cycle under a minute · review load tracked per change.</p>
         <aside class="notes">
-          Let's talk economics.
-          Unconstrained agents burn hundreds of dollars wandering through codebases.
-          By using our 3-tier document hierarchy and TDD halting, single-task inference costs remain tightly bounded under narrow task aperture.
-          More importantly, human engineering time is protected from reviewer fatigue, and tests are shielded against tampering.
+          Two ways in, one loop. Humans drive the full-risk range with review at the load-bearing points.
+          Dark flows run event-triggered on Low-risk work only — eligibility policy, reversibility, and a kill switch substitute for eyes.
+          Proof this isn't slides-ware: both the harness and this deck were built through the loop itself, with commit receipts.
+          And the economics are budgets, not boasts: bounded inference, sub-minute gates, review minutes tracked like any other cost.
         </aside>
       </section>
 
@@ -619,12 +619,12 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
             <p>Never dump architecture docs into agent prompts. Use <code>intent.md</code> as the narrow aperture for individual tasks.</p>
           </div>
           <div class="card">
-            <h4>2. Enforce Hard Gates</h4>
-            <p>Prompt instructions are advisory. Lock your tests with cryptographic checksums and let <code>pytest</code> be the sole judge.</p>
+            <h4>2. Price Controls Twice</h4>
+            <p>Every gate costs tokens, minutes, or risk. Adopt nothing unpriced — measure it here, never assume the price.</p>
           </div>
           <div class="card">
-            <h4>3. Use the CI Outer Loop</h4>
-            <p>Keep your workstation loops fast and lightweight; place immutable verification and evidence gating in CI/CD.</p>
+            <h4>3. Enforce, Don't Instruct</h4>
+            <p>Prompts advise; mechanisms govern. Seal the tests, verify RED, halt on budgets, gate the merge on evidence.</p>
           </div>
         </div>
         <div style="margin-top: 30px;">
@@ -633,10 +633,10 @@ asdlc eval --spec spec.md --diff pr.diff --tests-passed --out release-evidence.j
           </p>
         </div>
         <aside class="notes">
-          To wrap up: here are the three things you can take back to your teams on Monday morning.
+          To wrap up: three things you can take back to your teams on Monday morning.
           1. Tier your artifacts: architecture vs intent vs spec.
-          2. Hard-code your guardrails: SHA-256 hashing prevents reward hacking.
-          3. Leverage your CI/CD pipeline as the outer loop arbiter.
+          2. Price every control twice — in tokens and in human minutes.
+          3. Enforce, don't instruct: sealed tests, verified RED, bounded turns, evidence-gated merges.
           The code is open source and available at github.com/johwes/agentic-sdlc. Thank you!
         </aside>
       </section>

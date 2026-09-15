@@ -1,10 +1,10 @@
-# Technical Specification: Conference Presentation on Nested-Loop Agentic SDLC
+# Technical Specification: Conference Presentation on the Agentic SDLC Control Plane
 
 ## 1. Specification Metadata
 - **Status**: DRAFT / APPROVED FOR TDD
 - **Target Deliverable**: `docs/index.html` (Reveal.js Presentation) + `.github/workflows/deploy_presentation.yml`
 - **Derived From**: [intent-presentation.md](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/intent-presentation.md)
-- **Governing Architecture**: [agentic-sdlc.md](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md)
+- **Governing Architecture**: [agentic-sdlc.md](file:///var/home/jwesterl/Downloads/opencode/agentic-sdlc/agentic-sdlc.md) — control-plane thesis (price tradeoffs, enforce mechanically, ration attention); SDD × TDD × EDD as instantiations
 
 ---
 
@@ -19,23 +19,23 @@
 - **Assets**: Inline CSS and SVG diagrams for zero external network failure points.
 
 ### 2.2 Slide Outline & Identification Contract
-Every slide will be enclosed in `<section id="slide-{number}">` and contain an `<aside class="notes">` speaker note:
+Every slide will be enclosed in `<section id="slide-{number}">` and contain an `<aside class="notes">` speaker note. Narrative arc (101/201 audience): **Act I — what an Agentic SDLC is** (slides 1–5), **Act II — tradeoffs** (slides 6–8), **Act III — implementation choices** (slides 9–13):
 
 | Slide ID | Title | Key Concept & Visual Component |
 | :--- | :--- | :--- |
-| `slide-1` | **The Autonomous Coding Dilemma** | Title slide: From Copilot chat to autonomous agent execution. |
-| `slide-2` | **The Honeymoon is Over** | The 3 failure modes: Reward hacking, test erosion, reviewer fatigue. |
-| `slide-3` | **The Harness Problem** | Prompt engineering vs. Harness engineering (Barbaste 2026 / Bölük). |
-| `slide-4` | **The 3-Tier Document Hierarchy** | **Visual 1**: Architecture Pyramid (`agentic-sdlc.md` $\to$ `intent.md` $\to$ `spec.md`). |
-| `slide-5` | **The Nested-Loop Architecture** | **Visual 2**: Double-Loop Diagram (SDD $\times$ TDD $\times$ EDD). |
-| `slide-6` | **The Inner Loop: Workstation TDD** | Fast, local iteration: Intent $\to$ Spec $\to$ RED $\to$ Agent $\to$ GREEN. |
-| `slide-7` | **Hard Guardrails: The Anti-Tampering Shield** | **Visual 3**: SHA-256 Tripwire stopping agents from cheating on tests. |
-| `slide-8` | **The Subprocess Wrapper Pattern** | Wrapping commodity agents (`opencode`, `claude`, `agy`) vs. custom engines. |
-| `slide-9` | **The Outer Loop: CI/CD Governance** | Physical separation: GitHub Actions as the immutable release gate. |
-| `slide-10` | **Machine-Verifiable Evidence** | `ReleaseEvidence` JSON schema, `semantic_delta`, and auto-merge gates. |
-| `slide-11` | **Live Case Study: Self-Hosting asdlc** | The meta-loop: How PR #1 built the harness and PR #2 built this deck! |
-| `slide-12` | **The Economics of Agentic SDLC** | Token cost ($0.80–$2.50) vs engineer cycle time ($80+/hr triage). |
-| `slide-13` | **Key Takeaways & Action Plan** | 3 steps any team can take Monday morning to adopt nested-loop SDLC. |
+| `slide-1` | **The Agentic SDLC Control Plane** | Title slide: price tradeoffs, enforce mechanically, ration attention. |
+| `slide-2` | **The Problem in One Frame** | Autonomy without governance relocates cost: tokens $\to$ review minutes $\to$ incidents. |
+| `slide-3` | **The Answer: A Control Plane** | Four properties (price, enforce, separate, ration); SDD $\times$ TDD $\times$ EDD as instantiations. |
+| `slide-4` | **The Loop, Concretely** | **Visual 1**: Architecture Pyramid (`agentic-sdlc.md` $\to$ `intent.md` $\to$ `spec.md`) + SDD contract summary. |
+| `slide-5` | **The Nested Double-Loop** | **Visual 2**: Double-Loop Diagram (fast local inner loop vs. governed CI/CD outer loop). |
+| `slide-6` | **Enforcement, Not Instruction** | **Visual 3**: SHA-256 Tripwire stopping agents from cheating on tests; mechanisms-not-messages doctrine. |
+| `slide-7` | **The Balance Sheet** | Three coupled tradeoff pairs (tokens↔review, rigor↔speed, autonomy↔assurance); price-every-control doctrine. |
+| `slide-8` | **What Measurement Shows** | Grounded evidence with scoping: 27% function hit rate vs ~80% file localization (arXiv:2511.00197); benchmark-leakage vs deployment-residual split. |
+| `slide-9` | **Open Disputes, 60 Seconds** | Ritual skepticism, test-authorship limits, metric boundaries — each with its mind-changer. |
+| `slide-10` | **Inner-Loop Choices** | Sealed TDD vs upfront-design-first; turn/time budgets; sandboxing rungs; test-authorship ladder. |
+| `slide-11` | **Outer-Loop Choices** | Deterministic gates $\to$ judges $\to$ human review; N-seed minima; trajectory eval; `ReleaseEvidence` schema and verdicts; proven here — all 29 suite tests green. |
+| `slide-12` | **Entries, Autonomy & Proof** | Human flow vs event-triggered dark flow (eligibility, reversibility, kill switch); self-hosting case study (PR #1 / PR #2); economics budgets. |
+| `slide-13` | **Takeaways for Monday Morning** | Tier context, price controls twice, enforce-don't-instruct; repo link. |
 
 ---
 
