@@ -109,6 +109,8 @@ Rows list *entry requirements*; in-state products (execution trace, canary metri
 
 ## 2. The Nested Architecture: SDD (Scoping) × TDD (Halting) × EDD (Governing)
 
+In harness-engineering terms, this section spans both control axes at once: SDD acts as *feedforward guide* (steering the agent before it acts), the TDD gates, sandboxes, and hooks as *computational sensors* (deterministic, cheap, run on every change), and EDD evaluation as computational checks plus *inferential sensors* (LLM judges: slower, probabilistic, semantically richer). Read §2.1–§2.4 as the loops; read this paragraph as what each loop contributes to trust.
+
 ### 2.1 SDD — The Scope Contract
 
 Spec-Driven Development makes intent the source of truth because specifications are now executable.
@@ -160,6 +162,7 @@ Inner-loop determinism comes from executable sandboxes + hard budgets:
 3. **Loop detectors:** OpenAI's doom-loop detector (fingerprint tool calls in sliding window), max-turns (typically 50), max cost ($2-4/task in benchmarks), timeout per step (600s, 1200s compiler), linters/type-checkers after every edit with remediation-injected errors (OpenAI's field practice: author custom messages so each violation teaches the agent its own fix).
 4. **Converge semantics:** `github/spec-kit /converge`: append-only, never edits code; reports `Converged` or appends tasks. Repeat implement→converge until converged.
 5. **PreTool hook boundaries vs. advisory skills:** Skills (`SKILL.md`) are advisory context guiding model generation, but non-negotiable safety and integrity boundaries require deterministic `PreToolUse` hooks (Anthropic SDLC playbook). Hooks intercept commands before execution: blocking writes to protected test paths or frozen packages, denying reads to credential files (`~/.ssh`, `.env`), and stripping sensitive environment variables from sandboxed command execution.
+6. **Architecture fitness checks:** intended architecture (layering, dependency directions, fitness thresholds) ships with the spec and is verified continuously — ArchUnit-style boundary tests and convention checks run per change, so drift is caught as it happens rather than rediscovered per review.
 
 This is what makes Pass@k meaningful: `Pass@k = P(at least 1 of k trajectories passes all tests)`. Without halting, k → ∞ and cost → ∞.
 
@@ -191,7 +194,7 @@ The outer loop actuates, not just scores. Its intervention repertoire, in escala
 
 ### 2.3.1 Risk Classification Rubric
 
-`risk_class` gates approvals, review routing, and §2.3 authority; it must be assigned at SCOPE_APPROVED from explicit drivers — blast radius, reversibility, data sensitivity — not from diff size alone:
+`risk_class` gates approvals, review routing, and §2.3 authority; it must be assigned at SCOPE_APPROVED from explicit drivers — blast radius, reversibility, data sensitivity, and codebase harnessability — not from diff size alone. (Harnessability cuts against intuition: governance is hardest to build exactly where it is most needed — legacy codebases carrying deep technical debt — and easiest where it pays least, on greenfield. Weight it accordingly.)
 
 - **Low:** internal utilities, docs, test-only changes; fully reversible; no authz, migration, PII, or external interface touched. May auto-pass REVIEW_PENDING. Eligible for the **Express Pipeline**: collapses `SPECIFIED → ANALYZED → PLANNED` into an atomic prompt brief, runs a single deterministic trial (N=1), and auto-promotes directly to merge if AST integrity and test gates pass.
 - **Medium:** new business logic, cache/schema evolution, single-service behavior change. Reversible with feature flag. Code-owner review.
@@ -298,6 +301,7 @@ Scores from stochastic gates are measurements with noise; without a decision rul
 - Drift triggers are explicit rules: rolling judge score drop > δ over window w, disagreement-rate spike, or incident correlation — each fires an adaptive probe against the offline suite.
 - Because the same interaction can score 4 and 6 from one judge, keep judge output binary pass/fail against a sharp rubric; iterate the rubric on failure cases before touching the judge prompt or model.
 - Sequential reliability compounds against you: a 0.75 single-trial rate over a 3-step chain is 0.75³ ≈ 0.42 end-to-end. Chained workflows need per-step recovery with changed conditions (§2.4), not just per-step accuracy.
+- **Calibrate the sensors themselves:** a sensor suite that never fires proves nothing — inject known-bad cases (mutants, policy violations, golden-negative trajectories) on a schedule and require detection; silent sensors are investigated as inadequate detection, never assumed as high quality.
 
 **Outcome:**
 
@@ -431,7 +435,7 @@ Counterweight — the dispute is not settled: TDD-Agent (test-first reasoning + 
 
 Candidate resolutions (theoretical/proposed): context-over-procedure (tell the agent which tests are at risk, not which steps to perform); upfront-design-first with bounded verify-after; outcome monitoring (mutation + static analysis) instead of ritual instruction.
 
-Our stance: this dispute concerns *instructed ritual*, which our architecture never relies on — our loop enforces checkable properties (RED actually observed, tests sealed, halting bounded, independent re-verification). What would change our mind: a well-powered study showing *enforced* ritual (sealed tests, verified RED) still underperforms non-TDD on quality at comparable cost.
+Our stance: this dispute concerns *instructed ritual*, which our architecture never relies on — our loop enforces checkable properties (RED actually observed, tests sealed, halting bounded, independent re-verification). What would change our mind: a well-powered study showing *enforced* ritual (sealed tests, verified RED) still underperforms non-TDD on quality at comparable cost. Convergent support since: Böckeler's harness-engineering framework independently lands on outcome monitoring (mutation + static analysis + frozen expectations) over ritual instruction — same prescription reached by a different route.
 
 ### 6.2 Do agent-written tests drive success?
 
@@ -502,6 +506,7 @@ Classification tags: **[X]** preprint (not peer-reviewed), **[B]** lab/company e
 - [X] *Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents — A Source-Code Study of Eleven Systems* — arXiv:2609.00006 — https://arxiv.org/abs/2609.00006
 - [B] Bölük, *The harness problem* (Feb 2026) — https://blog.can.ac/2026-02-12/the-harness-problem/
 - [S] BestHub, *OpenAI vs Anthropic: Two Harness Strategies* (source of the 20×/cycle-time figures) — https://www.besthub.dev/articles/openai-vs-anthropic-two-harness-strategies-for-code-agent-engineering-b125ad5662b6
+- [B] Böckeler, *Harness engineering for coding agent users* (guides/sensors × computational/inferential; silent-sensor problem; harnessability) — https://martinfowler.com/articles/harness-engineering.html
 
 **Quality economics & tradeoff frameworks (anchors for §4 balance sheet)**
 - Slaughter et al. *Evaluating the cost of software quality* (conformance vs nonconformance; 1998) — https://doi.org/10.1145/280324.280335
