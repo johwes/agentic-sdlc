@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "_comment": "Sandbox cell OpenCode config (see specs/04-worker-cell.md). Delivered via OPENCODE_CONFIG env. Inference goes through the cell L7 proxy: baseURL is a placeholder the proxy rewrites while injecting the real token. EXPERIMENT PENDING: confirm which provider block the proxy serves, lock it, delete the other.",
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "anthropic/claude-haiku-4-5",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "baseURL": "https://inference.local/anthropic/v1"
+      }
+    }
+  },
+  "_alternative_openai_compatible": {
+    "comment": "If the proxy serves OpenAI-compatible routes instead, replace the provider block above with a custom provider of package @opencode-ai/ai/providers/openai-compatible pointed at the placeholder URL, e.g. baseURL https://inference.local/v1 with the target model IDs. Confirm via experiment first."
+  }
+}

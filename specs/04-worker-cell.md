@@ -69,7 +69,64 @@ are exempt by design.
   spawner-generated), e.g. `cell-task402-att1-a9f2`.
 - Owner: the Temporal workflow worker. Creation before execution; cleanup via
   `openshell sandbox delete` in a `finally` block (or on activity timeout) —
-  no orphaned sandboxes.
+  no orphaned sandboxes. **Explicit delete (locked):** `--no-keep` was
+  considered and rejected — it deletes the sandbox when the initial command
+  exits, which risks losing the receipt on wrapper crash before
+  `sandbox download` runs. Receipt-first, then delete, always.
+
+## Spawn contract (real CLI, verified against `openshell --help`)
+
+Base image for PoC spawns: `quay.io/jwesterl/openshell-base:latest` (the
+checked-in CentOS build, pulled — no local build step at spawn time). The
+cell layer (`docker/worker-cell.Dockerfile`, `ARG BASE_IMAGE`) builds
+identically atop it.
+
+```bash
+openshell sandbox create \
+  --name "cell-${TASK_ID}-att${ATTEMPT}-${UUID4}" \
+  --from quay.io/jwesterl/openshell-base:latest \
+  --policy policy/upstream-base-policy.yaml \
+  --provider "${CRED_PROVIDER}" \
+  --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
+  --upload "${FRAME_JSON}:/sandbox/.task/current_task.json" \
+  --upload "${WORKSPACE_DIR}:/sandbox/repo" \
+  --approval-mode manual \
+  --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
+  --label "task=${TASK_ID}" --label "attempt=${ATTEMPT}" \
+  -- /usr/local/bin/cell-harness
+```
+
+Flag notes (all verified in CLI help):
+- `--policy` overrides the image/gateway default — this is how the adopted
+  baseline is actually served (resolves the gateway-resolution question).
+- `--provider` is repeatable and the only path for secrets; `--env` help
+  text explicitly forbids credentials there.
+- `--upload` is the primary ingestion path (driver-portable; host bind-mounts
+  may not exist under the Kubernetes driver). `.gitignore` filtering applies
+  by default — pass `--no-git-ignore` when the repo seed must be complete.
+- `--approval-mode manual` (the default): agent-authored policy proposals wait
+  in a draft inbox for human review. `auto` (empty-delta auto-approve) is a
+  documented opt-in only — default-deny posture preserved for the PoC.
+- `--no-auto-providers` belongs in the Temporal spawner (fail loudly on a
+  missing provider instead of prompting / erroring opaquely).
+- Post-attempt: `openshell sandbox exec -n <name> --workdir /sandbox -- ...`
+  for follow-up commands (exit code propagates); `openshell sandbox download`
+  for the receipt; `openshell sandbox delete` in `finally`.
+
+## Inference model: L7 proxy with placeholder URL (working hypothesis)
+
+Outbound inference goes through an L7 proxy: the in-cell config points at a
+placeholder URL (e.g. `https://inference.local`) with a dummy key
+(`unused`), the proxy rewrites the URL and injects the real token/key. The
+agent/CLI never holds a real credential — consistent with the provider
+model above (provider *or* proxy-injected dummy; both keep real keys out of
+the cell). For OpenCode this maps to an `opencode.json` provider `baseURL`
+override (see `config/opencode-sandbox.json` template). **Unconfirmed:** which
+request shapes the proxy rewrites (Anthropic-compatible? OpenAI-compatible?
+both?) and which models resolve. Recorded experiment (owner-run, pre-build):
+point the template at the proxy, run a minimal `opencode run`, confirm which
+provider block succeeds — then lock the template and delete the losing
+alternative.
 
 ## Providers, policy, network
 
@@ -109,11 +166,11 @@ are exempt by design.
 ## Repo + task ingestion sequence
 
 1. Host spawner prepares a fresh workspace dir, checks out `target_branch`.
-2. Bind-mount into the container at `/sandbox`.
-3. Temporal worker writes `/sandbox/.task/current_task.json` **before**
-   invoking `openshell sandbox exec`.
-4. Container reads contract state from that file at start; wrapper dispatches
-   the agent CLI.
+2. `sandbox create` uploads the frame to `/sandbox/.task/current_task.json`
+   and the repo seed to `/sandbox/repo` via `--upload` (primary path;
+   bind-mount only where the driver supports it).
+3. Cell entrypoint (`cell-harness`) reads contract state from the frame at
+   start and dispatches the agent CLI.
 
 ## Worker prompt contract (canonical)
 
