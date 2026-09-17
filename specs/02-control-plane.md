@@ -26,6 +26,22 @@ The frame shape is preserved deliberately so a GitHub webhook receiver
 without changing anything downstream. Webhook auth/dedup stays a post-PoC
 open question.
 
+## Locality (PoC): laptop-local orchestration
+
+The OpenShell execution plane is reachable only from the owner's laptop, so
+the PoC control plane runs there too — no cluster deployment:
+
+- Parent + child Temporal workers are local processes on the same machine as
+  the `openshell` CLI (local dev server for first runs; durable backend only
+  if laptop-restart history loss bites).
+- The remote OpenShell gateway (stage URL, `gateway login` prerequisite) is
+  the execution plane; orchestration shells out to the local CLI. Gateway
+  selection is a flag, so a future `--local` gateway changes no contract.
+- `tasks/inbox/`, `tasks/ledger.md`, and all trigger/projection paths are
+  laptop paths. Single-machine constraint is architectural for the PoC:
+  no shared cluster filesystem, no remote Temporal server, no multi-node
+  assumptions. Cluster deployment is post-PoC, same bucket as Tekton/ArgoCD.
+
 ## Decomposition (PoC): one issue, one task + human override
 
 - **Default:** 1 inbox file = 1 ledger task = 1 child workflow. No

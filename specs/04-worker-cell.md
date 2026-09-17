@@ -69,9 +69,10 @@ are exempt by design.
   Persistence of record is Git commits + Temporal state.
 - Naming: `cell-<task_id>-<short_uuid>` — task-scoped (attempt index moved to
   labels), e.g. `cell-TASK-402-a9f2`.
-- Owner: the Temporal workflow worker. Create on task open (keepalive
-  `sleep infinity`); delete at terminal state in a `finally` block (or on
-  activity timeout) — no orphaned sandboxes. **Explicit delete (locked):**
+- Owner: the laptop-local Temporal workflow worker (see `02-control-plane.md`
+  locality). It shells out to the local `openshell` CLI. Create on task open
+  (keepalive `sleep infinity`); delete at terminal state in a `finally` block
+  (or on activity timeout) — no orphaned sandboxes. **Explicit delete (locked):**
   `--no-keep` was considered and rejected — it deletes the sandbox when the
   initial command exits, which risks losing the receipt on wrapper crash
   before `sandbox download` runs. Receipt-first, then delete, always.
@@ -239,16 +240,19 @@ Tool equivalents:
   credential masking.
 - Lateral movement (network scan, metadata-service exploitation, escape) →
   prevented by process isolation, path scoping, egress default-deny.
-- State leakage across attempts → prevented by fresh-sandbox-per-attempt.
+- State leakage across attempts → prevented by fresh process per exec
+  (no conversational carryover; cell filesystem reset via `retry_strategy`).
 - Agent overriding tactile failure with justification → structurally
   impossible: wrapper maps nonzero tactile exit to `FAILED` regardless of
   agent text (see `07-contracts.md`).
 
 ## Open questions
 
-- Gateway policy resolution: confirm the gateway serves the adopted baseline
-  (not just the image-build minimal policy).
+- Gateway prerequisite: `gateway login` + Connected status before any spawn;
+  the spawner fails fast otherwise (no silent misroute).
 - Deltas from the upstream baseline (OpenRouter? general npm?) — list or close.
-- Exact provider names per model backend.
-- Resource limits (CPU/mem/GPU, wall-clock) per attempt.
+- Provider per model backend: PoC default `opencode-go` (type `opencode`);
+  Claude-Code path needs its own provider name when activated.
+- Resource values (CPU/mem/GPU, wall-clock) per attempt — flags pinned,
+  numbers TBD under real attempt-latency data.
 - Sandbox image registry + build/push flow for base and cell layers.
