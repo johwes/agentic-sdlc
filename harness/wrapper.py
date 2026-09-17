@@ -236,6 +236,75 @@ def _check_forbidden(files_changed: list[str], forbidden_paths: list[str], recei
     return violations
 
 
+TACTILE_TAIL_LINES = 50
+TACTILE_TAIL_CHARS = 4096
+TACTILE_TIMEOUT_EXIT = 124
+TACTILE_TIMEOUT_DEFAULT = 180
+
+
+def _get_tactile_timeout(frame: dict) -> int:
+    """Kill timeout for tactile_command. Default 180 per 07-contracts.md."""
+    try:
+        timeout = int(frame.get("tactile_timeout_seconds", TACTILE_TIMEOUT_DEFAULT))
+    except (TypeError, ValueError):
+        return TACTILE_TIMEOUT_DEFAULT
+    if timeout <= 0:
+        return TACTILE_TIMEOUT_DEFAULT
+    return timeout
+
+
+def _truncate_output(text: str, max_lines: int = TACTILE_TAIL_LINES, max_chars: int = TACTILE_TAIL_CHARS) -> str:
+    """Cap output tail at 50 lines / ~4KB per 07-contracts.md."""
+    tail = "\n".join(text.splitlines()[-max_lines:])
+    if len(tail) > max_chars:
+        tail = tail[-max_chars:]
+    return tail
+
+
+def _run_tactile(command: str, timeout_seconds: int) -> tuple[int, str, bool]:
+    """Run tactile_command. Returns (exit_code, summary_output, timed_out).
+
+    Timeout kills the command, records exit 124, and prints
+    "Command timed out after N seconds" to stderr per 07-contracts.md.
+    """
+    if not command.strip():
+        return 0, "", False
+    try:
+        r = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as e:
+        partial = ""
+        if e.stdout:
+            partial += e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout
+        if e.stderr:
+            err = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+            partial += ("\n[stderr]\n" if partial else "") + err
+        print(f"Command timed out after {timeout_seconds} seconds", file=sys.stderr)
+        return TACTILE_TIMEOUT_EXIT, _truncate_output(partial), True
+    combined = r.stdout or ""
+    if r.stderr:
+        combined += ("\n[stderr]\n" if combined else "") + r.stderr
+    return r.returncode, _truncate_output(combined), False
+
+
+def _coerce_attempt(frame: dict) -> tuple[int, int]:
+    """Parse attempt/max_attempts; default max 5 per 03-inner-loop.md."""
+    try:
+        attempt = int(frame.get("attempt", 1))
+    except (TypeError, ValueError):
+        attempt = 1
+    try:
+        max_attempts = int(frame.get("max_attempts", 5))
+    except (TypeError, ValueError):
+        max_attempts = 5
+    return attempt, max_attempts
+
+
 def _write_receipt(
     receipt_path: Path,
     *,
@@ -266,7 +335,7 @@ def _write_receipt(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Cell harness stage 1: frame load + forbidden_paths -> BLOCKED")
+    parser = argparse.ArgumentParser(description="Cell harness stage 2: frame load + forbidden_paths -> BLOCKED, tactile ground truth -> FAILED")
     parser.add_argument("--attempt", required=True, help="Attempt index (1-indexed)")
     parser.add_argument("--frame", required=True, help="Path to current_task.json (read-only)")
     parser.add_argument("--receipt", required=True, help="Path to write task_receipt.json")
@@ -331,10 +400,36 @@ def main() -> int:
         )
         return EXIT_BLOCKED
 
-    # No LLM dispatch yet per stage 1. If clean, emit a provisional receipt so the
-    # envelope is schema-valid. Future stages will replace this with tactile/AST
-    # grounded results; stage 1 only guarantees that a clean diff is not BLOCKED.
-    summary = f"stage 1: frame loaded (task {task_id} attempt {args.attempt}), no forbidden_paths violation; LLM dispatch not yet wired"
+    # 5. Tactile ground truth: nonzero exit (incl. 124 on timeout) -> FAILED.
+    # Agent text cannot override a test failure; agent_summary is diagnostics.
+    timeout_seconds = _get_tactile_timeout(frame)
+    attempt, max_attempts = _coerce_attempt(frame)
+    exit_code, summary_output, _timed_out = _run_tactile(tactile_command, timeout_seconds)
+    tactile_execution = {
+        "command_run": tactile_command,
+        "exit_code": exit_code,
+        "summary_output": summary_output,
+    }
+    if exit_code != 0:
+        exit_promise = "HALT:EXHAUSTED" if attempt >= max_attempts else "RETRYABLE_FAILURE"
+        summary = f"FAILED: tactile_command exited {exit_code}: {tactile_command}"
+        print(summary, file=sys.stderr)
+        _write_receipt(
+            receipt_path,
+            task_id=task_id,
+            status="FAILED",
+            exit_promise=exit_promise,
+            commit_sha=commit_sha,
+            files_changed=files_changed,
+            tactile_execution=tactile_execution,
+            agent_summary=summary,
+            token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
+        )
+        return EXIT_FAILED
+
+    # No LLM dispatch yet per stage 1-2. Clean diff + tactile pass emits
+    # SUCCESS; future stages add AST/hold-out gating.
+    summary = f"stage 2: frame loaded (task {task_id} attempt {args.attempt}), tactile passed; LLM dispatch not yet wired"
     print(summary)
     _write_receipt(
         receipt_path,
@@ -343,7 +438,7 @@ def main() -> int:
         exit_promise="COMPLETE",
         commit_sha=commit_sha,
         files_changed=files_changed,
-        tactile_execution={"command_run": tactile_command, "exit_code": 0, "summary_output": ""},
+        tactile_execution=tactile_execution,
         agent_summary=summary,
         token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
     )
