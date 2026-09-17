@@ -116,8 +116,8 @@ Ownership:
 
 ## Verification path exception
 
-`allowed_paths` plus `/workspace/PROGRESS.md` (PoC mode) plus
-`/workspace/.task/task_receipt.json` constitute the clean-commit set. The
+`allowed_paths` plus `/sandbox/PROGRESS.md` (PoC mode) plus
+`/sandbox/.task/task_receipt.json` constitute the clean-commit set. The
 `.task/` frame file `current_task.json` itself is read-only by convention —
 the wrapper writes only the receipt there.
 

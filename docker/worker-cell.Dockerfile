@@ -1,20 +1,27 @@
-# Worker cell image (see specs/04-worker-cell.md).
-# Skeleton: full package versions and registry flow are TBD.
-FROM ubuntu:24.04
+# Worker cell layer (see specs/04-worker-cell.md).
+#
+# Thin layer on top of the local sandbox base image
+# (docker/openshell-sandbox-image/Dockerfile — CentOS Stream 10 port of
+# upstream NVIDIA/OpenShell-Community sandboxes/base). The base provides
+# runtimes (Node 22, Python 3.14 via uv), agent CLIs (opencode, codex,
+# copilot, claude), gh, git, skills, and the default policy. This layer
+# adds only the Ralph-loop contract: prompt, harness entrypoint.
+#
+# Build base first (from docker/openshell-sandbox-image/):
+#   podman build -t openshell-base:centos-stream10 .
+# Then this layer:
+#   podman build -t worker-cell:latest -f docker/worker-cell.Dockerfile .
 
-ENV DEBIAN_FRONTEND=noninteractive
+ARG BASE_IMAGE=openshell-base:centos-stream10
+FROM ${BASE_IMAGE}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl jq python3 python3-venv ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Node.js LTS (placeholder: pin major + install via nodesource in full build)
-# OpenCode CLI + Claude Code CLI installed here in the full build.
-
-# Contract prompt + harness entrypoint (sources: prompts/, harness/ in repo).
+# Contract prompt (source: prompts/worker_contract.txt in repo).
 COPY prompts/worker_contract.txt /etc/prompts/worker_contract.txt
+
+# Harness entrypoint (source: harness/wrapper.py in repo).
+# Python-only (no jq in base image — stdlib json suffices).
 COPY harness/wrapper.py /usr/local/bin/cell-harness
 RUN chmod +x /usr/local/bin/cell-harness
 
-WORKDIR /workspace
+WORKDIR /sandbox
 ENTRYPOINT ["/usr/local/bin/cell-harness"]

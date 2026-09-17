@@ -5,7 +5,7 @@ Runs inside the worker cell as the `openshell sandbox exec` entrypoint.
 Full behavior is specified in specs/04-worker-cell.md and
 specs/07-contracts.md. This skeleton defines the stage order only:
 
-1. Load /workspace/.task/current_task.json (read-only).
+1. Load /sandbox/.task/current_task.json (read-only).
 2. Dispatch the agent CLI (opencode / claude) with the contract prompt.
 3. Capture stdout/stderr; collect the agent's summary trailer.
 4. Run forbidden_paths diff assertion -> BLOCKED / HALT:BLOCKED (no retry).
@@ -13,7 +13,7 @@ specs/07-contracts.md. This skeleton defines the stage order only:
 6. Collect git rev-parse HEAD + git diff --name-only + token telemetry
    (nullable, best-effort).
 7. Serialize schema-valid task_receipt.json to
-   /workspace/.task/task_receipt.json.
+   /sandbox/.task/task_receipt.json.
 
 Exit code mirrors the receipt outcome for `sandbox exec` propagation.
 """
