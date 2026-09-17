@@ -62,8 +62,10 @@ A child `SUCCESS` moves the task to `review`, which re-runs the sensor suite
 from `05-sensors.md` against the candidate commit:
 
 - Sensors clean → task proceeds to promotion.
-- Sensors flag → findings are curated into `sensor_context` and the task
+- `block`-mapped findings → curated into `sensor_context` and the task
   re-enters `active` as a remediation attempt (attempt budget applies).
+- `advise`-only findings → attached as frame context; task proceeds to
+  promotion. Severity mapping lives in `05-sensors.md`.
 - **No sensors configured** → review is a logged no-op
   (`review: skipped, no sensors configured`), recorded on the receipt — never
   a silent skip — and the task proceeds to the promotion queue.
