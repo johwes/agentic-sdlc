@@ -27,24 +27,35 @@ Execute atomic Ralph cycles with zero context carryover between attempts.
 - Worker result artifact per attempt: `task_receipt.json` (schema in
   `07-contracts.md`).
 
-## Attempt lifecycle
+## Attempt lifecycle (per-task cell, exec-per-attempt)
+
+One sandbox per task (keepalive `sleep infinity`); each attempt is a fresh
+headless process via `sandbox exec`. Freshness comes from process exit, not
+sandbox churn — files + git persist in the cell across attempts, which is
+the Ralph pattern (state in files, never in memory). See `04-worker-cell.md`
+for the spawn/exec contract.
 
 ```mermaid
 flowchart TD
-    A[Receive current_task.json<br/>attempt N] --> B[Spawn fresh sandbox<br/>cell-task-attN-uuid]
-    B --> C[sandbox exec wrapper<br/>agent CLI runs]
-    C --> D[Collect task_receipt.json]
+    S[Task opens:<br/>create cell<br/>sleep infinity] --> A[Upload frame<br/>attempt N]
+    A --> C[exec wrapper<br/>fresh opencode run]
+    C --> D[Download receipt]
     D --> E{Gate a:<br/>forbidden_paths?}
-    E -->|violation| Z1[BLOCKED / HALT:BLOCKED<br/>escalate, no retry]
+    E -->|violation| Z1[BLOCKED / HALT:BLOCKED<br/>delete cell, escalate]
     E -->|clean| F{Gate b:<br/>tactile exit 0?}
     F -->|nonzero| G{Attempts left?}
     F -->|zero| H{Gate c:<br/>AST parses?}
     H -->|parse fail| G
-    H -->|parse ok| Z2[SUCCESS / COMPLETE<br/>local checkpoint commit]
-    G -->|attempt LT max| R[Reset to baseline<br/>backoff<br/>continue_as_new attempt N+1]
-    G -->|attempt EQ max| Z3[FAILED / HALT:EXHAUSTED<br/>escalate]
+    H -->|parse ok| Z2[SUCCESS / COMPLETE<br/>local checkpoint commit<br/>delete cell, promote]
+    G -->|attempt LT max| R[Reset cell to baseline<br/>backoff<br/>continue_as_new attempt N+1]
+    G -->|attempt EQ max| Z3[FAILED / HALT:EXHAUSTED<br/>delete cell, escalate]
     R --> A
 ```
+
+Cell failure mid-task (sandbox lost/unreachable): recreate the cell,
+re-upload the repo at the last commit SHA from the ledger, resume at the
+current attempt. The cell holds no irreplaceable state — receipts and SHAs
+live in Temporal history.
 
 ## Gates (evaluated in order)
 
@@ -73,10 +84,10 @@ flowchart TD
   `attempt + 1`. The previous attempt's `agent_summary` may ride along as
   text diagnostics — never as conversational memory.
 - `retry_strategy` frame field (default `"reset"`): `"reset"` =
-  `git reset --hard baseline_sha` before the next attempt (clean slate,
-  matches fresh-sandbox-per-attempt); `"continue"` = keep the failed attempt
-  commit and build on top (explicit opt-in only). Failed commits remain in
-  reflog/diagnostics either way.
+  `git reset --hard baseline_sha` inside the cell before the next attempt
+  (clean slate; matches process-per-attempt freshness); `"continue"` = keep
+  the failed attempt commit and build on top (explicit opt-in only). Failed
+  commits remain in reflog/diagnostics either way.
 
 ## Checkpoint & promotion model: local commit + eventual squash
 
@@ -94,11 +105,15 @@ flowchart TD
 
 ## Timeout & cleanup ownership
 
-- Attempt wall-clock and `tactile_timeout_seconds` (default 180s) are
-  enforced by the wrapper; Temporal activity timeouts bound the whole
-  attempt.
-- The Temporal worker owns sandbox deletion: `openshell sandbox delete` in
-  a `finally` block (or on activity timeout). No orphaned sandboxes.
+- Attempt wall-clock: `sandbox exec --timeout` (tactile budget + margin)
+  bounds the whole attempt; `tactile_timeout_seconds` (default 180s) is
+  enforced by the wrapper inside it; Temporal activity timeouts bound the
+  outermost layer.
+- The Temporal worker owns cell deletion: `openshell sandbox delete` when
+  the task reaches a terminal state (`promoted` / `escalated`), in a
+  `finally` block (or on activity timeout). No orphaned sandboxes. The cell
+  is per-task, not per-attempt — attempts never create or delete it, only a
+  lost cell triggers recreation (see lifecycle).
 
 ## Failure modes
 

@@ -61,72 +61,107 @@ cloning" rule binds the *agent*. The wrapper is harness infrastructure, not
 the agent — its `git rev-parse` / `git diff` / `git commit` plumbing calls
 are exempt by design.
 
-## Lifecycle: fresh sandbox per attempt (true ephemerality)
+## Lifecycle: one cell per task, exec per attempt (true ephemerality)
 
-- No state carries over between attempts. Persistence is strictly via Git
-  commits + Temporal state.
-- Naming: `cell-<task_id>-att<attempt_index>-<short_uuid>` (4 hex chars,
-  spawner-generated), e.g. `cell-task402-att1-a9f2`.
-- Owner: the Temporal workflow worker. Creation before execution; cleanup via
-  `openshell sandbox delete` in a `finally` block (or on activity timeout) —
-  no orphaned sandboxes. **Explicit delete (locked):** `--no-keep` was
-  considered and rejected — it deletes the sandbox when the initial command
-  exits, which risks losing the receipt on wrapper crash before
-  `sandbox download` runs. Receipt-first, then delete, always.
+- Freshness comes from process exit, not sandbox churn: each attempt is a new
+  headless `opencode run` via `sandbox exec`. Files + git persist in the cell
+  across attempts (the Ralph pattern); conversational context never does.
+  Persistence of record is Git commits + Temporal state.
+- Naming: `cell-<task_id>-<short_uuid>` — task-scoped (attempt index moved to
+  labels), e.g. `cell-TASK-402-a9f2`.
+- Owner: the Temporal workflow worker. Create on task open (keepalive
+  `sleep infinity`); delete at terminal state in a `finally` block (or on
+  activity timeout) — no orphaned sandboxes. **Explicit delete (locked):**
+  `--no-keep` was considered and rejected — it deletes the sandbox when the
+  initial command exits, which risks losing the receipt on wrapper crash
+  before `sandbox download` runs. Receipt-first, then delete, always.
+- Cell loss mid-task: recreate, re-upload repo at the ledger's last commit
+  SHA, resume at the current attempt (see `03-inner-loop.md`).
 
 ## Spawn contract (real CLI, verified against `openshell --help`)
 
 Base image for PoC spawns: `quay.io/jwesterl/openshell-base:latest` (the
 checked-in CentOS build, pulled — no local build step at spawn time). The
 cell layer (`docker/worker-cell.Dockerfile`, `ARG BASE_IMAGE`) builds
-identically atop it.
+identically atop it. Entrypoint stays the base default (`/bin/bash`); the
+keepalive is the trailing create command, and the wrapper is invoked
+explicitly per exec — never as PID 1.
 
 ```bash
 openshell sandbox create \
-  --name "cell-${TASK_ID}-att${ATTEMPT}-${UUID4}" \
+  --name "cell-${TASK_ID}-${UUID4}" \
   --from quay.io/jwesterl/openshell-base:latest \
-  --policy policy/upstream-base-policy.yaml \
-  --provider "${CRED_PROVIDER}" \
+  --policy /abs/path/to/policy/upstream-base-policy.yaml \
+  --provider "${CRED_PROVIDER:-opencode-go}" \
   --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
-  --upload "${FRAME_JSON}:/sandbox/.task/current_task.json" \
   --upload "${WORKSPACE_DIR}:/sandbox/repo" \
   --approval-mode manual \
+  --no-auto-providers \
   --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
-  --label "task=${TASK_ID}" --label "attempt=${ATTEMPT}" \
-  -- /usr/local/bin/cell-harness
+  --label "task=${TASK_ID}" \
+  -- sleep infinity
 ```
 
-Flag notes (all verified in CLI help):
-- `--policy` overrides the image/gateway default — this is how the adopted
-  baseline is actually served (resolves the gateway-resolution question).
+## Exec-per-attempt contract
+
+Each attempt (Temporal activity):
+
+```bash
+# 1. Deliver the attempt frame (frame changes per attempt: N, sensor_context)
+openshell sandbox upload -n "${CELL}" "${FRAME_JSON}:/sandbox/.task/current_task.json"
+# 2. Run the wrapper (exit code propagates; --timeout bounds the attempt)
+openshell sandbox exec -n "${CELL}" --workdir /sandbox \
+  --timeout "${EXEC_TIMEOUT}" -- /usr/local/bin/cell-harness \
+  --attempt "${ATTEMPT}" --frame /sandbox/.task/current_task.json \
+  --receipt /sandbox/.task/task_receipt.json
+# 3. Collect the receipt (Temporal gates on it)
+openshell sandbox download -n "${CELL}" /sandbox/.task/task_receipt.json "${OUT_DIR}/"
+```
+
+(`upload`/`download` flag spellings to be confirmed against CLI help at
+implementation time and corrected here.)
+
+Flag notes (all verified in CLI help unless marked):
+- `--policy` needs an **absolute, readable path** — relative paths fail
+  depending on cwd (observed in the probe). The spawner asserts readability
+  before invoking `create`.
 - `--provider` is repeatable and the only path for secrets; `--env` help
-  text explicitly forbids credentials there.
+  text explicitly forbids credentials there. (`ANTHROPIC_BASE_URL` remains a
+  valid non-secret `--env` hint only on the Claude-Code-via-proxy path.)
 - `--upload` is the primary ingestion path (driver-portable; host bind-mounts
   may not exist under the Kubernetes driver). `.gitignore` filtering applies
   by default — pass `--no-git-ignore` when the repo seed must be complete.
 - `--approval-mode manual` (the default): agent-authored policy proposals wait
   in a draft inbox for human review. `auto` (empty-delta auto-approve) is a
   documented opt-in only — default-deny posture preserved for the PoC.
-- `--no-auto-providers` belongs in the Temporal spawner (fail loudly on a
-  missing provider instead of prompting / erroring opaquely).
-- Post-attempt: `openshell sandbox exec -n <name> --workdir /sandbox -- ...`
-  for follow-up commands (exit code propagates); `openshell sandbox download`
-  for the receipt; `openshell sandbox delete` in `finally`.
+- `--no-auto-providers` in the spawner: fail loudly on a missing provider
+  instead of prompting / erroring opaquely.
+- Per-task creation means `--upload` of the repo seed happens once; only the
+  small frame file is re-uploaded per attempt.
 
-## Inference model: L7 proxy with placeholder URL (working hypothesis)
+## Inference model: OpenCode-hosted catalog via attached provider (locked)
 
-Outbound inference goes through an L7 proxy: the in-cell config points at a
-placeholder URL (e.g. `https://inference.local`) with a dummy key
-(`unused`), the proxy rewrites the URL and injects the real token/key. The
-agent/CLI never holds a real credential — consistent with the provider
-model above (provider *or* proxy-injected dummy; both keep real keys out of
-the cell). For OpenCode this maps to an `opencode.json` provider `baseURL`
-override (see `config/opencode-sandbox.json` template). **Unconfirmed:** which
-request shapes the proxy rewrites (Anthropic-compatible? OpenAI-compatible?
-both?) and which models resolve. Recorded experiment (owner-run, pre-build):
-point the template at the proxy, run a minimal `opencode run`, confirm which
-provider block succeeds — then lock the template and delete the losing
-alternative.
+OpenCode speaks its first-party hosted catalogs directly: the in-cell
+`OPENCODE_API_KEY` (injected, placeholder-masked, by the attached
+`opencode-go` provider — never `--env`, never disk) authenticates against
+`opencode.ai/*`, which the adopted policy's `opencode` block already allows.
+No `baseURL` override, no `auth.json` seeding, no proxy placeholder on this
+path. Verified live: headless `opencode --model <id> run` succeeds in-cell
+(model self-identifies correctly; exact ID confirmed at probe time).
+
+- Template default: `config/opencode-sandbox.json` pins
+  `model`/`small_model` to Go-catalog IDs from the owner's subscription
+  (adjust to whatever `opencode models` shows as available); per-run override
+  via `opencode run --model <id>` (future: a `model` frame field flowing into
+  the wrapper invocation — recorded, not built).
+- Pricing/terms note: hosted-catalog models carry their own pricing and data
+  terms (some discounted tiers permit training use of prompts/completions) —
+  check the active model's terms before routing proprietary code; revisit at
+  promotion time.
+- Retained alternative: Claude Code via L7 `inference.local` placeholder +
+  attached provider (`ANTHROPIC_BASE_URL`, proxy rewrites URL and injects the
+  real token). That path is documented, not deleted — but it is not the PoC
+  default.
 
 ## Providers, policy, network
 
@@ -166,11 +201,11 @@ alternative.
 ## Repo + task ingestion sequence
 
 1. Host spawner prepares a fresh workspace dir, checks out `target_branch`.
-2. `sandbox create` uploads the frame to `/sandbox/.task/current_task.json`
-   and the repo seed to `/sandbox/repo` via `--upload` (primary path;
-   bind-mount only where the driver supports it).
-3. Cell entrypoint (`cell-harness`) reads contract state from the frame at
-   start and dispatches the agent CLI.
+2. `sandbox create` (trailing `sleep infinity`) uploads the repo seed to
+   `/sandbox/repo` via `--upload` (primary path; bind-mount only where the
+   driver supports it).
+3. Per attempt: upload the frame to `/sandbox/.task/current_task.json`,
+   `exec` the wrapper, `download` the receipt (see exec contract above).
 
 ## Worker prompt contract (canonical)
 
