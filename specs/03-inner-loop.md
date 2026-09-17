@@ -27,9 +27,18 @@ Execute atomic Ralph cycles with zero context carryover between attempts.
 1. Receive `current_task.json`.
 2. Dispatch non-interactive command to worker pod.
 3. Collect `task_receipt.json`.
-4. Evaluate deterministic gates: Tree-sitter AST validation + read-only hold-out
-   evals (hold-out tests are never writable by the worker — anti-gaming).
-5. Pass → commit checkpoint. Fail → atomic reset + `continue_as_new()`.
+4. Evaluate deterministic gates **in order**: (a) `forbidden_paths` diff
+   assertion — violation → `BLOCKED` / `HALT:BLOCKED`, halt, no retry;
+   (b) `tactile_execution.exit_code` — nonzero → `FAILED` (ground truth, no
+   agent override); (c) Tree-sitter AST validation + read-only hold-out evals
+   (hold-out tests are never writable by the worker — anti-gaming).
+5. Resolve the receipt via the status / `exit_promise` matrix in
+   `07-contracts.md`:
+   - `SUCCESS` / `COMPLETE` → commit checkpoint.
+   - `FAILED` / `RETRYABLE_FAILURE` → atomic `git reset` +
+     `continue_as_new()` with `attempt + 1`.
+   - `FAILED` / `HALT:EXHAUSTED` or `BLOCKED` / `HALT:BLOCKED` → escalate to
+     the parent (or human); no further retry.
 
 ## Failure modes
 

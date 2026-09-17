@@ -1,6 +1,6 @@
 # 07 — Contracts (`current_task.json`, `task_receipt.json`, `PROGRESS.md`)
 
-Source: `intent.md` §§2–3.
+Source: `intent.md` §§2–3. Fleshed out via spec interview (rounds 2+4).
 
 ## Goal
 
@@ -12,15 +12,113 @@ without conversational memory.
 - Workflow orchestration semantics (see `02`, `03`).
 - Sensor finding schemas (see `05-sensors.md`).
 
-## Contracts (initial shapes — field-level schemas TBD)
+## `current_task.json` (Temporal → worker, read-only)
 
-- **`current_task.json`** (Temporal → worker): the ephemeral projected task
-  frame. Compiled per attempt by Temporal. Worker treats it as read-only input.
-- **`task_receipt.json`** (worker → child workflow): result of one attempt
-  (exit status, diff summary, test-relevant metadata). Consumed by gates in
-  `03-inner-loop.md`.
-- **`PROGRESS.md`** (Temporal-projected): human/agent-readable progress view,
-  dynamically compiled — never hand-mutated across workers.
+The ephemeral projected task frame, compiled per attempt by Temporal.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `task_id` | string | yes | `TASK-<n>` style, e.g. `"TASK-402"`. |
+| `title` | string | yes | Concise objective summary. |
+| `acceptance_criteria` | string[] | yes | Explicit pass/fail statements. |
+| `target_branch` | string | yes | Working branch; worker verifies its head before editing. |
+| `allowed_paths` | string[] | yes | Glob patterns the agent may touch, e.g. `["src/api/**", "tests/unit/**"]`. |
+| `forbidden_paths` | string[] | yes | Touch = verification failure, e.g. `["tests/evals/**", ".task/**"]`. |
+| `sensor_context` | object[] | yes (may be empty) | Curated findings: `tool_name` (SonarQube/Snyk/DAST/CodeQL/Trivy), `rule_id`, `file_path`, `line_number`, `message`/evidence payload. |
+| `attempt` | integer | yes | Current cycle index, 1-indexed. |
+| `max_attempts` | integer | yes | Ceiling before escalation. |
+| `tactile_command` | string | yes | Local reality-check command ("tactile feedback" — the worker feels/tests its work before asserting completion), e.g. `"pytest tests/unit/test_search.py"`. Name is intentional. |
+| `tactile_timeout_seconds` | integer | no | Kill timeout for `tactile_command`. Default `180`; sane range `120–300`. |
+
+### Must never carry
+
+- Hold-out test locations or references — revealing hidden eval paths enables
+  assertion reverse-engineering.
+- Credentials, API keys, GitHub tokens, or vault references.
+- Global SDLC / roadmap state, parent workflow history, or unrelated sub-tasks.
+- Raw, unfiltered scanner dumps — Temporal trims and curates `sensor_context`
+  to the immediate file/line target to preserve token budget.
+
+## `task_receipt.json` (worker → child workflow)
+
+Result of one attempt. Consumed by gates in `03-inner-loop.md`.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `task_id` | string | yes | Must match the frame's ID. |
+| `status` | enum | yes | `"SUCCESS"` \| `"FAILED"` \| `"BLOCKED"`. |
+| `exit_promise` | enum | yes | `"COMPLETE"` \| `"RETRYABLE_FAILURE"` \| `"HALT:EXHAUSTED"` \| `"HALT:BLOCKED"`. |
+| `commit_sha` | string | yes | Git commit hash created inside the container. |
+| `files_changed` | string[] | yes | Paths modified in the candidate commit. |
+| `tactile_execution` | object | yes | `{command_run, exit_code, summary_output}` — output tail capped at 50 lines / ~4KB. |
+| `agent_summary` | string | yes | Model-written what/why; used for PR generation and next-attempt diagnostics. Never overrides ground truth. |
+| `token_metrics` | object | yes (fields nullable) | `{input_tokens, output_tokens, cost}` — all nullable (see telemetry). |
+
+### Status / `exit_promise` matrix
+
+| `status` | Condition | `exit_promise` | Meaning |
+|----------|-----------|----------------|---------|
+| `SUCCESS` | Pass criteria met & verified | `COMPLETE` | Ready for downstream merge/eval. |
+| `FAILED` | Tests fail, `attempt < max_attempts` | `RETRYABLE_FAILURE` | Budget remains; loop retries. |
+| `FAILED` | Tests fail, `attempt == max_attempts` | `HALT:EXHAUSTED` | Budget spent; escalate. |
+| `BLOCKED` | Dependency, path violation, or system failure | `HALT:BLOCKED` | Halt immediately; orchestrator/human inspects. |
+
+### Authorship: wrapper owns the envelope
+
+The harness wrapper script (see `04-worker-cell.md`) writes the structural
+envelope — never the raw LLM. Letting the LLM construct the JSON risks syntax
+errors, missed fields, or hallucinated exit codes. Pattern: the agent writes a
+small informal summary file or emits a standard output trailer; the wrapper
+catches process termination, runs `git rev-parse HEAD` and
+`git diff --name-only`, inspects the tactile exit code, collects telemetry,
+and serializes the formal schema-valid receipt.
+
+### Tactile ground-truth rule
+
+A non-zero `tactile_command` exit is an absolute ground-truth assertion →
+automatic `FAILED`. The agent **cannot** override a test failure with text
+justification (blocks model self-deception). `agent_summary` is preserved for
+next-attempt diagnostics only. Timeout: wrapper kills the command after
+`tactile_timeout_seconds`, records exit code `124`, and prints
+`"Command timed out after N seconds"` to stderr.
+
+### Telemetry
+
+`token_metrics` fields are nullable. The wrapper best-effort parses
+client-native logs (Claude Code `--verbose` JSONL, OpenCode execution
+summaries); formats drift across CLI releases and non-interactive runs
+sometimes drop metrics. Parse failure → `null`; telemetry gaps never crash
+the wrapper or block the workflow.
+
+## `PROGRESS.md`
+
+Flat, ordered checklist with a structured task header:
+
+```markdown
+# Ephemeral Task Execution: TASK-402
+
+- [x] Analyze sensor finding: Reflected XSS at src/api/search.ts:58
+- [ ] Implement input sanitization using sanitizeHtml utility
+- [ ] Verify local unit test passes (`npm test search.test.ts`)
+- [ ] Emit clean commit and self-terminate
+```
+
+Ownership:
+
+- **Production:** Temporal renders a transient single-task `PROGRESS.md` into
+  the worker directory at spawn. The agent checks off sub-steps of that task
+  only. The global view is synthesized downstream as commits merge.
+- **PoC shortcut:** a checked-in multi-task file the agent reads and edits
+  directly (Huntley pattern). The prompt constrains the agent to toggle only
+  the first unchecked item (`- [ ]` → `- [x]`), and the worker's commit must
+  include the edited `PROGRESS.md` alongside code changes.
+
+## Verification path exception
+
+`allowed_paths` plus `/workspace/PROGRESS.md` (PoC mode) plus
+`/workspace/.task/task_receipt.json` constitute the clean-commit set. The
+`.task/` frame file `current_task.json` itself is read-only by convention —
+the wrapper writes only the receipt there.
 
 ## Rules
 
@@ -32,7 +130,7 @@ without conversational memory.
 
 ## Open questions
 
-- JSON schemas (required fields, versions) for `current_task.json` /
-  `task_receipt.json`?
-- `PROGRESS.md` template and projection trigger (per checkpoint vs. per attempt)?
-- Receipt size limits and diff encoding?
+- JSON Schema (draft 2020-12) files for both artifacts — checked in where?
+- `PROGRESS.md` projection trigger (per checkpoint vs. per attempt)?
+- Receipt size limits and diff encoding beyond the 50-line/4KB tail?
+- Temporal workflow SDK: TypeScript recommended, pending lock (non-blocking for 07/04).

@@ -26,8 +26,11 @@ loops — instead of downstream pass/fail gates needing human intervention.
 
 1. Sensor suite runs against candidate output.
 2. Findings normalize to SARIF/JSON.
-3. Parent ledger converts findings into remediation work items.
-4. Child loop re-attempts with sensor context in the projected frame.
+3. Temporal **curates** findings to the immediate file/line target before
+   projecting into `sensor_context` — raw megabyte-sized SARIF dumps never
+   enter task frames (token budget rule, see `07-contracts.md`).
+4. Parent ledger converts curated findings into remediation work items.
+5. Child loop re-attempts with sensor context in the projected frame.
 
 ## Failure modes
 
