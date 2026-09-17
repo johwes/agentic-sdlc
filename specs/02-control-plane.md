@@ -1,6 +1,8 @@
 # 02 — Macro Control Plane (Temporal Parent Workflow)
 
-Source: `intent.md` §§1, 3 (T1).
+Source: `intent.md` §§1, 3 (T1). Fleshed out via spec interview (round 6).
+PoC stance: simplest operable path; enterprise webhook/panel machinery
+reserved as named future slots, not built.
 
 ## Goal
 
@@ -10,36 +12,111 @@ diagnostic sensor array.
 ## Non-goals
 
 - Executing atomic code attempts (child-workflow concern, see `03-inner-loop.md`).
-- Packaging/signing/deploying artifacts (release concern, see `06-release.md`).
+- Release packaging (see `06-release.md`).
 
-## Inputs
+## Inputs (PoC): manual / file trigger
 
-- Webhook ingestion: issue / PR / label events.
+No webhook server in the PoC. A task enters the system when a human drops a
+hand-written `current_task.json` frame into `tasks/inbox/TASK-<n>.json` (or
+runs the starter CLI against it). A Temporal client starter picks the file
+up and opens the parent workflow.
 
-## Outputs
+The frame shape is preserved deliberately so a GitHub webhook receiver
+(issue / PR / label events) can slot in later as an alternate input adapter
+without changing anything downstream. Webhook auth/dedup stays a post-PoC
+open question.
 
-- Task Decomposition Ledger entries spawning Tier-2 child workflows.
-- Sensor-driven remediation directives (from `05-sensors.md` findings).
-- Multi-agent review verdicts.
-- PR promotion + downstream release trigger.
+## Decomposition (PoC): one issue, one task + human override
 
-## Flow
+- **Default:** 1 inbox file = 1 ledger task = 1 child workflow. No
+  decomposition step runs in the PoC.
+- **Override:** when 1:1 doesn't fit, the human authors (or hand-edits) the
+  frame directly — splitting, scoping `allowed_paths`, or tightening
+  `acceptance_criteria` by hand.
+- **Reserved:** an LLM decomposition activity (issue → frames) is a named
+  future slot, not built. The ledger schema already carries what it would
+  need (see below).
 
-1. Ingest webhook (issue / PR / label).
-2. Decompose into ledger tasks.
-3. Run sensor inversion (SonarQube / Snyk / DAST findings feed back as work items).
-4. Convene multi-agent review panel on candidate output.
-5. Promote to PR and trigger downstream release.
+## Ledger
+
+Temporal workflow state is the source of truth (per `01-principles.md`).
+The PoC-readable projection is `tasks/ledger.md` — Temporal-rendered,
+checked in, same projection pattern as `PROGRESS.md`. Never hand-edited.
+
+Task states: `inbox → active → review → promoted | escalated`.
+
+| Field | Notes |
+|-------|-------|
+| `task_id` | Matches the frame. |
+| `state` | One of the five states above. |
+| `attempt` / `max_attempts` | Copied from the frame; bumped per `continue_as_new`. |
+| `child_workflow_id` | Spawned Tier-2 workflow handle. |
+| `commit_shas` | Per-attempt local SHAs from receipts. |
+| `final_receipt` | Last `task_receipt.json` outcome (`status`/`exit_promise`). |
+| `pr_url` | Set at promotion (draft PR). |
+| `updated_at` | Last transition timestamp. |
+
+## Sensor review gate (PoC): sensor-only, degrading to deferred
+
+A child `SUCCESS` moves the task to `review`, which re-runs the sensor suite
+from `05-sensors.md` against the candidate commit:
+
+- Sensors clean → task proceeds to promotion.
+- Sensors flag → findings are curated into `sensor_context` and the task
+  re-enters `active` as a remediation attempt (attempt budget applies).
+- **No sensors configured** → review is a logged no-op
+  (`review: skipped, no sensors configured`), recorded on the receipt — never
+  a silent skip — and the task proceeds to the promotion queue.
+
+No LLM reviewer in the PoC. The multi-agent review panel from `intent.md`
+is a post-PoC slot (different-model review pass; quorum rules TBD).
+
+Sensor findings that cannot map to a ledger task are surfaced to human
+review, never dropped silently.
+
+## Promotion (PoC): draft PR auto, executed by Temporal
+
+The promotion activity runs the local-commit + squash model from
+`03-inner-loop.md`:
+
+1. Squash per-attempt commits into one clean commit
+   (e.g. `fix(TASK-402): sanitize search input`).
+2. Push `target_branch` to origin.
+3. Open a **draft** PR via the `gh` API, seeding the body from the receipt's
+   `agent_summary` plus gate evidence (tactile command, sensor results).
+4. Record `pr_url`; mark the task `promoted`.
+
+The human promotes draft → ready. Direct-to-ready and human-opens-PR are
+documented alternatives, not the default. (Mechanism = Temporal pushes and
+opens; draft status = the safety catch.)
+
+## Escalation handling
+
+`HALT:EXHAUSTED` and `HALT:BLOCKED` receipts land in the ledger as
+`escalated` with the final receipt attached, awaiting human triage. Never
+auto-retried, never dropped. A path-violation escalation additionally flags
+which `forbidden_paths` entry tripped.
+
+## SLAs (PoC defaults, tunable with evidence)
+
+- Global task wall-clock: **2h** from `inbox` to terminal state
+  (`promoted` / `escalated`); breach → auto-escalate with partial evidence.
+- Promotion-queue staleness nudge: **24h** in `promoted` without human action
+  → reminder (no auto-merge, ever).
+- Attempt backoff constants live in `03-inner-loop.md`.
 
 ## Failure modes
 
-- Ledger divergence from Temporal truth (must remain the single source of truth
-  per `01-principles.md`).
-- Sensor findings that cannot map to a ledger task (route to open questions /
-  human review rather than dropping silently).
+- Ledger divergence from Temporal truth (projection is derived, never source).
+- Sensor findings unmappable to a task → human review, not silent drop.
+- Promotion pushing partial state (only fully-gated `SUCCESS` promotes;
+  workers have no push path — see `03-inner-loop.md`).
+- Webhook-shaped inputs arriving before the adapter exists (reject with a
+  clear "PoC accepts file trigger only" signal).
 
 ## Open questions
 
-- Ledger schema and SLA/timeout values?
-- Review-panel quorum and voting rules?
-- Webhook auth and dedup/idempotency strategy?
+- Webhook auth, dedup/idempotency, and event → frame mapping (post-PoC adapter).
+- Review-panel quorum and voting rules (post-PoC LLM panel).
+- LLM decomposition activity contract (post-PoC).
+- SLA tuning under real run data.
