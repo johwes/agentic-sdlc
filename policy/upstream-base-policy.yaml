@@ -193,12 +193,19 @@ network_policies:
       port: 443
     - host: opencode.ai
       port: 443
+    # Proven live 2026-09-17: free-catalog routing also calls models.opencode.ai
+    # (policy_denied until approved in probe-inference runtime policy, then OK).
+    - host: models.opencode.ai
+      port: 443
     - host: integrate.api.nvidia.com
       port: 443
     binaries:
     - path: /usr/lib/node_modules/opencode-ai/bin/.opencode
     - path: /usr/bin/node
     - path: /usr/local/bin/opencode
+    # Runtime-approved binary path observed in probe-inference effective policy
+    # (Source sandbox, Version 4): keep both so future cells need no approval.
+    - path: /usr/local/lib/node_modules/opencode-ai/bin/opencode.exe
 
   codex:
     name: codex

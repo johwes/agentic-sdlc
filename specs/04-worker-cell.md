@@ -145,16 +145,21 @@ Flag notes (all verified in CLI help unless marked):
 OpenCode speaks its first-party hosted catalogs directly: the in-cell
 `OPENCODE_API_KEY` (injected, placeholder-masked, by the attached
 `opencode-go` provider — never `--env`, never disk) authenticates against
-`opencode.ai/*`, which the adopted policy's `opencode` block already allows.
-No `baseURL` override, no `auth.json` seeding, no proxy placeholder on this
-path. Verified live: headless `opencode --model <id> run` succeeds in-cell
-(model self-identifies correctly; exact ID confirmed at probe time).
+`opencode.ai` + `models.opencode.ai`, both in the adopted policy's `opencode`
+block. No `baseURL` override, no `auth.json` seeding, no proxy placeholder
+on this path. Proven live 2026-09-17: `opencode --model
+opencode-go/muse-spark-1.3-contributor run` succeeds headless in-cell via
+`sandbox exec` (first attempt `policy_denied` on `models.opencode.ai`,
+approved live under `--approval-mode manual`, second attempt self-identified
+correctly). The `models.opencode.ai` endpoint and both binary paths
+(`.opencode` + `opencode.exe`) are now persisted in the baseline so future
+cells need no approval for this model.
 
 - Template default: `config/opencode-sandbox.json` pins
-  `model`/`small_model` to Go-catalog IDs from the owner's subscription
-  (adjust to whatever `opencode models` shows as available); per-run override
-  via `opencode run --model <id>` (future: a `model` frame field flowing into
-  the wrapper invocation — recorded, not built).
+  `model: opencode-go/muse-spark-1.3-contributor` and
+  `small_model: opencode-go/glm-5` (changeable later); per-run override via
+  `opencode run --model <id>` (future: a `model` frame field flowing into the
+  wrapper invocation — recorded, not built).
 - Pricing/terms note: hosted-catalog models carry their own pricing and data
   terms (some discounted tiers permit training use of prompts/completions) —
   check the active model's terms before routing proprietary code; revisit at

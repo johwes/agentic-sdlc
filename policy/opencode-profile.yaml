@@ -1,0 +1,43 @@
+id: opencode
+display_name: OpenCode
+description: OpenCode hosted catalog (Go/Zen) — opencode.ai + registry
+category: inference
+credentials:
+- name: api_key
+  description: OpenCode API key
+  env_vars:
+  - OPENCODE_API_KEY
+  - OPENROUTER_API_KEY   # alias per docs Supported Provider Types table
+  - OPENAI_API_KEY       # alias — keep or drop per your call below
+  required: true
+  auth_style: bearer
+  header_name: authorization
+endpoints:
+- host: opencode.ai
+  port: 443
+  protocol: rest
+  access: read-write
+  enforcement: enforce
+# Proven live 2026-09-17: free-catalog routing also calls models.opencode.ai
+# (policy_denied until approved in probe-inference runtime policy, then OK).
+- host: models.opencode.ai
+  port: 443
+  protocol: rest
+  access: read-write
+  enforcement: enforce
+- host: registry.npmjs.org
+  port: 443
+- host: integrate.api.nvidia.com
+  port: 443
+binaries:
+- /usr/lib/node_modules/opencode-ai/bin/.opencode
+- /usr/bin/node
+- /usr/local/bin/opencode
+# Runtime-approved binary path observed in probe-inference effective policy.
+- /usr/local/lib/node_modules/opencode-ai/bin/opencode.exe
+- /usr/bin/curl
+inference_capable: true
+discovery:
+  credentials:
+  - api_key
+source: custom

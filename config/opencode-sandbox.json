@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "_comment": "Sandbox cell OpenCode config (see specs/04-worker-cell.md). Delivered via OPENCODE_CONFIG env. Auth comes from the attached OpenShell provider (OPENCODE_API_KEY, placeholder-masked) — no keys here. Set model to an ID from your OpenCode subscription catalog (Go or Zen); verify with `opencode models`. Per-run override: `opencode run --model <id>`.",
-  "model": "opencode-go/kimi-k2.5",
+  "_comment": "Sandbox cell OpenCode config (see specs/04-worker-cell.md). Delivered via OPENCODE_CONFIG env. Auth from attached opencode-go provider (OPENCODE_API_KEY, placeholder-masked) — no keys here. Proven live 2026-09-17: headless `opencode --model opencode-go/muse-spark-1.3-contributor run` self-identifies in-cell after models.opencode.ai allowlist. Adjust IDs to `opencode models` output; per-run override via --model.",
+  "model": "opencode-go/muse-spark-1.3-contributor",
   "small_model": "opencode-go/glm-5"
 }
