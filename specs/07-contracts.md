@@ -29,6 +29,7 @@ The ephemeral projected task frame, compiled per attempt by Temporal.
 | `max_attempts` | integer | yes | Ceiling before escalation. |
 | `tactile_command` | string | yes | Local reality-check command ("tactile feedback" — the worker feels/tests its work before asserting completion), e.g. `"pytest tests/unit/test_search.py"`. Name is intentional. |
 | `tactile_timeout_seconds` | integer | no | Kill timeout for `tactile_command`. Default `180`; sane range `120–300`. |
+| `retry_strategy` | enum | no | `"reset"` (default) = reset to baseline before next attempt; `"continue"` = build on failed commit. See `03-inner-loop.md`. |
 
 ### Must never carry
 
