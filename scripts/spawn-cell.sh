@@ -152,7 +152,10 @@ seed_repo() {
 # directory containing the file. Upload to the dir, then rename into place.
 # Basename is validated before any openshell call (fail fast, no partial
 # state); the scoped rm -rf repairs stale dirs from earlier attempts, so
-# retries heal the same cell. Remote names are caller-fixed literals.
+# retries heal the same cell. Remote names are caller-fixed literals. The
+# child stages fixed filenames (current_task.json, worker_prompt.txt), so
+# source and target routinely coincide — those already land in place and
+# the mv is skipped (mv would fail "same file").
 upload_file_to() {
   local cell="$1" local_path="$2" remote_name="$3"
   local base
@@ -170,8 +173,10 @@ upload_file_to() {
   openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
     --timeout 60 -- rm -rf -- "${remote_name}" || true
   openshell sandbox upload "${cell}" "${local_path}" /sandbox/.task/
-  openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
-    --timeout 60 -- mv -- "${base}" "${remote_name}"
+  if [[ "${base}" != "${remote_name}" ]]; then
+    openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
+      --timeout 60 -- mv -- "${base}" "${remote_name}"
+  fi
 }
 
 do_exec_attempt() {

@@ -179,6 +179,10 @@ there is no file-vs-dir flag), so the spawner uploads to
 `/sandbox/.task/` and `mv`s into place (`current_task.json`,
 `worker_prompt.txt`), repairing stale dirs so retries heal the same
 cell. `download` to a directory lands the file under its basename.)
+The child stages fixed filenames (`current_task.json`,
+`worker_prompt.txt`), so source and target routinely coincide — those
+already land in place and the `mv` is skipped (it would fail "same
+file"; observed live on the first Temporal run).
 
 Flag notes (all verified in CLI help unless marked):
 - `--policy` needs an **absolute, readable path** — relative paths fail
