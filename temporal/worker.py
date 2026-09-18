@@ -28,6 +28,8 @@ try:
         ChildWorkflow,
         ast_check,
         checkpoint_commit,
+        create_cell,
+        destroy_cell,
         reset_cell,
         run_attempt,
     )
@@ -44,6 +46,8 @@ except ImportError:  # allow `python3 -m temporal.worker` / package-style import
         ChildWorkflow,
         ast_check,
         checkpoint_commit,
+        create_cell,
+        destroy_cell,
         reset_cell,
         run_attempt,
     )
@@ -68,6 +72,8 @@ async def _run(address: str) -> None:
             dispatch_child,
             sensor_review,
             open_draft_pr,
+            create_cell,
+            destroy_cell,
             run_attempt,
             reset_cell,
             checkpoint_commit,
