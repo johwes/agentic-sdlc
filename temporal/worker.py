@@ -20,10 +20,10 @@ try:
         ParentWorkflow,
         dispatch_child,
         open_draft_pr,
-        sensor_review,
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
     )
+    from sensors import sensor_review
     from child import (
         ChildWorkflow,
         ast_check,
@@ -36,10 +36,10 @@ except ImportError:  # allow `python3 -m temporal.worker` / package-style import
         ParentWorkflow,
         dispatch_child,
         open_draft_pr,
-        sensor_review,
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
     )
+    from temporal.sensors import sensor_review
     from temporal.child import (
         ChildWorkflow,
         ast_check,

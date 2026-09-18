@@ -9,7 +9,8 @@ PoC flow this stub encodes:
     -> 1 file = 1 ledger task = 1 child workflow (no decomposition)
     -> ledger states: inbox -> active -> review -> promoted | escalated
     -> sensor review degrades to a logged no-op when no sensors are
-       configured ("review: skipped, no sensors configured" — never silent)
+       configured ("review: skipped, no sensors configured" — never silent;
+       canonical suite in temporal/sensors.py, see 05)
     -> promotion = draft PR via gh on the host (activity slot, see 02+06)
     -> HALT:EXHAUSTED / HALT:BLOCKED receipts -> escalated, never retried
     -> SLAs: 2h inbox-to-terminal wall-clock (auto-escalate on breach);
@@ -63,9 +64,18 @@ REQUIRED_FRAME_FIELDS = [
     "tactile_command",
 ]
 
-# Logged no-op annotation when no sensors are configured (02 + 05).
-# Recorded on the receipt — never a silent skip.
-REVIEW_SKIPPED_ANNOTATION = "review: skipped, no sensors configured"
+try:  # Canonical sensor suite (see specs/05-sensors.md); guarded for offline import.
+    from sensors import REVIEW_SKIPPED_ANNOTATION, review_commit, sensor_review
+except ImportError:
+    try:
+        from temporal.sensors import REVIEW_SKIPPED_ANNOTATION, review_commit, sensor_review
+    except ImportError:
+        # Offline fallback when the sensors module is unavailable: the
+        # logged no-op annotation stays defined so the gate below still
+        # degrades loudly instead of skipping silently.
+        REVIEW_SKIPPED_ANNOTATION = "review: skipped, no sensors configured"
+        review_commit = None  # type: ignore[assignment]
+        sensor_review = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -130,19 +140,61 @@ def review_gate(
 ) -> tuple[str, str]:
     """PoC sensor review gate (02 sensor-only, degrading to deferred).
 
-    Returns (next_state, annotation). PoC: no sensors run, so a SUCCESS
-    receipt degrades to the logged no-op and proceeds to the promotion
-    queue. Block-mapped findings re-enter active as a remediation attempt;
-    advise-only findings proceed with context attached (caller attaches).
-    Non-SUCCESS receipts never reach this gate (see decide_terminal).
+    Returns (next_state, annotation). Thin wrapper over
+    sensors.review_commit() (see specs/05-sensors.md): no sensors run, so
+    a SUCCESS receipt degrades to the logged no-op and proceeds to the
+    promotion queue. Block-mapped findings re-enter active as a
+    remediation attempt; advise-only findings proceed with context
+    attached (caller attaches). Non-SUCCESS receipts never reach this
+    gate (see decide_terminal).
     """
     if receipt_status != "SUCCESS":
         raise ValueError(f"review_gate takes SUCCESS receipts only, got {receipt_status}")
+    if _review_commit_available():
+        findings = _synthetic_findings(block_findings) if sensors_configured else None
+        receipt: dict[str, Any] = {
+            "status": receipt_status,
+            # Synthetic findings live on a placeholder diff path so the
+            # canonical diff-scope rule keeps them (legacy count bridge).
+            "files_changed": ["__diff__"] if findings else [],
+        }
+        next_state, annotation, _ = review_commit(receipt, findings)
+        return next_state, annotation
     if not sensors_configured:
         return "promoted", REVIEW_SKIPPED_ANNOTATION
     if block_findings > 0:
         return "active", f"review: {block_findings} block finding(s), remediation re-entry"
     return "promoted", "review: advise-only, proceeding to promotion"
+
+
+def _review_commit_available() -> bool:
+    """Whether the canonical sensors module imported (offline fallback?)."""
+    return callable(review_commit)
+
+
+def _synthetic_findings(block_findings: int) -> list[dict[str, Any]]:
+    """Bridge int counts to the sensors contract for the legacy signature.
+
+    review_gate() predates the finding-list contract; when callers pass a
+    bare block count, synthesize minimal diff-scoped block findings so the
+    canonical review_commit() drives the verdict (block/advise split
+    ready). Real findings flow via the sensor_review activity instead.
+    """
+    try:
+        n = int(block_findings)
+    except (TypeError, ValueError):
+        n = 0
+    return [
+        {
+            "tool_name": "SonarQube",
+            "rule_id": "synthetic",
+            "file_path": "__diff__",
+            "line_number": 1,
+            "severity": "blocker",
+            "message": "synthetic block finding (legacy count bridge)",
+        }
+        for _ in range(max(n, 0))
+    ]
 
 
 def decide_terminal(receipt: dict[str, Any]) -> str | None:
@@ -243,13 +295,12 @@ async def dispatch_child(frame: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-@activity.defn(name="sensor_review")
-async def sensor_review(receipt: dict[str, Any]) -> dict[str, str]:
-    """PoC sensor review: logged no-op, never a silent skip (02 + 05)."""
-    next_state, annotation = review_gate(
-        receipt.get("status", ""), sensors_configured=False
-    )
-    return {"next_state": next_state, "annotation": annotation}
+# Note: the `sensor_review` Temporal activity lives canonically in
+# temporal/sensors.py (host-side review-gate suite, see 05 runtime home)
+# and is re-exported here for backwards compatibility — ParentWorkflow
+# below dispatches it by function reference, and worker.py registers the
+# canonical definition. No duplicate @activity.defn here (one activity
+# name, one definition).
 
 
 @activity.defn(name="open_draft_pr")
