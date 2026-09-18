@@ -39,7 +39,7 @@ cmd="${1:-}"; shift || true
 # the named commit — later commits touch only unbaked files. Never retag
 # changed content under an existing tag: the gateway may resolve by tag
 # with pull-through cache semantics. See specs/04-worker-cell.md.)
-CELL_IMAGE_PINNED="quay.io/jwesterl/worker-cell:2026-09-18-828dd5b"
+CELL_IMAGE_PINNED="quay.io/jwesterl/worker-cell:2026-09-18-5d39c30"
 
 resolve_policy() {
   local p="${POLICY:-policy/upstream-base-policy.yaml}"
