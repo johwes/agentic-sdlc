@@ -20,6 +20,7 @@ try:
         ParentWorkflow,
         dispatch_child,
         open_draft_pr,
+        project_ledger,
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
     )
@@ -38,6 +39,7 @@ except ImportError:  # allow `python3 -m temporal.worker` / package-style import
         ParentWorkflow,
         dispatch_child,
         open_draft_pr,
+        project_ledger,
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
     )
@@ -72,6 +74,7 @@ async def _run(address: str) -> None:
             dispatch_child,
             sensor_review,
             open_draft_pr,
+            project_ledger,
             create_cell,
             destroy_cell,
             run_attempt,
