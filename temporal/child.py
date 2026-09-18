@@ -15,12 +15,15 @@ Attempt lifecycle this module encodes (per-task cell, exec-per-attempt):
     -> gate (b) tactile exit 0? nonzero (incl. 124 timeout) -> FAILED
     -> gate (c) AST parses? PoC syntax-validity only (stdlib parsers;
        tree-sitter grammars + hold-out suite are post-PoC slots)
-    -> pass -> SUCCESS / COMPLETE (local checkpoint commit, no push)
-     -> retryable fail + attempt < max -> reset cell to baseline (default),
-        linear backoff, continue_as_new() at attempt N+1 (zero context,
-        cell name rides the frame — no recreate)
-     -> retryable fail + attempt == max -> FAILED / HALT:EXHAUSTED (escalate)
-     -> terminal states (complete / halt_*): delete cell, then return
+     -> pass -> SUCCESS / COMPLETE (local checkpoint commit, no push;
+        cell RETAINED — the parent downloads the bundle before deleting,
+        see 02 ordering constraint)
+      -> retryable fail + attempt < max -> reset cell to baseline (default),
+         linear backoff, continue_as_new() at attempt N+1 (zero context,
+         cell name rides the frame — no recreate)
+      -> retryable fail + attempt == max -> FAILED / HALT:EXHAUSTED (escalate)
+      -> halt states (halt_*): delete cell, then return (nothing to promote)
+      -> complete: retain cell, then return (parent promotes, then deletes)
 
 Cell loss mid-task: recreate the cell, re-upload the repo at the last commit
 SHA from the ledger, resume at the current attempt. The cell holds no
@@ -660,6 +663,11 @@ class ChildResult:
     action: str
     detail: str
     receipt: dict[str, Any]
+    # Per-task cell name. Set on `complete` so the parent can download the
+    # candidate bundle BEFORE the terminal-state delete (see 02 ordering
+    # constraint); empty on halt_* (cell already deleted, nothing to
+    # promote) and on runs that predate this handoff.
+    cell: str = ""
 
 
 async def _run_in_thread(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -834,10 +842,13 @@ class ChildWorkflow:
     Terminal states return a ChildResult for the parent to project/escalate.
 
     Cell ownership (see 03 lifecycle + 04 spawn contract): one cell per
-    task, created on the first attempt (frame carries no "cell" yet) and
-    deleted at terminal state. The cell name rides the frame across
-    continue_as_new retries — attempts never create or delete it, only a
-    lost cell triggers recreation (caller re-runs without "cell").
+    task, created on the first attempt (frame carries no "cell" yet).
+    Halt states delete the cell here; on `complete` the cell is retained
+    and its name rides the ChildResult to the parent, which downloads the
+    candidate bundle before deleting (see 02 ordering constraint). The
+    cell name rides the frame across continue_as_new retries — attempts
+    never create or delete it, only a lost cell triggers recreation
+    (caller re-runs without "cell").
     """
 
     async def _delete_cell(self, cell: str, detail: str) -> str:
@@ -902,7 +913,11 @@ class ChildWorkflow:
                 schedule_to_close_timeout=_dt.timedelta(minutes=5),
             )
             detail = f"{detail} | checkpoint {checkpoint['commit_sha']}"[:4000]
-            detail = await self._delete_cell(cell, detail)
+            # Retain the cell: the parent downloads the candidate bundle
+            # before the terminal-state delete (see 02 ordering constraint —
+            # ledger SHAs are useless once the cell is gone). The parent
+            # owns deletion after promotion (or after a promotion halt).
+            detail = f"{detail} | cell {cell} retained for promotion"[:4000]
             return ChildResult(
                 task_id=task_id,
                 state="complete",
@@ -910,6 +925,7 @@ class ChildWorkflow:
                 action=action,
                 detail=detail,
                 receipt=receipt,
+                cell=cell,
             )
         if action in (HALT_BLOCKED, HALT_EXHAUSTED):
             state = "halt_blocked" if action == HALT_BLOCKED else "halt_exhausted"
@@ -921,6 +937,7 @@ class ChildWorkflow:
                 action=action,
                 detail=detail,
                 receipt=receipt,
+                cell="",
             )
 
         # 4. Retryable fail with budget left: backoff, optional reset, fresh run.

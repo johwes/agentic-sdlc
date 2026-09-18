@@ -1002,13 +1002,14 @@ except ImportError:  # pragma: no cover - offline fallback
 
 
 try:  # Child workflow (see specs/03-inner-loop.md); guarded for offline import.
-    from child import ChildInputs, ChildWorkflow
+    from child import ChildInputs, ChildWorkflow, destroy_cell
 except ImportError:
     try:
-        from temporal.child import ChildInputs, ChildWorkflow
+        from temporal.child import ChildInputs, ChildWorkflow, destroy_cell
     except ImportError:
         ChildInputs = None  # type: ignore[assignment]
         ChildWorkflow = None  # type: ignore[assignment]
+        destroy_cell = None  # type: ignore[assignment]
 
 
 @dataclasses.dataclass
@@ -1080,6 +1081,7 @@ class ParentWorkflow:
         # child loop; constant locked here per 02).
         _deadline = TASK_WALL_CLOCK_SECONDS  # noqa: F841 (consumed when live)
         # active: dispatch 1 file -> 1 child (no decomposition in PoC).
+        child_cell = ""
         if ChildWorkflow is not None and ChildInputs is not None:
             child_result = await workflow.execute_child_workflow(
                 ChildWorkflow.run,
@@ -1088,6 +1090,12 @@ class ParentWorkflow:
                 task_queue=TASK_QUEUE,
             )
             receipt: dict[str, Any] = child_result.receipt
+            # Cell handoff: on `complete` the child retains the cell and
+            # returns its name so promotion downloads the bundle BEFORE
+            # the terminal-state delete (see 02 ordering constraint).
+            # Halt states delete in-child and return "" (nothing to promote).
+            raw_cell = getattr(child_result, "cell", "") or ""
+            child_cell = raw_cell.strip() if isinstance(raw_cell, str) else ""
         else:  # offline fallback (no child module): legacy activity slot.
             receipt = await workflow.execute_activity(
                 dispatch_child,
@@ -1113,19 +1121,26 @@ class ParentWorkflow:
                 task_id=task_id, state=review["next_state"], annotation=review["annotation"]
             )
         # Promotion queue: host-side push + draft PR, but only when the
-        # candidate source rides along (a live `cell` for bundle download
-        # or a pre-downloaded `bundle_path`). Frames without either predate
-        # the cell/bundle handoff — passthrough preserves PoC behavior
-        # until the handoff lands (bundle download precedes cell delete,
-        # see the ordering constraint above).
-        cell = inputs.frame.get("cell")
+        # candidate source rides along (the child's retained `cell` for
+        # bundle download, a frame `cell`, or a pre-downloaded
+        # `bundle_path`). Frames without any source predate the
+        # cell/bundle handoff — passthrough preserves PoC behavior until
+        # the handoff lands.
+        frame_cell = inputs.frame.get("cell")
+        frame_cell = frame_cell.strip() if isinstance(frame_cell, str) else ""
         bundle_path = inputs.frame.get("bundle_path")
-        if (cell is None or not str(cell).strip()) and (
-            bundle_path is None or not str(bundle_path).strip()
-        ):
+        bundle_path = bundle_path.strip() if isinstance(bundle_path, str) else ""
+        cell = child_cell or frame_cell
+        if not cell and not bundle_path:
             return ParentResult(
                 task_id=task_id, state="promoted", annotation=review["annotation"]
             )
+        # The bundle download consumes cell content, so the cell is
+        # deleted here — after promotion — never before (see the ordering
+        # constraint above). Runs on a pre-downloaded bundle delete
+        # nothing (no live cell was consumed).
+        delete_after = bool(cell) and not bundle_path
+        state, annotation = "promoted", str(review["annotation"])
         try:
             promo = await workflow.execute_activity(
                 open_draft_pr,
@@ -1133,22 +1148,34 @@ class ParentWorkflow:
                     "frame": inputs.frame,
                     "receipt": receipt,
                     "review_annotation": review["annotation"],
-                    "cell": cell,
-                    "bundle_path": bundle_path,
+                    "cell": cell or None,
+                    "bundle_path": bundle_path or None,
                 },
                 schedule_to_close_timeout=_dt.timedelta(minutes=15),
             )
+            annotation = f"{annotation} | {promo['pr_url']}"
         except Exception as e:
             # Promotion failure (secret halt or infra) awaits human triage
             # — never auto-retried into origin, never dropped (see 02
             # escalation handling).
-            return ParentResult(
-                task_id=task_id,
-                state="escalated",
-                annotation=f"promotion halted: {e}"[:2000],
-            )
+            state = "escalated"
+            annotation = f"promotion halted: {e}"
+        finally:
+            if delete_after:
+                if destroy_cell is not None:
+                    try:
+                        await workflow.execute_activity(
+                            destroy_cell,
+                            {"cell": cell},
+                            schedule_to_close_timeout=_dt.timedelta(minutes=5),
+                        )
+                    except Exception as e:
+                        annotation = f"{annotation} | cell delete failed ({cell}): {e}"
+                else:  # offline fallback: orphan stays visible, never silent.
+                    annotation = (
+                        f"{annotation} | cell {cell} needs manual delete "
+                        "(no destroy activity)"
+                    )
         return ParentResult(
-            task_id=task_id,
-            state="promoted",
-            annotation=f"{review['annotation']} | {promo['pr_url']}"[:2000],
+            task_id=task_id, state=state, annotation=annotation[:2000]
         )
