@@ -21,8 +21,10 @@ COPY prompts/worker_contract.txt /etc/prompts/worker_contract.txt
 # Harness command (source: harness/wrapper.py in repo).
 # Python-only (no jq in base image — stdlib json suffices).
 # Invoked explicitly per attempt via `sandbox exec` (see specs/04-worker-cell.md).
-# Entrypoint stays the base default (/bin/bash); the task keepalive is the
-# trailing `sleep infinity` in the create command — the wrapper is never PID 1.
+# Entrypoint stays the base default (/bin/bash); cell keepalive is provided
+# by the sandbox runtime — `sandbox create` takes no initial command, and
+# stays attached while the keepalive runs, so the spawner polls for Ready.
+# The wrapper is invoked explicitly per exec — never as PID 1.
 COPY harness/wrapper.py /usr/local/bin/cell-harness
 RUN chmod +x /usr/local/bin/cell-harness
 

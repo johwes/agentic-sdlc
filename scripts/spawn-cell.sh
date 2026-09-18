@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Worker cell lifecycle (see specs/04-worker-cell.md).
 #
-# One cell per task (keepalive `sleep infinity`); one `exec` per attempt.
+# One cell per task (keepalive is image/gateway-provided — pass no initial
+# command); one `exec` per attempt.
 # Temporal activity boundaries: create -> exec-attempt (xN) -> destroy.
 #
 # Usage:
@@ -21,6 +22,8 @@
 #   UUID4          optional 4-hex suffix; generated when unset (create)
 #   CELL_CPU       optional, default 1 (create)
 #   CELL_MEM       optional, default 4Gi (create)
+#   CREATE_WAIT_TRIES    optional, Ready polls, default 60 (create)
+#   CREATE_WAIT_INTERVAL optional, secs between polls, default 10 (create)
 #   BASE_IMAGE     optional, default quay.io/jwesterl/openshell-base:latest
 #   POLICY         optional, default policy/upstream-base-policy.yaml (abs path resolved)
 set -euo pipefail
@@ -45,7 +48,14 @@ do_create() {
   local cell="cell-${TASK_ID}-${uuid}"
   local policy
   policy="$(resolve_policy)"
-  echo "creating ${cell}" >&2
+  # The create CLI stays attached to the runtime keepalive and does not
+  # return on its own (observed >240s both with and without an initial
+  # command, cell Ready server-side meanwhile). Run it in the background
+  # and poll `sandbox get` until PHASE=Ready (bounded); best-effort delete
+  # on failure/timeout so retries never orphan cells.
+  local log="${TMPDIR:-/tmp}/${cell}-create.log"
+  local tries="${CREATE_WAIT_TRIES:-60}" interval="${CREATE_WAIT_INTERVAL:-10}"
+  echo "creating ${cell} (log ${log})" >&2
   openshell sandbox create \
     --name "${cell}" \
     --from "${BASE_IMAGE:-quay.io/jwesterl/openshell-base:latest}" \
@@ -57,19 +67,43 @@ do_create() {
     --no-auto-providers \
     --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
     --label "task=${TASK_ID}" \
-    -- sleep infinity
-  printf '%s\n' "${cell}"
+    >"${log}" 2>&1 &
+  local pid=$!
+  local i phase
+  for ((i = 0; i < tries; i++)); do
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      wait "${pid}" || true
+      echo "create exited before Ready; log tail:" >&2
+      tail -20 "${log}" >&2 || true
+      openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
+      return 1
+    fi
+    phase="$(openshell sandbox get "${cell}" -o json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("phase",""))' 2>/dev/null || true)"
+    if [[ "${phase}" == "Ready" ]]; then
+      kill "${pid}" 2>/dev/null || true
+      wait "${pid}" 2>/dev/null || true
+      printf '%s\n' "${cell}"
+      return 0
+    fi
+    sleep "${interval}"
+  done
+  echo "create timed out waiting for Ready after $((tries * interval))s; log tail:" >&2
+  tail -20 "${log}" >&2 || true
+  kill "${pid}" 2>/dev/null || true
+  wait "${pid}" 2>/dev/null || true
+  openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
+  return 1
 }
 
 do_exec_attempt() {
   : "${CELL:?set CELL}" "${FRAME_JSON:?set FRAME_JSON}" "${ATTEMPT:?set ATTEMPT}"
   local out="${OUT_DIR:-.}"
-  openshell sandbox upload -n "${CELL}" "${FRAME_JSON}:/sandbox/.task/current_task.json"
+  openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/current_task.json
   openshell sandbox exec -n "${CELL}" --workdir /sandbox \
     --timeout "${EXEC_TIMEOUT:-600}" -- /usr/local/bin/cell-harness \
     --attempt "${ATTEMPT}" --frame /sandbox/.task/current_task.json \
     --receipt /sandbox/.task/task_receipt.json
-  openshell sandbox download -n "${CELL}" /sandbox/.task/task_receipt.json "${out}/"
+  openshell sandbox download "${CELL}" /sandbox/.task/task_receipt.json "${out}/"
 }
 
 do_destroy() {

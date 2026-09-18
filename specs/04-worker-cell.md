@@ -71,7 +71,8 @@ are exempt by design.
   labels), e.g. `cell-TASK-402-a9f2`.
 - Owner: the laptop-local Temporal workflow worker (see `02-control-plane.md`
   locality). It shells out to the local `openshell` CLI. Create on task open
-  (keepalive `sleep infinity`); delete at terminal state in a `finally` block
+  (keepalive is runtime-provided — pass no initial command); delete at
+  terminal state in a `finally` block
   (or on activity timeout) — no orphaned sandboxes. **Explicit delete (locked):**
   `--no-keep` was considered and rejected — it deletes the sandbox when the
   initial command exits, which risks losing the receipt on wrapper crash
@@ -84,9 +85,19 @@ are exempt by design.
 Base image for PoC spawns: `quay.io/jwesterl/openshell-base:latest` (the
 checked-in CentOS build, pulled — no local build step at spawn time). The
 cell layer (`docker/worker-cell.Dockerfile`, `ARG BASE_IMAGE`) builds
-identically atop it. Entrypoint stays the base default (`/bin/bash`); the
-keepalive is the trailing create command, and the wrapper is invoked
-explicitly per exec — never as PID 1.
+identically atop it. Entrypoint stays the base default (`/bin/bash`); cell keepalive is provided
+by the sandbox runtime (no `CMD` in the checked-in Dockerfiles — the pushed
+base / gateway driver holds it), so `create` takes no initial command, and
+the wrapper is invoked explicitly per exec — never as PID 1.
+**No trailing command + async create (locked 2026-09-18):** cell keepalive
+is runtime-provided, so `create` takes no initial command. The `create` CLI
+stays attached to the running keepalive and does not return on its own —
+observed >300s with `-- sleep infinity` and >240s without, cell `Ready`
+server-side in both cases. So the spawner (`scripts/spawn-cell.sh`
+`create`) backgrounds the call and polls `sandbox get -o json` until
+`phase == Ready` (bounded `CREATE_WAIT_TRIES` × `CREATE_WAIT_INTERVAL`),
+with best-effort delete on failure/timeout. Sandbox names must be lowercase
+alphanumerics/hyphens.
 
 ```bash
 openshell sandbox create \
@@ -99,8 +110,7 @@ openshell sandbox create \
   --approval-mode manual \
   --no-auto-providers \
   --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
-  --label "task=${TASK_ID}" \
-  -- sleep infinity
+  --label "task=${TASK_ID}"
 ```
 
 ## Exec-per-attempt contract
@@ -109,18 +119,19 @@ Each attempt (Temporal activity):
 
 ```bash
 # 1. Deliver the attempt frame (frame changes per attempt: N, sensor_context)
-openshell sandbox upload -n "${CELL}" "${FRAME_JSON}:/sandbox/.task/current_task.json"
+openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/current_task.json
 # 2. Run the wrapper (exit code propagates; --timeout bounds the attempt)
 openshell sandbox exec -n "${CELL}" --workdir /sandbox \
   --timeout "${EXEC_TIMEOUT}" -- /usr/local/bin/cell-harness \
   --attempt "${ATTEMPT}" --frame /sandbox/.task/current_task.json \
   --receipt /sandbox/.task/task_receipt.json
 # 3. Collect the receipt (Temporal gates on it)
-openshell sandbox download -n "${CELL}" /sandbox/.task/task_receipt.json "${OUT_DIR}/"
+openshell sandbox download "${CELL}" /sandbox/.task/task_receipt.json "${OUT_DIR}/"
 ```
 
-(`upload`/`download` flag spellings to be confirmed against CLI help at
-implementation time and corrected here.)
+(`upload`/`download` take positional `NAME PATH [DEST]` — no `-n`, no
+`local:dest` colon form; verified against CLI help 2026-09-18 and live
+round-trip upload → `exec cat`.)
 
 Flag notes (all verified in CLI help unless marked):
 - `--policy` needs an **absolute, readable path** — relative paths fail
@@ -225,7 +236,7 @@ cells need no approval for this model.
 ## Repo + task ingestion sequence
 
 1. Host spawner prepares a fresh workspace dir, checks out `target_branch`.
-2. `sandbox create` (trailing `sleep infinity`) uploads the repo seed to
+2. `sandbox create` (no initial command) uploads the repo seed to
    `/sandbox/repo` via `--upload` (primary path; bind-mount only where the
    driver supports it).
 3. Per attempt: upload the frame to `/sandbox/.task/current_task.json`,

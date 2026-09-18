@@ -29,7 +29,8 @@ Execute atomic Ralph cycles with zero context carryover between attempts.
 
 ## Attempt lifecycle (per-task cell, exec-per-attempt)
 
-One sandbox per task (keepalive `sleep infinity`); each attempt is a fresh
+One sandbox per task (runtime-provided keepalive, no initial command at
+create); each attempt is a fresh
 headless process via `sandbox exec`. Freshness comes from process exit, not
 sandbox churn — files + git persist in the cell across attempts, which is
 the Ralph pattern (state in files, never in memory). See `04-worker-cell.md`
@@ -37,7 +38,7 @@ for the spawn/exec contract.
 
 ```mermaid
 flowchart TD
-    S[Task opens:<br/>create cell<br/>sleep infinity] --> A[Upload frame<br/>attempt N]
+    S[Task opens:<br/>create cell<br/>no init command] --> A[Upload frame<br/>attempt N]
     A --> C[exec wrapper<br/>fresh opencode run]
     C --> D[Download receipt]
     D --> E{Gate a:<br/>forbidden_paths?}
