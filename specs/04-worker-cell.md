@@ -112,7 +112,7 @@ are exempt by design.
 
 ## Spawn contract (real CLI, verified against `openshell --help`)
 
-Base image for PoC spawns: `quay.io/jwesterl/worker-cell:2026-09-18-5d39c30`
+Base image for PoC spawns: `quay.io/jwesterl/worker-cell:2026-09-18-f33cc67`
 (the cell layer below, pulled — no local build step at spawn time),
 built atop `quay.io/jwesterl/openshell-base:latest` (the checked-in
 CentOS build). The cell layer (`docker/worker-cell.Dockerfile`, `ARG
