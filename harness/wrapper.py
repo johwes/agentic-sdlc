@@ -656,6 +656,25 @@ def _resolve_repo_dir(explicit: str | None = None) -> str:
     return os.getcwd()
 
 
+def _repo_checkout_valid(repo_dir: str) -> bool:
+    """Whether repo_dir looks like a git checkout (.git file or dir both count).
+
+    Pure path check, no subprocess — worktree .git files pass too.
+    """
+    try:
+        return (Path(repo_dir) / ".git").exists()
+    except Exception:
+        return False
+
+
+def _in_cell() -> bool:
+    """Best-effort in-cell detection: the exec workdir exists on this host."""
+    try:
+        return Path("/sandbox").is_dir()
+    except Exception:
+        return False
+
+
 def _resolve_agent_choice(cli_agent: str | None = None) -> str:
     """Agent selector: --agent flag wins, then CELL_AGENT_CLI env, else auto."""
     raw = cli_agent or os.environ.get("CELL_AGENT_CLI", "auto")
@@ -963,6 +982,30 @@ def main() -> int:
     task_id = str(frame["task_id"])
     forbidden_paths = list(frame.get("forbidden_paths") or [])
     tactile_command = str(frame.get("tactile_command") or "")
+
+    # Fail closed on a missing checkout where one is promised: in-cell
+    # (convention path) or under an explicit operator override, a repo
+    # without .git means broken seeding — evaluating the wrong directory
+    # into a confusing FAILED (observed live) is worse than halting.
+    # Offline cwd-fallback use without an override stays lenient.
+    override_given = args.repo_dir is not None or bool(
+        (os.environ.get("CELL_REPO_DIR") or "").strip()
+    )
+    if (override_given or _in_cell()) and not _repo_checkout_valid(repo_dir):
+        detail = f"cell repo checkout missing or invalid: {repo_dir}"
+        print(f"BLOCKED: {detail}", file=sys.stderr)
+        _write_receipt(
+            receipt_path,
+            task_id=task_id,
+            status="BLOCKED",
+            exit_promise="HALT:BLOCKED",
+            commit_sha="unknown",
+            files_changed=[],
+            tactile_execution={"command_run": tactile_command, "exit_code": 0, "summary_output": ""},
+            agent_summary=f"BLOCKED: {detail}",
+            token_metrics=_collect_token_metrics(explicit_agent_log),
+        )
+        return EXIT_BLOCKED
 
     # 2. Cell-local git identity before dispatch (non-secret, local scope only).
     identity = _ensure_git_identity(repo_dir)

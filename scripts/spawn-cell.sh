@@ -55,6 +55,10 @@ resolve_policy() {
 
 do_create() {
   : "${TASK_ID:?set TASK_ID}" "${WORKSPACE_DIR:?set WORKSPACE_DIR}"
+  if [[ ! -d "${WORKSPACE_DIR}" ]]; then
+    echo "workspace not a directory: ${WORKSPACE_DIR}" >&2
+    return 1
+  fi
   local uuid="${UUID4:-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:4])')}"
   # Gateway names are lowercase-only (uppercase rejected at create); the
   # frame task_id (TASK-403) and the --label below keep canonical case —
@@ -76,7 +80,6 @@ do_create() {
     --policy "${policy}" \
     --provider "${CRED_PROVIDER:-opencode-go}" \
     --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
-    --upload "${WORKSPACE_DIR}:/sandbox/repo" \
     --approval-mode manual \
     --no-auto-providers \
     --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
@@ -96,6 +99,13 @@ do_create() {
     if [[ "${phase}" == "Ready" ]]; then
       kill "${pid}" 2>/dev/null || true
       wait "${pid}" 2>/dev/null || true
+      # Seed the checkout now that the cell is Ready (post-create, so a
+      # seeding failure deletes the cell instead of orphaning a repo-less
+      # one — a repo-less cell can never produce a valid attempt).
+      if ! seed_repo "${cell}" "${WORKSPACE_DIR}"; then
+        openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
+        return 1
+      fi
       printf '%s\n' "${cell}"
       return 0
     fi
@@ -107,6 +117,33 @@ do_create() {
   wait "${pid}" 2>/dev/null || true
   openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
   return 1
+}
+
+# Seed the cell checkout via tarball (deterministic under upload dir-semantics).
+#
+# Background (observed live 2026-09-18): `sandbox upload` treats DEST as a
+# directory, so `--upload WORKSPACE_DIR:/sandbox/repo` nested the checkout
+# one level down (/sandbox/repo/tmp.XXX/<files>, no .git at the top) and
+# every attempt evaluated the wrong directory. A single-file tarball lands
+# deterministically; extraction lays the tree flat, dotfiles and .git
+# included. The trailing `ls repo/.git` asserts the pipeline invariant
+# (host always seeds from a git clone) — a repo-less cell fails loudly
+# here, never boots into an attempt. Local tarball lingers next to the
+# create log on failure (debug artifact, same as the log itself).
+seed_repo() {
+  local cell="$1" workspace="$2"
+  local tarball="${TMPDIR:-/tmp}/${cell}-seed.tar.gz"
+  local base
+  base="$(basename "${tarball}")"
+  tar -czf "${tarball}" -C "${workspace}" . \
+    || { echo "seed tarball build failed for ${workspace}" >&2; return 1; }
+  openshell sandbox upload "${cell}" "${tarball}" /sandbox/repo/
+  openshell sandbox exec -n "${cell}" --workdir /sandbox \
+    --timeout 120 -- tar -xzf "repo/${base}" -C repo
+  openshell sandbox exec -n "${cell}" --workdir /sandbox \
+    --timeout 60 -- rm -- "repo/${base}"
+  openshell sandbox exec -n "${cell}" --workdir /sandbox \
+    --timeout 60 -- ls "repo/.git" >/dev/null
 }
 
 # Upload one host file to a fixed in-cell name under /sandbox/.task/.

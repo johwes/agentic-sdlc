@@ -65,6 +65,14 @@ repo: running there yields "not in a git directory" identity failures,
 file-not-found tactile verdicts, and `unknown` SHAs (all observed live
 on the first in-cell run). `tactile_command` frames stay repo-relative.
 
+Fail-closed checkout (locked 2026-09-18): where a checkout is promised —
+in-cell, or under an explicit `--repo-dir` / `CELL_REPO_DIR` override —
+a resolved repo without `.git` halts `BLOCKED` (`cell repo checkout
+missing or invalid`) instead of evaluating the wrong directory into a
+confusing `FAILED`. Seeding failures cannot self-heal on retry (same
+per-task cell), so `HALT` semantics fit. Offline cwd-fallback use
+without an override stays lenient.
+
 Transfer path (locked, Tier-1 host-side push only): the wrapper and agent
 perform local git ops only (branch use, commit, `rev-parse`, `diff`) —
 never `clone`/`push`/`fetch`, and no git credentials ever enter the cell.
@@ -131,16 +139,17 @@ alphanumerics/hyphens.
 
 ```bash
 openshell sandbox create \
-  --name "cell-${TASK_ID}-${UUID4}" \
-  --from quay.io/jwesterl/openshell-base:latest \
+  --name "cell-${TASK_ID_LOWER}-${UUID4}" \
+  --from quay.io/jwesterl/worker-cell:2026-09-18-828dd5b \
   --policy /abs/path/to/policy/upstream-base-policy.yaml \
   --provider "${CRED_PROVIDER:-opencode-go}" \
   --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
-  --upload "${WORKSPACE_DIR}:/sandbox/repo" \
   --approval-mode manual \
   --no-auto-providers \
   --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
   --label "task=${TASK_ID}"
+# (no --upload here: the repo seed follows post-Ready as a tarball, and
+# per-attempt files ride upload-to-dir + mv — see below and ingestion.)
 ```
 
 ## Exec-per-attempt contract
@@ -149,7 +158,10 @@ Each attempt (Temporal activity):
 
 ```bash
 # 1. Deliver the attempt frame (frame changes per attempt: N, sensor_context)
-openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/current_task.json
+#    via upload-to-dir + mv (see dir-semantics note below)
+openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/
+openshell sandbox exec -n "${CELL}" --workdir /sandbox/.task --timeout 60 -- \
+  mv -- "<FRAME_JSON basename>" current_task.json
 # 2. Run the wrapper (exit code propagates; --timeout bounds the attempt)
 openshell sandbox exec -n "${CELL}" --workdir /sandbox \
   --timeout "${EXEC_TIMEOUT}" -- /usr/local/bin/cell-harness \
@@ -175,9 +187,12 @@ Flag notes (all verified in CLI help unless marked):
 - `--provider` is repeatable and the only path for secrets; `--env` help
   text explicitly forbids credentials there. (`ANTHROPIC_BASE_URL` remains a
   valid non-secret `--env` hint only on the Claude-Code-via-proxy path.)
-- `--upload` is the primary ingestion path (driver-portable; host bind-mounts
-  may not exist under the Kubernetes driver). `.gitignore` filtering applies
-  by default — pass `--no-git-ignore` when the repo seed must be complete.
+- `--upload` of single files to a directory is the deterministic transfer
+  primitive (driver-portable; host bind-mounts may not exist under the
+  Kubernetes driver). Directory sources are never uploaded directly —
+  `DEST` treats them as place-inside (observed live: the whole source dir
+  nested one level down, see ingestion). `.gitignore` filtering applies
+  by default — the tarball seed carries the complete tree regardless.
 - `--approval-mode manual` (the default): agent-authored policy proposals wait
   in a draft inbox for human review. `auto` (empty-delta auto-approve) is a
   documented opt-in only — default-deny posture preserved for the PoC.
@@ -273,12 +288,19 @@ cells need no approval for this model.
 1. Host spawner prepares a fresh workspace dir: clones the frame's
    `repo_url` (public https, no credentials — auth lives only in the
    provider-injected cell env and the owner's host `gh`), checks out
-   `target_branch`.
-2. `sandbox create` (no initial command) uploads the repo seed to
-   `/sandbox/repo` via `--upload` (primary path; bind-mount only where the
-   driver supports it).
-3. Per attempt: upload the frame to `/sandbox/.task/current_task.json`,
-   `exec` the wrapper, `download` the receipt (see exec contract above).
+   `target_branch`. A missing workspace dir fails `create` before any
+   `openshell` call (fail fast, no orphan cells).
+2. `sandbox create` takes no initial command and no `--upload` (keepalive
+   is runtime-provided; the spawner polls to `Ready`). Once `Ready`, the
+   spawner seeds the checkout as a tarball: `tar -czf` the workspace
+   (dotfiles and `.git` included), upload the single file to
+   `/sandbox/repo/`, `exec` extract + remove tarball, then assert
+   `repo/.git` exists. Any seeding failure deletes the cell — a repo-less
+   cell never boots into an attempt.
+3. Per attempt: upload the frame to `/sandbox/.task/` + `mv` into place
+   (`current_task.json`, plus `worker_prompt.txt` override when present),
+   `exec` the wrapper, `download` the receipt even on harness failure
+   before propagating its status (see exec contract above).
 
 ## Worker prompt contract (canonical)
 
