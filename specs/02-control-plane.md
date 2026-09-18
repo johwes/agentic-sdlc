@@ -94,15 +94,35 @@ review, never dropped silently.
 
 ## Promotion (PoC): draft PR auto, executed by Temporal
 
+Single transfer path (locked): Tier-1 host-side push only. The cell never
+pushes and holds no git credentials; the promotion activity runs on the
+host with the owner's `gh` auth. In-cell push (even scoped) and the
+patch-download handoff were considered and rejected — see
+`04-worker-cell.md` for rationale (cf. fullsend ADR-0032 tier 1, the
+recommended path for public repos).
+
 The promotion activity runs the local-commit + squash model from
 `03-inner-loop.md`:
 
-1. Squash per-attempt commits into one clean commit
+1. Download the candidate as a git bundle (`git bundle create` in-cell is
+   a local op needing no credentials; `sandbox download` to the host),
+   then fetch it into the host's `target_branch` checkout. Bundle
+   transfer is lossless (binaries, modes, renames, history) — no patch
+   surgery.
+2. Secret-scan the candidate before it touches origin
+   (gitleaks-equivalent); findings halt promotion for human triage —
+   the agent's cell env holds injected secrets that must never reach
+   origin.
+3. Squash per-attempt commits into one clean commit
    (e.g. `fix(TASK-402): sanitize search input`).
-2. Push `target_branch` to origin.
-3. Open a **draft** PR via the `gh` API, seeding the body from the receipt's
+4. Push `target_branch` to origin.
+5. Open a **draft** PR via the `gh` API, seeding the body from the receipt's
    `agent_summary` plus gate evidence (tactile command, sensor results).
-4. Record `pr_url`; mark the task `promoted`.
+6. Record `pr_url`; mark the task `promoted`.
+
+Ordering constraint: promotion consumes cell content (bundle download)
+before the terminal-state cell delete in the `finally` block — ledger
+SHAs are useless once the cell is gone.
 
 The human promotes draft → ready. Direct-to-ready and human-opens-PR are
 documented alternatives, not the default. (Mechanism = Temporal pushes and

@@ -99,10 +99,14 @@ live in Temporal history.
   (Rationale: tactile pass ≠ hold-out/security pass. Candidate evaluation
   and state mutation are separate phases.)
 - **Promotion (outer loop):** after all verification gates pass, Temporal
-  squashes per-attempt commits into one clean commit
-  (e.g. `fix(TASK-402): sanitize search input`) and pushes `target_branch`
-  to origin, opening/updating the PR. Preserved-history push is the
-  documented alternative when atomic attempt history aids debugging.
+  downloads the candidate as a git bundle (`git bundle` in-cell, local op;
+  `sandbox download`), fetches it into the host's `target_branch`
+  checkout, secret-scans it, squashes per-attempt commits into one clean
+  commit (e.g. `fix(TASK-402): sanitize search input`) and pushes
+  `target_branch` to origin, opening/updating the PR. Bundle download
+  precedes cell deletion (see `02-control-plane.md` ordering constraint).
+  Preserved-history push is the documented alternative when atomic attempt
+  history aids debugging.
 
 ## Timeout & cleanup ownership
 

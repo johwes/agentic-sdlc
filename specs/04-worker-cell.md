@@ -56,6 +56,19 @@ the schema-valid `task_receipt.json`. It owns the envelope; the agent only
 supplies an informal summary/trailer. Python stdlib only — the base image
 ships no `jq`, and the wrapper must not add dependencies.
 
+Transfer path (locked, Tier-1 host-side push only): the wrapper and agent
+perform local git ops only (branch use, commit, `rev-parse`, `diff`) —
+never `clone`/`push`/`fetch`, and no git credentials ever enter the cell.
+The wrapper writes the non-secret commit identity
+(`user.name`/`user.email`, e.g. `Ralph Worker`) into the cell repo config
+before dispatching, since nothing else sets it in-cell. Candidate code
+leaves the cell exclusively as a `git bundle` downloaded by the host
+promotion activity (see `02-control-plane.md`); a gitconfig credential
+helper was considered and rejected (agent-overridable via `git -c`,
+`GIT_CONFIG_*`, `HOME`, `--no-verify`), as was in-cell push even scoped —
+cf. fullsend ADR-0032 (tier 1 default for public repos) and ADR-0017
+(credentials never enter the sandbox).
+
 Scope note on the `github` skill: the skill's "do not use git except
 cloning" rule binds the *agent*. The wrapper is harness infrastructure, not
 the agent — its `git rev-parse` / `git diff` / `git commit` plumbing calls
