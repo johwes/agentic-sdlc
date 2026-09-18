@@ -248,7 +248,10 @@ cells need no approval for this model.
 
 ## Repo + task ingestion sequence
 
-1. Host spawner prepares a fresh workspace dir, checks out `target_branch`.
+1. Host spawner prepares a fresh workspace dir: clones the frame's
+   `repo_url` (public https, no credentials — auth lives only in the
+   provider-injected cell env and the owner's host `gh`), checks out
+   `target_branch`.
 2. `sandbox create` (no initial command) uploads the repo seed to
    `/sandbox/repo` via `--upload` (primary path; bind-mount only where the
    driver supports it).

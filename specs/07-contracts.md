@@ -19,6 +19,7 @@ The ephemeral projected task frame, compiled per attempt by Temporal.
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `task_id` | string | yes | `TASK-<n>` style, e.g. `"TASK-402"`. |
+| `repo_url` | string | yes | Target repo origin (https URL, no credentials), e.g. `"https://github.com/johwes/tic-tac-toe.git"`. The host clones this into the workspace (`04-worker-cell.md` ingestion) and promotion pushes the PR here (`02-control-plane.md`). |
 | `title` | string | yes | Concise objective summary. |
 | `acceptance_criteria` | string[] | yes | Explicit pass/fail statements. |
 | `target_branch` | string | yes | Working branch; worker verifies its head before editing. |

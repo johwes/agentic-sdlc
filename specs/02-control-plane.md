@@ -106,7 +106,8 @@ The promotion activity runs the local-commit + squash model from
 
 1. Download the candidate as a git bundle (`git bundle create` in-cell is
    a local op needing no credentials; `sandbox download` to the host),
-   then fetch it into the host's `target_branch` checkout. Bundle
+   then fetch it into the host's `target_branch` checkout of the frame's
+   `repo_url`. Bundle
    transfer is lossless (binaries, modes, renames, history) — no patch
    surgery.
 2. Secret-scan the candidate before it touches origin
@@ -115,8 +116,9 @@ The promotion activity runs the local-commit + squash model from
    origin.
 3. Squash per-attempt commits into one clean commit
    (e.g. `fix(TASK-402): sanitize search input`).
-4. Push `target_branch` to origin.
-5. Open a **draft** PR via the `gh` API, seeding the body from the receipt's
+4. Push `target_branch` to the frame's `repo_url` origin.
+5. Open a **draft** PR via the `gh` API against the frame's `repo_url`,
+   seeding the body from the receipt's
    `agent_summary` plus gate evidence (tactile command, sensor results).
 6. Record `pr_url`; mark the task `promoted`.
 
