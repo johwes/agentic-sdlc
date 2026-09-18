@@ -171,8 +171,13 @@ cells need no approval for this model.
   (`openshell provider profile import` → `list-profiles` shows
   `opencode … user … 2 inference`); headless re-proven live
   (`opencode run --model opencode-go/muse-spark-1.3-contributor`, exit 0).
-  In-cell injection re-prove rides the next cell spawn once the `opencode-go`
-  provider credential exists gateway-side.
+  In-cell injection re-proven live 2026-09-18 on `jwesterl-test`
+  (`cell-probe-5a27`, `--provider opencode-go`, updated profile
+  `resource_version: 2`): headless run exited 0 with `PROBE_OK`,
+  approval-free (no `policy_denied` on `models.opencode.ai`),
+  `OPENCODE_API_KEY` present in-cell via provider injection; cell deleted
+  after the probe, no orphans. Naming note: sandbox names must be lowercase
+  alphanumerics/hyphens (uppercase rejected at create).
 - Pricing/terms note: hosted-catalog models carry their own pricing and data
   terms (some discounted tiers permit training use of prompts/completions) —
   check the active model's terms before routing proprietary code; revisit at
