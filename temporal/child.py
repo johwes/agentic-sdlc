@@ -283,6 +283,48 @@ EXEC_TIMEOUT_MARGIN_SECONDS = 420
 CLONE_TIMEOUT_SECONDS = 300
 
 
+def prompt_overrides_dir() -> str:
+    """Resolve prompts/overrides/ (env PROMPT_OVERRIDES_DIR wins, repo fallback).
+
+    Host-side file convention for per-task prompt overrides (see 04 worker
+    prompt contract): prompts/overrides/<TASK_ID>.txt, e.g.
+    prompts/overrides/TASK-403.txt. Same pattern as spawn_script_path().
+    """
+    env = os.environ.get("PROMPT_OVERRIDES_DIR")
+    if env and env.strip():
+        return env.strip()
+    try:
+        here = Path(__file__).resolve()
+        candidate = here.parent.parent / "prompts" / "overrides"
+        return str(candidate)
+    except Exception:
+        return os.path.join("prompts", "overrides")
+
+
+def prompt_override_path(task_id: str) -> str | None:
+    """Resolve the host-authored prompt override for a task, if any.
+
+    Explicit PROMPT_FILE env wins; else the prompts/overrides/<TASK_ID>.txt
+    convention (task_id sanitized to alphanumerics/dashes/underscores so it
+    can never escape the overrides dir). Returns None when no override
+    exists — the wrapper then uses the image default prompt (see 04
+    delivery tiers). Never raises on a missing file (default behavior).
+    """
+    explicit = os.environ.get("PROMPT_FILE")
+    if explicit and explicit.strip():
+        return explicit.strip()
+    safe = "".join(c for c in str(task_id) if c.isalnum() or c in ("-", "_"))
+    if not safe:
+        return None
+    candidate = Path(prompt_overrides_dir()) / f"{safe}.txt"
+    try:
+        if candidate.is_file():
+            return str(candidate)
+    except Exception:
+        return None
+    return None
+
+
 def spawn_script_path() -> str:
     """Resolve scripts/spawn-cell.sh (env override wins, repo-root fallback)."""
     env = os.environ.get("SPAWN_CELL_SCRIPT")
@@ -391,15 +433,27 @@ def build_create_env(task_id: str, workspace_dir: str) -> dict[str, str]:
 
 
 def build_exec_attempt_env(
-    cell: str, frame_path: str, attempt: int, out_dir: str, exec_timeout: int
+    cell: str,
+    frame_path: str,
+    attempt: int,
+    out_dir: str,
+    exec_timeout: int,
+    prompt_file: str | None = None,
 ) -> dict[str, str]:
-    """Env for `spawn-cell.sh exec-attempt` (CELL/FRAME_JSON/ATTEMPT contract)."""
+    """Env for `spawn-cell.sh exec-attempt` (CELL/FRAME_JSON/ATTEMPT contract).
+
+    prompt_file (when given) rides PROMPT_FILE: the spawner uploads it as
+    the per-attempt /sandbox/.task/worker_prompt.txt override, re-uploaded
+    every attempt so in-cell edits can never persist it (see 04 tiers).
+    """
     env = dict(os.environ)
     env["CELL"] = str(cell)
     env["FRAME_JSON"] = str(frame_path)
     env["ATTEMPT"] = str(attempt)
     env["OUT_DIR"] = str(out_dir)
     env["EXEC_TIMEOUT"] = str(exec_timeout)
+    if prompt_file:
+        env["PROMPT_FILE"] = str(prompt_file)
     return env
 
 
@@ -756,8 +810,20 @@ async def run_attempt(frame: dict[str, Any]) -> dict[str, Any]:
     Path(frame_path).write_text(json.dumps(frame, indent=2) + "\n", encoding="utf-8")
     out_dir = str(Path(tmp) / "out")
     Path(out_dir).mkdir(parents=True, exist_ok=True)
+    # Per-attempt prompt override (host-authored, see 04 delivery tiers):
+    # staged into the attempt tmp dir so the frame + prompt travel as one
+    # fresh bundle; absent override = image default prompt (no PROMPT_FILE).
+    prompt_file: str | None = None
+    override = prompt_override_path(str(frame.get("task_id", "")))
+    if override:
+        try:
+            staged = Path(tmp) / "worker_prompt.txt"
+            staged.write_bytes(Path(override).read_bytes())
+            prompt_file = str(staged)
+        except OSError as e:
+            raise RuntimeError(f"run_attempt: cannot stage prompt override: {e}")
     env = build_exec_attempt_env(
-        cell, frame_path, attempt, out_dir, exec_timeout_for(frame)
+        cell, frame_path, attempt, out_dir, exec_timeout_for(frame), prompt_file
     )
     try:
         r = await _run_in_thread(run_spawn, SPAWN_EXEC_ATTEMPT, env)

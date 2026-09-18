@@ -97,11 +97,13 @@ def _load_frame(frame_path: Path) -> tuple[dict | None, str | None]:
     return data, None
 
 
-def _get_commit_sha() -> str:
+def _get_commit_sha(repo_dir: str | None = None) -> str:
     """Return `git rev-parse HEAD`, or "unknown" when unavailable.
 
     "unknown" is a sentinel for non-git / fresh-repo contexts (spec requires
     a string; telemetry gaps and missing SHAs never crash the wrapper).
+    Runs in repo_dir (the exec workdir is NOT the repo — see
+    _resolve_repo_dir); None inherits the process cwd (offline default).
     """
     try:
         r = subprocess.run(
@@ -109,6 +111,7 @@ def _get_commit_sha() -> str:
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=repo_dir or None,
         )
         if r.returncode == 0:
             sha = r.stdout.strip()
@@ -119,9 +122,14 @@ def _get_commit_sha() -> str:
     return "unknown"
 
 
-def _get_files_changed() -> list[str]:
-    """Collect changed files vs HEAD: staged, unstaged, and untracked."""
+def _get_files_changed(repo_dir: str | None = None) -> list[str]:
+    """Collect changed files vs HEAD: staged, unstaged, and untracked.
+
+    Repo-relative paths (git emits them so); runs in repo_dir — see
+    _resolve_repo_dir. None inherits the process cwd (offline default).
+    """
     files: set[str] = set()
+    cwd = repo_dir or None
     # Tracked changes (staged + unstaged) vs HEAD
     for cmd in (
         ["git", "diff", "--name-only", "HEAD"],
@@ -129,7 +137,7 @@ def _get_files_changed() -> list[str]:
         ["git", "diff", "--cached", "--name-only"],
     ):
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=5, cwd=cwd)
             if r.returncode == 0 and r.stdout.strip():
                 for line in r.stdout.splitlines():
                     line = line.strip()
@@ -144,6 +152,7 @@ def _get_files_changed() -> list[str]:
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=cwd,
         )
         if r.returncode == 0 and r.stdout.strip():
             for line in r.stdout.splitlines():
@@ -160,6 +169,7 @@ def _get_files_changed() -> list[str]:
                 capture_output=True,
                 text=True,
                 timeout=5,
+                cwd=cwd,
             )
             if r.returncode == 0 and r.stdout.strip():
                 for line in r.stdout.splitlines():
@@ -174,6 +184,33 @@ def _get_files_changed() -> list[str]:
         except Exception:
             pass
     return sorted(files)
+
+
+def _get_commit_range_files(pre_sha: str | None, repo_dir: str | None = None) -> list[str]:
+    """Files committed between pre_sha (exclusive) and HEAD (inclusive).
+
+    A committed tree is clean vs HEAD, so working-tree diffs go blind the
+    moment the agent commits — including to forbidden_paths violations the
+    gate below must see. The caller records pre_sha before dispatch; this
+    diffs it against post-dispatch HEAD. Skipped when pre_sha is missing
+    or "unknown" (non-repo contexts keep today's behavior exactly).
+    Never raises; failures yield [].
+    """
+    if not pre_sha or pre_sha == "unknown":
+        return []
+    try:
+        r = subprocess.run(
+            ["git", "diff", "--name-only", pre_sha, "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=repo_dir or None,
+        )
+        if r.returncode != 0:
+            return []
+        return sorted({line.strip() for line in r.stdout.splitlines() if line.strip()})
+    except Exception:
+        return []
 
 
 def _is_exempt(file_path: str, receipt_path: Path | None) -> bool:
@@ -269,11 +306,16 @@ def _truncate_output(text: str, max_lines: int = TACTILE_TAIL_LINES, max_chars: 
     return tail
 
 
-def _run_tactile(command: str, timeout_seconds: int) -> tuple[int, str, bool]:
+def _run_tactile(
+    command: str, timeout_seconds: int, repo_dir: str | None = None
+) -> tuple[int, str, bool]:
     """Run tactile_command. Returns (exit_code, summary_output, timed_out).
 
     Timeout kills the command, records exit 124, and prints
     "Command timed out after N seconds" to stderr per 07-contracts.md.
+    Runs in repo_dir: tactile commands are repo-relative (e.g. pytest
+    tests/..., node --test file.js) and file-not-found elsewhere — see
+    _resolve_repo_dir. None inherits the process cwd (offline default).
     """
     if not command.strip():
         return 0, "", False
@@ -284,6 +326,7 @@ def _run_tactile(command: str, timeout_seconds: int) -> tuple[int, str, bool]:
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
+            cwd=repo_dir or None,
         )
     except subprocess.TimeoutExpired as e:
         partial = ""
@@ -514,14 +557,16 @@ AGENT_SUMMARY_MAX_LINES = 50
 AGENT_SUMMARY_MAX_CHARS = 4096
 
 
-def _ensure_git_identity() -> dict:
+def _ensure_git_identity(repo_dir: str | None = None) -> dict:
     """Write the non-secret commit identity into the cell repo config.
 
     Runs `git config user.name` / `git config user.email` (local repo scope
-    by default — never --global, never credentials). Best-effort: returns
-    {"name", "email", "configured"} and never raises; a missing git repo or
-    git binary yields configured=False with a stderr warning. Must run before
-    agent dispatch since nothing else sets identity in-cell.
+    by default — never --global, never credentials) in repo_dir: running
+    from the exec workdir yields "not in a git directory" (observed live).
+    Best-effort: returns {"name", "email", "configured"} and never raises;
+    a missing git repo or git binary yields configured=False with a stderr
+    warning. Must run before agent dispatch since nothing else sets
+    identity in-cell.
     """
     result = {"name": GIT_IDENTITY_NAME, "email": GIT_IDENTITY_EMAIL, "configured": False}
     for key, value in (("user.name", GIT_IDENTITY_NAME), ("user.email", GIT_IDENTITY_EMAIL)):
@@ -531,6 +576,7 @@ def _ensure_git_identity() -> dict:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                cwd=repo_dir or None,
             )
             if r.returncode != 0:
                 print(
@@ -548,14 +594,22 @@ def _ensure_git_identity() -> dict:
     return result
 
 
-def _resolve_contract_prompt_text(explicit_path: str | None = None) -> tuple[str, str | None]:
+ATTEMPT_PROMPT_DEFAULT = "/sandbox/.task/worker_prompt.txt"
+
+
+def _resolve_contract_prompt_text(
+    explicit_path: str | None = None,
+    attempt_path: str | None = ATTEMPT_PROMPT_DEFAULT,
+) -> tuple[str, str | None]:
     """Load the worker contract prompt. Returns (text, source_path or None).
 
-    Search order: explicit --contract-prompt / CELL_CONTRACT_PROMPT, then the
-    in-cell path /etc/prompts/worker_contract.txt (baked by
-    docker/worker-cell.Dockerfile), then repo-relative fallbacks for offline
-    use. Missing prompt yields ("", None) with a stderr warning — dispatch
-    still runs so gates stay testable offline.
+    Search order: explicit --contract-prompt / CELL_CONTRACT_PROMPT, then
+    the per-attempt host upload (/sandbox/.task/worker_prompt.txt —
+    re-uploaded by the host on every attempt, never agent-persistent),
+    then the in-cell path /etc/prompts/worker_contract.txt (baked by
+    docker/worker-cell.Dockerfile), then repo-relative fallbacks for
+    offline use. Missing prompt yields ("", None) with a stderr warning —
+    dispatch still runs so gates stay testable offline.
     """
     candidates: list[str] = []
     if explicit_path:
@@ -563,6 +617,8 @@ def _resolve_contract_prompt_text(explicit_path: str | None = None) -> tuple[str
     env_path = os.environ.get("CELL_CONTRACT_PROMPT")
     if env_path and env_path not in candidates:
         candidates.append(env_path)
+    if attempt_path and attempt_path not in candidates:
+        candidates.append(attempt_path)
     candidates.append("/etc/prompts/worker_contract.txt")
     try:
         here = Path(__file__).resolve()
@@ -589,6 +645,61 @@ def _resolve_model(cli_model: str | None = None) -> str:
     if env_model and env_model.strip():
         return env_model.strip()
     return DEFAULT_MODEL
+
+
+# In-cell checkout (see 04 spawn contract: the workspace seed uploads to
+# /sandbox/repo; the exec workdir /sandbox is its parent, NOT the repo).
+CELL_REPO_DEFAULT = "/sandbox/repo"
+
+
+def _resolve_repo_dir(explicit: str | None = None) -> str:
+    """Resolve the repo checkout all repo-scoped subprocesses run in.
+
+    Order: explicit --repo-dir / CELL_REPO_DIR (a missing path warns and
+    falls through — never crash on a stale override), then
+    /sandbox/repo when present (in-cell convention), else the process cwd
+    (offline/host use, where the wrapper runs from the repo root).
+    Running git/tactile from the exec workdir instead yields "not in a git
+    directory" + file-not-found tactile failures (observed live
+    2026-09-18). Always exists by construction (fallbacks are checked).
+    """
+    for cand in (explicit, os.environ.get("CELL_REPO_DIR")):
+        if cand and cand.strip():
+            p = Path(cand.strip())
+            try:
+                if p.is_dir():
+                    return str(p)
+            except Exception:
+                pass
+            print(
+                f"warning: repo dir override not a directory: {cand.strip()}; falling back",
+                file=sys.stderr,
+            )
+    try:
+        if Path(CELL_REPO_DEFAULT).is_dir():
+            return CELL_REPO_DEFAULT
+    except Exception:
+        pass
+    return os.getcwd()
+
+
+def _repo_checkout_valid(repo_dir: str) -> bool:
+    """Whether repo_dir looks like a git checkout (.git file or dir both count).
+
+    Pure path check, no subprocess — worktree .git files pass too.
+    """
+    try:
+        return (Path(repo_dir) / ".git").exists()
+    except Exception:
+        return False
+
+
+def _in_cell() -> bool:
+    """Best-effort in-cell detection: the exec workdir exists on this host."""
+    try:
+        return Path("/sandbox").is_dir()
+    except Exception:
+        return False
 
 
 def _resolve_agent_choice(cli_agent: str | None = None) -> str:
@@ -655,13 +766,17 @@ def _resolve_agent_argv(agent: str, model: str, prompt_text: str) -> list[str] |
     return None
 
 
-def _run_agent(argv: list[str], timeout_seconds: int) -> dict:
+def _run_agent(
+    argv: list[str], timeout_seconds: int, repo_dir: str | None = None
+) -> dict:
     """Run the agent CLI headless. Never raises; timeouts/failures are data.
 
     Returns {"stdout", "stderr", "exit_code" (int|None; None on timeout),
     "timed_out" (bool), "argv"}. Agent exit never gates the receipt on its
     own — tactile ground truth + forbidden_paths do (see 07-contracts.md);
     the result feeds agent_summary diagnostics + token-metrics parsing only.
+    Runs in repo_dir so relative codebase paths resolve (see
+    _resolve_repo_dir); None inherits the process cwd (offline default).
     """
     try:
         r = subprocess.run(
@@ -669,6 +784,7 @@ def _run_agent(argv: list[str], timeout_seconds: int) -> dict:
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
+            cwd=repo_dir or None,
         )
         return {
             "stdout": r.stdout or "",
@@ -852,19 +968,21 @@ def main() -> int:
     parser.add_argument("--model", required=False, default=None, help="Model ID for opencode dispatch. Env CELL_MODEL fallback, else spec default.")
     parser.add_argument("--agent-timeout", required=False, default=None, type=int, help="Kill timeout secs for agent dispatch. Env CELL_AGENT_TIMEOUT_SECONDS fallback, else 480.")
     parser.add_argument("--contract-prompt", required=False, default=None, help="Explicit worker contract prompt path. Env CELL_CONTRACT_PROMPT fallback, else /etc/prompts/worker_contract.txt.")
+    parser.add_argument("--repo-dir", required=False, default=None, help="Repo checkout repo-scoped commands (git, tactile, dispatch) run in. Env CELL_REPO_DIR fallback, else /sandbox/repo when present, else cwd.")
     parser.add_argument("--no-agent", action="store_true", help="Skip LLM dispatch (offline/demo; same as --agent none)")
     args = parser.parse_args()
 
     frame_path = Path(args.frame)
     receipt_path = Path(args.receipt)
     explicit_agent_log: str | None = args.agent_log
+    repo_dir = _resolve_repo_dir(args.repo_dir)
 
     # 1. Load frame (read-only)
     frame, err = _load_frame(frame_path)
     if err is not None or frame is None:
         # Frame load failure is BLOCKED / HALT:BLOCKED per 07 contracts (system failure)
-        commit_sha = _get_commit_sha()
-        files_changed: list[str] = _get_files_changed()
+        commit_sha = _get_commit_sha(repo_dir)
+        files_changed: list[str] = _get_files_changed(repo_dir)
         task_id = "unknown"
         # Try to extract task_id from raw file if possible
         try:
@@ -892,8 +1010,38 @@ def main() -> int:
     forbidden_paths = list(frame.get("forbidden_paths") or [])
     tactile_command = str(frame.get("tactile_command") or "")
 
+    # Fail closed on a missing checkout where one is promised: in-cell
+    # (convention path) or under an explicit operator override, a repo
+    # without .git means broken seeding — evaluating the wrong directory
+    # into a confusing FAILED (observed live) is worse than halting.
+    # Offline cwd-fallback use without an override stays lenient.
+    override_given = args.repo_dir is not None or bool(
+        (os.environ.get("CELL_REPO_DIR") or "").strip()
+    )
+    if (override_given or _in_cell()) and not _repo_checkout_valid(repo_dir):
+        detail = f"cell repo checkout missing or invalid: {repo_dir}"
+        print(f"BLOCKED: {detail}", file=sys.stderr)
+        _write_receipt(
+            receipt_path,
+            task_id=task_id,
+            status="BLOCKED",
+            exit_promise="HALT:BLOCKED",
+            commit_sha="unknown",
+            files_changed=[],
+            tactile_execution={"command_run": tactile_command, "exit_code": 0, "summary_output": ""},
+            agent_summary=f"BLOCKED: {detail}",
+            token_metrics=_collect_token_metrics(explicit_agent_log),
+        )
+        return EXIT_BLOCKED
+
     # 2. Cell-local git identity before dispatch (non-secret, local scope only).
-    identity = _ensure_git_identity()
+    identity = _ensure_git_identity(repo_dir)
+
+    # Pre-dispatch HEAD: bounds the candidate commit range. Agent commits
+    # vanish from working-tree diffs once made, so files_changed below
+    # unions the tree state with diff(pre_sha, HEAD) — see
+    # _get_commit_range_files.
+    pre_sha = _get_commit_sha(repo_dir)
 
     # 3. LLM dispatch (best-effort; agent exit never overrides gates).
     agent_choice = "none" if args.no_agent else _resolve_agent_choice(args.agent)
@@ -911,7 +1059,7 @@ def main() -> int:
         print(f"agent dispatch skipped ({skipped_reason})", file=sys.stderr)
     else:
         print(f"dispatching agent: {agent_argv[0]} (model {model})", file=sys.stderr)
-        agent_result = _run_agent(agent_argv, agent_timeout)
+        agent_result = _run_agent(agent_argv, agent_timeout, repo_dir)
     agent_summary, agent_log_text = _build_agent_summary(
         argv=agent_argv,
         model=model,
@@ -925,8 +1073,14 @@ def main() -> int:
     identity_note = "git identity configured" if identity.get("configured") else "git identity NOT configured (see stderr)"
 
     # Collect post-dispatch git state (agent edits land here; gates run on this).
-    commit_sha = _get_commit_sha()
-    files_changed = _get_files_changed()
+    # Union working-tree changes with the attempt's commit range so committed
+    # changes (a clean tree vs HEAD) stay visible to the forbidden_paths gate
+    # and sensor diff-scope — committing must never hide a touched path.
+    commit_sha = _get_commit_sha(repo_dir)
+    files_changed = sorted(
+        set(_get_files_changed(repo_dir))
+        | set(_get_commit_range_files(pre_sha, repo_dir))
+    )
 
     # 4. Forbidden_paths diff assertion -> BLOCKED / HALT:BLOCKED (no retry)
     violations = _check_forbidden(files_changed, forbidden_paths, receipt_path)
@@ -951,7 +1105,7 @@ def main() -> int:
     # Agent text cannot override a test failure; agent_summary is diagnostics.
     timeout_seconds = _get_tactile_timeout(frame)
     attempt, max_attempts = _coerce_attempt(frame)
-    exit_code, summary_output, _timed_out = _run_tactile(tactile_command, timeout_seconds)
+    exit_code, summary_output, _timed_out = _run_tactile(tactile_command, timeout_seconds, repo_dir)
     tactile_execution = {
         "command_run": tactile_command,
         "exit_code": exit_code,

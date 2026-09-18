@@ -51,7 +51,7 @@ Result of one attempt. Consumed by gates in `03-inner-loop.md`.
 | `status` | enum | yes | `"SUCCESS"` \| `"FAILED"` \| `"BLOCKED"`. |
 | `exit_promise` | enum | yes | `"COMPLETE"` \| `"RETRYABLE_FAILURE"` \| `"HALT:EXHAUSTED"` \| `"HALT:BLOCKED"`. |
 | `commit_sha` | string | yes | Git commit hash created inside the container. |
-| `files_changed` | string[] | yes | Paths modified in the candidate commit. |
+| `files_changed` | string[] | yes | Paths the attempt modified: working-tree changes plus the attempt's commit range (pre-dispatch `HEAD` to post-dispatch `HEAD`). Committing never hides a path — gates run on this (locked 2026-09-18). |
 | `tactile_execution` | object | yes | `{command_run, exit_code, summary_output}` — output tail capped at 50 lines / ~4KB. |
 | `agent_summary` | string | yes | Model-written what/why; used for PR generation and next-attempt diagnostics. Never overrides ground truth. |
 | `token_metrics` | object | yes (fields nullable) | `{input_tokens, output_tokens, cost}` — all nullable (see telemetry). |
