@@ -56,6 +56,15 @@ the schema-valid `task_receipt.json`. It owns the envelope; the agent only
 supplies an informal summary/trailer. Python stdlib only — the base image
 ships no `jq`, and the wrapper must not add dependencies.
 
+Repo working directory (locked 2026-09-18): every repo-scoped wrapper op
+(git identity, rev-parse/diff SHAs, `tactile_command`, agent dispatch)
+resolves to the cell checkout — `/sandbox/repo` when present
+(`--repo-dir` / `CELL_REPO_DIR` override, else process cwd for
+offline/host use). The `sandbox exec --workdir` (`/sandbox`) is NOT the
+repo: running there yields "not in a git directory" identity failures,
+file-not-found tactile verdicts, and `unknown` SHAs (all observed live
+on the first in-cell run). `tactile_command` frames stay repo-relative.
+
 Transfer path (locked, Tier-1 host-side push only): the wrapper and agent
 perform local git ops only (branch use, commit, `rev-parse`, `diff`) —
 never `clone`/`push`/`fetch`, and no git credentials ever enter the cell.

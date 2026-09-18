@@ -137,11 +137,19 @@ do_exec_attempt() {
     fi
     upload_file_to "${CELL}" "${PROMPT_FILE}" worker_prompt.txt
   fi
+  # Receipt-first: the receipt is the key artifact (the wrapper writes it
+  # even on BLOCKED/FAILED) — download it even when the harness reports
+  # failure, then propagate the harness status. A missing receipt after a
+  # completed exec is itself a loud failure, never a silent skip.
+  local harness_status=0
   openshell sandbox exec -n "${CELL}" --workdir /sandbox \
     --timeout "${EXEC_TIMEOUT:-600}" -- /usr/local/bin/cell-harness \
     --attempt "${ATTEMPT}" --frame /sandbox/.task/current_task.json \
-    --receipt /sandbox/.task/task_receipt.json
+    --receipt /sandbox/.task/task_receipt.json || harness_status=$?
   openshell sandbox download "${CELL}" /sandbox/.task/task_receipt.json "${out}/"
+  if [[ "${harness_status}" -ne 0 ]]; then
+    return "${harness_status}"
+  fi
 }
 
 do_destroy() {
