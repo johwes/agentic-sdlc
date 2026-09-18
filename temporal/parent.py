@@ -11,7 +11,8 @@ PoC flow this stub encodes:
     -> sensor review degrades to a logged no-op when no sensors are
        configured ("review: skipped, no sensors configured" — never silent;
        canonical suite in temporal/sensors.py, see 05)
-    -> promotion = draft PR via gh on the host (activity slot, see 02+06)
+     -> promotion = draft PR via gh on the host (bundle -> fetch ->
+        scan -> squash -> push -> draft PR chain, see 02)
     -> HALT:EXHAUSTED / HALT:BLOCKED receipts -> escalated, never retried
     -> SLAs: 2h inbox-to-terminal wall-clock (auto-escalate on breach);
        24h promotion-staleness nudge (reminder only, never auto-merge).
@@ -32,6 +33,11 @@ from __future__ import annotations
 import dataclasses
 import datetime as _dt
 import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -234,6 +240,744 @@ def render_ledger_row(entry: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Promotion: Tier-1 host-side push only (see specs/02-control-plane.md)
+# ---------------------------------------------------------------------------
+#
+# Single transfer path (locked): the cell never pushes and holds no git
+# credentials; this chain runs on the host with the owner's `gh` auth.
+# Steps: bundle-download (local `git bundle create` in-cell + `sandbox
+# download`, no credentials) -> fetch into the host's `target_branch`
+# checkout of the frame's `repo_url` -> secret-scan before anything touches
+# origin (halt for human triage) -> squash per-attempt commits into one
+# clean commit -> push `target_branch` -> open a draft PR seeded from the
+# receipt's `agent_summary` plus gate evidence.
+#
+# Ordering constraint (see 02): the bundle download consumes cell content,
+# so the caller must run promotion BEFORE the terminal-state cell delete —
+# ledger SHAs are useless once the cell is gone. Never `--force` on push:
+# a non-fast-forward push escalates for human triage instead of rewriting
+# origin history.
+
+# PR base default. The frame carries no base field in the PoC; `main` is the
+# documented assumption (override per call via payload `base_branch`).
+PROMOTION_BASE_BRANCH_DEFAULT = "main"
+
+# Local ref the downloaded bundle is fetched to before the squash merge.
+BUNDLE_CANDIDATE_REF = "refs/bundle/candidate"
+
+# In-cell checkout (see 04 spawn contract: workspace seed uploads to
+# /sandbox/repo). Env override covers driver layout drift.
+CELL_REPO_DEFAULT = "/sandbox/repo"
+
+# Wall-clock per in-cell/local git op (bundle create/verify/fetch are fast
+# local ops; Temporal activity timeouts bound the outermost layer).
+CELL_EXEC_TIMEOUT_SECONDS = 120
+VERIFY_TIMEOUT_SECONDS = 120
+FETCH_TIMEOUT_SECONDS = 120
+SCAN_TIMEOUT_SECONDS = 120
+COMMIT_TIMEOUT_SECONDS = 120
+
+# Network ops: push of a small PoC branch + one `gh` API call.
+PUSH_TIMEOUT_SECONDS = 300
+PR_TIMEOUT_SECONDS = 120
+CLONE_TIMEOUT_SECONDS = 300
+
+# Non-secret commit identity, mirroring harness/wrapper.py and
+# temporal/child.py (nothing else sets it on a fresh host checkout).
+GIT_IDENTITY_NAME = "Ralph Worker"
+GIT_IDENTITY_EMAIL = "ralph-worker@localhost"
+
+# Builtin secret patterns ("gitleaks-equivalent", see 02). Findings halt
+# promotion for human triage — the cell env holds injected secrets that
+# must never reach origin. Only the pattern NAME + line number are
+# reported; matched values are never echoed into logs or annotations.
+# Tunable with evidence (a real gitleaks binary is the documented swap,
+# not a second scanner running alongside this set).
+SECRET_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("OPENCODE_API_KEY", r"OPENCODE_API_KEY\s*[:=]"),
+    ("ANTHROPIC_API_KEY", r"ANTHROPIC_API_KEY\s*[:=]"),
+    ("GITHUB_PAT", r"ghp_[A-Za-z0-9]{10,}"),
+    ("GITHUB_OAUTH", r"gho_[A-Za-z0-9]{10,}"),
+    ("GITHUB_FINE_GRAINED_PAT", r"github_pat_[A-Za-z0-9_]{10,}"),
+    ("AWS_ACCESS_KEY", r"AKIA[0-9A-Z]{16}"),
+    ("PRIVATE_KEY", r"-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"),
+    ("GENERIC_API_KEY_ASSIGN", r"(?i)\bapi[_-]?key\b\s*[:=]\s*['\"]?\S{8,}"),
+    ("GENERIC_SECRET_ASSIGN", r"(?i)\b(secret|token|password)\b\s*[:=]\s*['\"]?\S{8,}"),
+)
+
+
+class PromotionBlocked(Exception):
+    """Candidate secret-scan findings halt promotion for human triage.
+
+    Carries `findings` (pattern names + line numbers only — never secret
+    values). The workflow maps this to `escalated`, never a retry loop.
+    """
+
+    def __init__(self, findings: list[str]):
+        super().__init__(
+            f"promotion blocked: {len(findings)} secret finding(s): "
+            + "; ".join(findings[:10])
+        )
+        self.findings = list(findings)
+
+
+def openshell_bin() -> str:
+    """Local openshell CLI (env override wins, for tests/dev gateways)."""
+    env = os.environ.get("OPENSHELL_BIN")
+    if env and env.strip():
+        return env.strip()
+    return "openshell"
+
+
+def gh_bin() -> str:
+    """Host `gh` CLI (env override wins, for tests/shims)."""
+    env = os.environ.get("GH_BIN")
+    if env and env.strip():
+        return env.strip()
+    return "gh"
+
+
+def cell_repo_path() -> str:
+    """In-cell checkout path (env override wins)."""
+    env = os.environ.get("CELL_REPO_PATH")
+    if env and env.strip():
+        return env.strip()
+    return CELL_REPO_DEFAULT
+
+
+def validate_repo_url(url: Any) -> str | None:
+    """Check the frame repo_url per 04 ingestion (public https, no creds).
+
+    Returns an error string, or None when the URL is acceptable.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return "repo_url must be a non-empty string"
+    u = url.strip()
+    if not u.startswith("https://"):
+        return f"repo_url must be public https (got {u!r})"
+    host_part = u[len("https://"):].split("/", 1)[0]
+    if "@" in host_part:
+        return "repo_url must not carry credentials (public https only)"
+    return None
+
+
+def _validate_branch(value: Any, field: str) -> str | None:
+    """Single git ref only: rejects empty values, leading dashes (parsed
+    as flags, not refs) and whitespace (multi-token ref)."""
+    if not isinstance(value, str) or not value.strip():
+        return f"{field} must be a non-empty string"
+    v = value.strip()
+    if v.startswith("-"):
+        return f"{field} must be a ref, not a flag: {v!r}"
+    if any(c.isspace() for c in v):
+        return f"{field} must be a single ref: {v!r}"
+    return None
+
+
+def validate_promotion_payload(payload: Any) -> str | None:
+    """Check the open_draft_pr payload. Returns an error string, or None.
+
+    Payload contract (locked by this item)::
+        {"frame": {...}, "receipt": {...},
+         "host_checkout": "/path" (optional),
+         "bundle_path": "/path/to.bundle" (optional),
+         "cell": "cell-TASK-..." (optional),
+         "base_branch": "main" (optional),
+         "review_annotation": str (optional)}
+
+    Exactly one candidate source resolution must be possible: an explicit
+    `bundle_path`, else a live `cell` to download the bundle from (see
+    the ordering constraint above). Only fully-gated `SUCCESS` receipts
+    promote (see 02 failure modes); anything else is a caller bug.
+    """
+    if not isinstance(payload, dict):
+        return "promotion payload must be an object"
+    frame = payload.get("frame")
+    receipt = payload.get("receipt")
+    if not isinstance(frame, dict):
+        return "promotion payload needs frame object"
+    if not isinstance(receipt, dict):
+        return "promotion payload needs receipt object"
+    task_id = frame.get("task_id")
+    if not isinstance(task_id, str) or not task_id.strip():
+        return "frame task_id must be a non-empty string"
+    err = validate_repo_url(frame.get("repo_url"))
+    if err is not None:
+        return f"frame {err}"
+    err = _validate_branch(frame.get("target_branch"), "frame target_branch")
+    if err is not None:
+        return err
+    if receipt.get("status") != "SUCCESS":
+        return (
+            "promotion takes SUCCESS receipts only "
+            f"(got {receipt.get('status')!r}); only fully-gated SUCCESS promotes"
+        )
+    rtid = receipt.get("task_id")
+    if rtid is not None and rtid != task_id:
+        return f"receipt task_id {rtid!r} does not match frame {task_id!r}"
+    base = payload.get("base_branch", frame.get("base_branch", PROMOTION_BASE_BRANCH_DEFAULT))
+    if base is None:
+        base = PROMOTION_BASE_BRANCH_DEFAULT
+    err = _validate_branch(base, "base_branch")
+    if err is not None:
+        return err
+    checkout = payload.get("host_checkout")
+    if checkout is not None and (not isinstance(checkout, str) or not checkout.strip()):
+        return "host_checkout must be a directory path string"
+    cell = payload.get("cell")
+    bundle = payload.get("bundle_path")
+    if bundle is not None and (not isinstance(bundle, str) or not bundle.strip()):
+        return "bundle_path must be a file path string"
+    if cell is not None and (not isinstance(cell, str) or not cell.strip()):
+        return "cell must be a sandbox name string"
+    if (bundle is None or not str(bundle).strip()) and (
+        cell is None or not str(cell).strip()
+    ):
+        return (
+            "no candidate source: provide bundle_path (pre-downloaded) or "
+            "cell (bundle download runs inside promotion, before cell delete)"
+        )
+    return None
+
+
+def repo_slug_from_url(url: str) -> str | None:
+    """Derive `owner/repo` from a public https repo URL for `gh --repo`.
+
+    Returns None when the URL has no `owner/repo` path (validation of
+    scheme/credentials stays in validate_repo_url).
+    """
+    try:
+        path = str(url).strip().split("://", 1)[1].split("/", 1)[1]
+    except IndexError:
+        return None
+    parts = [p for p in path.split("/") if p]
+    if len(parts) < 2:
+        return None
+    repo = parts[1]
+    if repo.endswith(".git"):
+        repo = repo[: -len(".git")]
+    if not parts[0] or not repo:
+        return None
+    return f"{parts[0]}/{repo}"
+
+
+def squash_message(task_id: str, title: Any) -> str:
+    """One clean commit message for the promotion squash (see 02 model).
+
+    Format mirrors the spec example: `fix(TASK-402): sanitize search
+    input` — first title line only, capped so `gh`/git stay happy.
+    """
+    first = str(title or "").strip().splitlines()
+    subject = first[0].strip() if first and first[0].strip() else "promotion candidate"
+    return f"fix({str(task_id).strip()}): {subject}"[:200]
+
+
+def build_pr_body(
+    receipt: dict[str, Any],
+    review_annotation: Any = "",
+    max_chars: int = 8000,
+) -> str:
+    """Seed the draft PR body from `agent_summary` + gate evidence (02).
+
+    Tactile command/exit, sensor review annotation, files changed and the
+    candidate SHA ride along so the human reviewer sees what the loop
+    verified without digging through Temporal history.
+    """
+    tactile = receipt.get("tactile_execution") or {}
+    lines = [
+        "## Summary",
+        "",
+        str(receipt.get("agent_summary", "(no summary)") or "(no summary)"),
+        "",
+        "## Gate evidence",
+        "",
+        f"- tactile: `{tactile.get('command_run', '?')}` "
+        f"exit {tactile.get('exit_code', '?')}",
+        f"- review: {str(review_annotation or '-').strip()}",
+        f"- commit: {receipt.get('commit_sha', '?')}",
+        f"- files: {', '.join(receipt.get('files_changed') or ['-'])}",
+        f"- task: {receipt.get('task_id', '?')}",
+    ]
+    tail = str(tactile.get("summary_output", "") or "").strip()
+    if tail:
+        lines += ["", "### Tactile output (tail)", "", "```", tail[-2000:], "```"]
+    body = "\n".join(lines).strip() + "\n"
+    if len(body) > max_chars:
+        body = body[:max_chars] + "\n…(truncated)\n"
+    return body
+
+
+def scan_text_for_secrets(text: str) -> list[str]:
+    """Scan text for secret patterns. Returns finding descriptions.
+
+    Each finding is `"<line N>: <PATTERN_NAME> suspected"` — pattern
+    names and line numbers only, never matched values.
+    """
+    findings: list[str] = []
+    compiled = [(name, re.compile(rx)) for name, rx in SECRET_PATTERNS]
+    for i, line in enumerate(str(text or "").splitlines(), start=1):
+        for name, rx in compiled:
+            try:
+                if rx.search(line):
+                    findings.append(f"line {i}: {name} suspected")
+                    break
+            except re.error:
+                continue
+    return findings
+
+
+def _run_checked(
+    argv: list[str],
+    cwd: str | None = None,
+    timeout: int = 120,
+    runner: Any | None = None,
+    label: str = "command",
+) -> Any:
+    """Run fixed argv (no shell) and raise on failure. Returns the result.
+
+    `runner` injects subprocess.run for offline tests. Raises
+    RuntimeError with a stderr tail on nonzero exit (Temporal retries
+    the activity); missing binaries surface as RuntimeError, never a
+    silent skip.
+    """
+    run = runner or subprocess.run
+    try:
+        r = run(list(argv), capture_output=True, text=True, timeout=timeout, cwd=cwd)
+    except FileNotFoundError as e:
+        raise RuntimeError(f"{label}: binary not found: {e}")
+    if r.returncode != 0:
+        detail = (r.stderr or r.stdout or "").strip()
+        raise RuntimeError(f"{label} failed: {detail}"[:2000])
+    return r
+
+
+def bundle_remote_name(task_id: str) -> str:
+    """In-cell bundle path for a task (under /sandbox, outside the repo)."""
+    safe = "".join(c if c.isalnum() or c in ("-", "_") else "-" for c in str(task_id))
+    return f"/sandbox/bundle-{(safe or 'task')}.bundle"
+
+
+def download_bundle_impl(
+    cell: str,
+    task_id: str,
+    out_dir: str | Path,
+    repo: str | None = None,
+    runner: Any | None = None,
+) -> str:
+    """Create the candidate bundle in-cell and download it to the host.
+
+    `git bundle create` is a local op needing no credentials (see 02);
+    the bundle transfer is lossless (binaries, modes, renames, history).
+    Returns the host bundle path. Must run BEFORE the terminal-state
+    cell delete (see ordering constraint above).
+    """
+    name = str(cell or "").strip()
+    if not name:
+        raise ValueError("download_bundle: empty cell name")
+    remote = bundle_remote_name(task_id)
+    target = str(repo or cell_repo_path())
+    _run_checked(
+        [
+            openshell_bin(),
+            "sandbox",
+            "exec",
+            "-n",
+            name,
+            "--workdir",
+            target,
+            "--timeout",
+            str(CELL_EXEC_TIMEOUT_SECONDS),
+            "--",
+            "git",
+            "bundle",
+            "create",
+            remote,
+            "HEAD",
+        ],
+        timeout=CELL_EXEC_TIMEOUT_SECONDS + 60,
+        runner=runner,
+        label="cell git bundle create",
+    )
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    _run_checked(
+        [openshell_bin(), "sandbox", "download", name, remote, str(out) + "/"],
+        timeout=CELL_EXEC_TIMEOUT_SECONDS + 60,
+        runner=runner,
+        label="sandbox download bundle",
+    )
+    host_path = out / Path(remote).name
+    if host_path.is_file():
+        return str(host_path)
+    cands = sorted(out.glob("*.bundle"))
+    if not cands:
+        raise RuntimeError(f"bundle download produced no file in {out}")
+    return str(cands[0])
+
+
+def ensure_host_checkout(
+    frame: dict[str, Any],
+    host_checkout: Any | None = None,
+    runner: Any | None = None,
+) -> str:
+    """Resolve the host `target_branch` checkout of the frame's repo_url.
+
+    Uses the provided checkout when given (must exist); otherwise clones
+    the public https `repo_url` into a fresh temp dir — no credentials
+    are ever passed (auth lives only in the provider-injected cell env
+    and the owner's host `gh`, see 04 ingestion). New demo branches that
+    do not exist on the remote yet start from the clone HEAD
+    (`checkout -B`), mirroring temporal/child.py prepare_workspace.
+    """
+    branch = str(frame.get("target_branch") or "").strip()
+    if host_checkout is not None and str(host_checkout).strip():
+        checkout = str(host_checkout).strip()
+        if not Path(checkout).is_dir():
+            raise RuntimeError(f"host_checkout not a directory: {checkout}")
+        try:
+            _run_checked(
+                ["git", "checkout", branch],
+                cwd=checkout,
+                timeout=60,
+                runner=runner,
+                label=f"git checkout {branch}",
+            )
+        except RuntimeError:
+            _run_checked(
+                ["git", "checkout", "-B", branch],
+                cwd=checkout,
+                timeout=60,
+                runner=runner,
+                label=f"git checkout -B {branch}",
+            )
+        return checkout
+    url = str(frame.get("repo_url") or "").strip()
+    dest = tempfile.mkdtemp(prefix="ralph-promote-")
+    _run_checked(
+        ["git", "clone", url, dest],
+        timeout=CLONE_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git clone",
+    )
+    try:
+        _run_checked(
+            ["git", "-C", dest, "checkout", branch],
+            timeout=60,
+            runner=runner,
+            label=f"git checkout {branch}",
+        )
+    except RuntimeError:
+        _run_checked(
+            ["git", "-C", dest, "checkout", "-B", branch],
+            timeout=60,
+            runner=runner,
+            label=f"git checkout -B {branch}",
+        )
+    return dest
+
+
+def fetch_and_stage_impl(
+    host_checkout: str,
+    bundle_path: str,
+    target_branch: str,
+    runner: Any | None = None,
+) -> str:
+    """Verify the bundle, fetch it, and squash-merge it onto target_branch.
+
+    `git merge --squash` stages the full candidate diff without
+    committing, so the secret scan below inspects exactly what the
+    squash commit would record. Returns the candidate ref.
+    """
+    checkout = str(host_checkout)
+    bundle = str(bundle_path)
+    if not Path(bundle).is_file():
+        raise RuntimeError(f"bundle not found: {bundle}")
+    _run_checked(
+        ["git", "bundle", "verify", bundle],
+        cwd=checkout,
+        timeout=VERIFY_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git bundle verify",
+    )
+    _run_checked(
+        ["git", "fetch", bundle, f"HEAD:{BUNDLE_CANDIDATE_REF}"],
+        cwd=checkout,
+        timeout=FETCH_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git fetch bundle",
+    )
+    try:
+        _run_checked(
+            ["git", "checkout", str(target_branch)],
+            cwd=checkout,
+            timeout=60,
+            runner=runner,
+            label=f"git checkout {target_branch}",
+        )
+    except RuntimeError:
+        _run_checked(
+            ["git", "checkout", "-B", str(target_branch)],
+            cwd=checkout,
+            timeout=60,
+            runner=runner,
+            label=f"git checkout -B {target_branch}",
+        )
+    _run_checked(
+        ["git", "merge", "--squash", BUNDLE_CANDIDATE_REF],
+        cwd=checkout,
+        timeout=FETCH_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git merge --squash",
+    )
+    return BUNDLE_CANDIDATE_REF
+
+
+def scan_staged_impl(
+    host_checkout: str,
+    runner: Any | None = None,
+) -> list[str]:
+    """Secret-scan the staged candidate diff + untracked content.
+
+    Runs BEFORE the squash commit or any push touches origin (see 02):
+    findings raise PromotionBlocked for human triage (never auto-push,
+    never silently dropped). Untracked files are scanned too — a fresh
+    clone has none, so any hit there names operator dirt, not the agent.
+    Finding entries carry pattern names + line numbers only.
+    """
+    checkout = str(host_checkout)
+    cached = _run_checked(
+        ["git", "diff", "--cached"],
+        cwd=checkout,
+        timeout=SCAN_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git diff --cached",
+    )
+    unstaged = _run_checked(
+        ["git", "diff"],
+        cwd=checkout,
+        timeout=SCAN_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git diff",
+    )
+    findings = scan_text_for_secrets((cached.stdout or "") + "\n" + (unstaged.stdout or ""))
+    status = _run_checked(
+        ["git", "status", "--porcelain"],
+        cwd=checkout,
+        timeout=60,
+        runner=runner,
+        label="git status",
+    )
+    for line in (status.stdout or "").splitlines():
+        if line.startswith("??"):
+            rel = line[2:].strip().strip('"')
+            p = Path(checkout) / rel
+            try:
+                if p.is_file() and p.stat().st_size < 1_000_000:
+                    findings += [
+                        f"{rel} {f}" for f in scan_text_for_secrets(
+                            p.read_text(encoding="utf-8", errors="replace")
+                        )
+                    ]
+            except OSError:
+                continue
+    if findings:
+        raise PromotionBlocked(findings)
+    return findings
+
+
+def squash_commit_impl(
+    host_checkout: str,
+    message: str,
+    runner: Any | None = None,
+) -> str:
+    """Commit the staged candidate as one clean commit (no push here).
+
+    Refuses an empty stage (nothing fetched — a caller bug, not an
+    empty task). Returns the squash commit SHA.
+    """
+    checkout = str(host_checkout)
+    if not str(message).strip():
+        raise ValueError("squash_commit: empty message")
+    names = _run_checked(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=checkout,
+        timeout=60,
+        runner=runner,
+        label="git diff --cached --name-only",
+    )
+    if not (names.stdout or "").strip():
+        raise RuntimeError("nothing staged to squash — candidate fetch staged no changes")
+    _run_checked(
+        ["git", "config", "user.name", GIT_IDENTITY_NAME],
+        cwd=checkout,
+        timeout=60,
+        runner=runner,
+        label="git config user.name",
+    )
+    _run_checked(
+        ["git", "config", "user.email", GIT_IDENTITY_EMAIL],
+        cwd=checkout,
+        timeout=60,
+        runner=runner,
+        label="git config user.email",
+    )
+    _run_checked(
+        ["git", "commit", "-m", str(message).strip()],
+        cwd=checkout,
+        timeout=COMMIT_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git commit squash",
+    )
+    head = _run_checked(
+        ["git", "rev-parse", "HEAD"],
+        cwd=checkout,
+        timeout=60,
+        runner=runner,
+        label="git rev-parse HEAD",
+    )
+    sha = (head.stdout or "").strip()
+    if not sha:
+        raise RuntimeError("squash commit left empty HEAD")
+    return sha
+
+
+def push_branch_impl(
+    host_checkout: str,
+    target_branch: str,
+    runner: Any | None = None,
+) -> None:
+    """Push `target_branch` to the frame origin. Never `--force`.
+
+    A non-fast-forward push (stale branch from an earlier run) fails
+    here and escalates for human triage instead of rewriting origin
+    history (see 03: no force-push races).
+    """
+    _run_checked(
+        ["git", "push", "origin", str(target_branch)],
+        cwd=str(host_checkout),
+        timeout=PUSH_TIMEOUT_SECONDS,
+        runner=runner,
+        label="git push origin",
+    )
+
+
+def _parse_pr_url(output: str) -> str:
+    """Extract the PR URL from `gh pr create` stdout."""
+    m = re.search(r"https://\S+/pull/\d+", str(output or ""))
+    if not m:
+        raise RuntimeError(
+            f"gh pr create printed no PR URL: {str(output or '').strip()}"[:500]
+        )
+    return m.group(0)
+
+
+def open_pr_impl(
+    repo_slug: str,
+    head_branch: str,
+    base_branch: str,
+    title: str,
+    body: str,
+    cwd: str | None = None,
+    runner: Any | None = None,
+) -> str:
+    """Open a DRAFT PR via `gh` (host auth — never in-cell, see 04).
+
+    The human promotes draft → ready (mechanism = Temporal pushes and
+    opens; draft status = the safety catch, see 02). Returns the PR URL.
+    """
+    body_file = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as fh:
+            fh.write(body)
+            body_file = fh.name
+        r = _run_checked(
+            [
+                gh_bin(),
+                "pr",
+                "create",
+                "--repo",
+                str(repo_slug),
+                "--head",
+                str(head_branch),
+                "--base",
+                str(base_branch),
+                "--draft",
+                "--title",
+                str(title),
+                "--body-file",
+                body_file,
+            ],
+            cwd=cwd,
+            timeout=PR_TIMEOUT_SECONDS,
+            runner=runner,
+            label="gh pr create",
+        )
+    finally:
+        if body_file:
+            try:
+                os.unlink(body_file)
+            except OSError:
+                pass
+    return _parse_pr_url(r.stdout or "")
+
+
+def promotion_impl(payload: dict[str, Any], runner: Any | None = None) -> dict[str, str]:
+    """Run the full promotion chain; return the promotion record.
+
+    Bundle-download (when `cell` is the source) runs first so cell
+    content is consumed before any terminal-state delete (see ordering
+    constraint). Secret findings raise PromotionBlocked BEFORE the
+    squash commit or push — origin is never touched with secrets.
+    Raises ValueError on bad payloads, RuntimeError on infra failures.
+    """
+    err = validate_promotion_payload(payload)
+    if err is not None:
+        raise ValueError(f"promotion: {err}")
+    frame = payload["frame"]
+    receipt = payload["receipt"]
+    task_id = str(frame["task_id"]).strip()
+    branch = str(frame["target_branch"]).strip()
+    base = str(
+        payload.get("base_branch")
+        or frame.get("base_branch")
+        or PROMOTION_BASE_BRANCH_DEFAULT
+    ).strip()
+    checkout = ensure_host_checkout(frame, payload.get("host_checkout"), runner)
+    bundle = payload.get("bundle_path")
+    if bundle is None or not str(bundle).strip():
+        tmp = tempfile.mkdtemp(prefix="ralph-bundle-")
+        bundle = download_bundle_impl(
+            str(payload.get("cell")), task_id, tmp, None, runner
+        )
+    fetch_and_stage_impl(checkout, str(bundle), branch, runner)
+    scan_staged_impl(checkout, runner)
+    sha = squash_commit_impl(checkout, squash_message(task_id, frame.get("title", "")), runner)
+    push_branch_impl(checkout, branch, runner)
+    slug = repo_slug_from_url(str(frame.get("repo_url")))
+    if slug is None:
+        raise RuntimeError(f"promotion: cannot derive owner/repo from repo_url")
+    pr_url = open_pr_impl(
+        slug,
+        branch,
+        base,
+        squash_message(task_id, frame.get("title", "")),
+        build_pr_body(receipt, payload.get("review_annotation", "")),
+        checkout,
+        runner,
+    )
+    return {
+        "task_id": task_id,
+        "target_branch": branch,
+        "base_branch": base,
+        "commit_sha": sha,
+        "pr_url": pr_url,
+        "squashed": "true",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Temporal wiring (guarded: module imports without the SDK for offline use)
 # ---------------------------------------------------------------------------
 
@@ -303,17 +1047,25 @@ async def dispatch_child(frame: dict[str, Any]) -> dict[str, Any]:
 # name, one definition).
 
 
-@activity.defn(name="open_draft_pr")
-async def open_draft_pr(task_id: str, commit_sha: str) -> dict[str, str]:
-    """Promotion slot: squash + push target_branch + open draft PR via gh.
+async def _run_in_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a blocking stdlib call off the event loop (worker stays responsive)."""
+    import asyncio as _asyncio
 
-    Runs on the host (workers never push — network-enforced, see 04).
-    Not executed in this stub item; implemented with 06-release.md.
+    return await _asyncio.to_thread(func, *args, **kwargs)
+
+
+@activity.defn(name="open_draft_pr")
+async def open_draft_pr(payload: dict[str, Any]) -> dict[str, str]:
+    """Promotion activity: bundle-download -> fetch -> scan -> squash -> push -> draft PR.
+
+    Runs on the host with the owner's `gh` auth (workers never push —
+    network-enforced, see 04). Payload contract in
+    validate_promotion_payload(). Secret findings raise PromotionBlocked
+    for human triage (origin untouched); other failures raise so
+    Temporal retries instead of promoting partial state (only
+    fully-gated `SUCCESS` promotes, see 02 failure modes).
     """
-    raise NotImplementedError(
-        "promotion activity not yet implemented "
-        "(see specs/02-control-plane.md promotion + specs/06-release.md)."
-    )
+    return await _run_in_thread(promotion_impl, dict(payload))
 
 
 @workflow.defn(name="ParentWorkflow")
@@ -356,6 +1108,47 @@ class ParentWorkflow:
             receipt,
             schedule_to_close_timeout=_dt.timedelta(minutes=10),
         )
+        if review["next_state"] != "promoted":
+            return ParentResult(
+                task_id=task_id, state=review["next_state"], annotation=review["annotation"]
+            )
+        # Promotion queue: host-side push + draft PR, but only when the
+        # candidate source rides along (a live `cell` for bundle download
+        # or a pre-downloaded `bundle_path`). Frames without either predate
+        # the cell/bundle handoff — passthrough preserves PoC behavior
+        # until the handoff lands (bundle download precedes cell delete,
+        # see the ordering constraint above).
+        cell = inputs.frame.get("cell")
+        bundle_path = inputs.frame.get("bundle_path")
+        if (cell is None or not str(cell).strip()) and (
+            bundle_path is None or not str(bundle_path).strip()
+        ):
+            return ParentResult(
+                task_id=task_id, state="promoted", annotation=review["annotation"]
+            )
+        try:
+            promo = await workflow.execute_activity(
+                open_draft_pr,
+                {
+                    "frame": inputs.frame,
+                    "receipt": receipt,
+                    "review_annotation": review["annotation"],
+                    "cell": cell,
+                    "bundle_path": bundle_path,
+                },
+                schedule_to_close_timeout=_dt.timedelta(minutes=15),
+            )
+        except Exception as e:
+            # Promotion failure (secret halt or infra) awaits human triage
+            # — never auto-retried into origin, never dropped (see 02
+            # escalation handling).
+            return ParentResult(
+                task_id=task_id,
+                state="escalated",
+                annotation=f"promotion halted: {e}"[:2000],
+            )
         return ParentResult(
-            task_id=task_id, state=review["next_state"], annotation=review["annotation"]
+            task_id=task_id,
+            state="promoted",
+            annotation=f"{review['annotation']} | {promo['pr_url']}"[:2000],
         )
