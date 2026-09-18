@@ -117,6 +117,10 @@ upload_file_to() {
     echo "refusing unsafe upload filename: ${base}" >&2
     return 1
   fi
+  # Ensure the dir exists so fresh cells stay quiet (the rm below is
+  # best-effort; real failures surface at upload).
+  openshell sandbox exec -n "${cell}" --workdir /sandbox \
+    --timeout 60 -- mkdir -p .task || true
   # Best-effort stale cleanup (missing dir on fresh cells is fine; real
   # failures surface at upload below).
   openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
