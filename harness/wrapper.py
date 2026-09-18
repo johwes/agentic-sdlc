@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path, PurePath
@@ -95,6 +96,11 @@ def _load_frame(frame_path: Path) -> tuple[dict | None, str | None]:
 
 
 def _get_commit_sha() -> str:
+    """Return `git rev-parse HEAD`, or "unknown" when unavailable.
+
+    "unknown" is a sentinel for non-git / fresh-repo contexts (spec requires
+    a string; telemetry gaps and missing SHAs never crash the wrapper).
+    """
     try:
         r = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -305,6 +311,243 @@ def _coerce_attempt(frame: dict) -> tuple[int, int]:
     return attempt, max_attempts
 
 
+def _coerce_token(value: object) -> int | None:
+    """Best-effort token count coercion: non-negative int or None."""
+    try:
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, float):
+            if not value.is_integer() or value < 0:
+                return None
+            return int(value)
+        num = int(str(value).strip()) if isinstance(value, str) else int(value)  # type: ignore[arg-type]
+        return num if num >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_cost(value: object) -> float | None:
+    """Best-effort cost coercion: non-negative float or None."""
+    try:
+        if value is None or isinstance(value, bool):
+            return None
+        num = float(str(value).strip()) if isinstance(value, str) else float(value)  # type: ignore[arg-type]
+        if num < 0:
+            return None
+        return num
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_metrics_from_obj(obj: object) -> dict | None:
+    """Pull {input_tokens, output_tokens, cost} from one decoded JSON value.
+
+    Supports Claude Code --verbose JSONL shapes
+    (usage:{input_tokens,output_tokens}, total_cost_usd) and OpenCode-style
+    summaries (tokens:{input,output}, cost/cost_usd), plus flat
+    {input_tokens, output_tokens, cost}. Returns None when nothing found.
+    """
+    if not isinstance(obj, dict):
+        return None
+    found: dict = {}
+    # Nested usage/tokens objects first
+    for nested_key in ("usage", "tokens", "tokenUsage"):
+        nested = obj.get(nested_key)
+        if isinstance(nested, dict):
+            for alias, canon in (
+                ("input_tokens", "input_tokens"),
+                ("inputTokens", "input_tokens"),
+                ("prompt_tokens", "input_tokens"),
+                ("promptTokens", "input_tokens"),
+                ("input", "input_tokens"),
+                ("prompt", "input_tokens"),
+                ("output_tokens", "output_tokens"),
+                ("outputTokens", "output_tokens"),
+                ("completion_tokens", "output_tokens"),
+                ("completionTokens", "output_tokens"),
+                ("output", "output_tokens"),
+                ("completion", "output_tokens"),
+            ):
+                if canon not in found and nested.get(alias) is not None:
+                    found[canon] = nested[alias]
+    # Flat keys (do not override nested hits)
+    for alias, canon in (
+        ("input_tokens", "input_tokens"),
+        ("inputTokens", "input_tokens"),
+        ("prompt_tokens", "input_tokens"),
+        ("output_tokens", "output_tokens"),
+        ("outputTokens", "output_tokens"),
+        ("completion_tokens", "output_tokens"),
+        ("cost", "cost"),
+        ("cost_usd", "cost"),
+        ("costUsd", "cost"),
+        ("total_cost_usd", "cost"),
+        ("totalCostUsd", "cost"),
+        ("total_cost", "cost"),
+    ):
+        if canon not in found and obj.get(alias) is not None:
+            found[canon] = obj[alias]
+    if not found:
+        return None
+    return {
+        "input_tokens": _coerce_token(found.get("input_tokens")),
+        "output_tokens": _coerce_token(found.get("output_tokens")),
+        "cost": _coerce_cost(found.get("cost")),
+    }
+
+
+def _parse_metrics_text(text: str) -> dict | None:
+    """Scan JSON / JSONL text; last fully-parsed hit wins. Never raises."""
+    try:
+        best: dict | None = None
+        # Whole-blob JSON first (covers single-object summaries)
+        try:
+            whole = json.loads(text)
+            hit = _extract_metrics_from_obj(whole)
+            if hit is not None:
+                best = hit
+            if isinstance(whole, list):
+                for item in whole:
+                    hit = _extract_metrics_from_obj(item)
+                    if hit is not None:
+                        best = hit
+        except (json.JSONDecodeError, ValueError):
+            pass
+        # Line-delimited JSON (Claude --verbose JSONL); later lines override
+        for line in text.splitlines():
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                hit = _extract_metrics_from_obj(json.loads(line))
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if hit is not None:
+                if best is None:
+                    best = hit
+                else:
+                    # Merge: non-None fields from later lines win
+                    for k, v in hit.items():
+                        if v is not None:
+                            best[k] = v
+        return best
+    except Exception:
+        return None
+
+
+def _null_metrics() -> dict:
+    return {"input_tokens": None, "output_tokens": None, "cost": None}
+
+
+def _collect_token_metrics(agent_log_text: str | None = None) -> dict:
+    """Best-effort token telemetry per specs/07-contracts.md telemetry.
+
+    Priority: explicit text arg → TASK_TOKEN_METRICS_JSON env →
+    AGENT_LOG_PATH file → well-known default log paths. Parse failure or
+    missing logs → all-null fields. Never raises, never blocks the workflow.
+    """
+    try:
+        if agent_log_text:
+            hit = _parse_metrics_text(agent_log_text)
+            if hit is not None:
+                return hit
+        env_blob = os.environ.get("TASK_TOKEN_METRICS_JSON")
+        if env_blob:
+            hit = _parse_metrics_text(env_blob)
+            if hit is not None:
+                return hit
+        candidates: list[str] = []
+        env_path = os.environ.get("AGENT_LOG_PATH")
+        if env_path:
+            candidates.append(env_path)
+        candidates.extend(
+            [
+                ".task/agent.log",
+                "/sandbox/.task/agent.log",
+                "agent.log",
+            ]
+        )
+        for cand in candidates:
+            try:
+                p = Path(cand)
+                if p.is_file():
+                    text = p.read_text(encoding="utf-8", errors="replace")
+                    # Cap scan to tail (~64KB) — metrics ride at the end
+                    hit = _parse_metrics_text(text[-65536:])
+                    if hit is not None:
+                        return hit
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return _null_metrics()
+
+
+VALID_STATUSES = {"SUCCESS", "FAILED", "BLOCKED"}
+VALID_EXIT_PROMISES = {"COMPLETE", "RETRYABLE_FAILURE", "HALT:EXHAUSTED", "HALT:BLOCKED"}
+# Status / exit_promise matrix per specs/07-contracts.md
+VALID_TRANSITIONS = {
+    ("SUCCESS", "COMPLETE"),
+    ("FAILED", "RETRYABLE_FAILURE"),
+    ("FAILED", "HALT:EXHAUSTED"),
+    ("BLOCKED", "HALT:BLOCKED"),
+}
+
+
+def _validate_receipt(receipt: dict) -> list[str]:
+    """Schema check for task_receipt.json per specs/07-contracts.md. Returns errors."""
+    errors: list[str] = []
+    if not isinstance(receipt, dict):
+        return ["receipt must be an object"]
+    if not isinstance(receipt.get("task_id"), str) or not receipt["task_id"]:
+        errors.append("task_id must be a non-empty string")
+    if receipt.get("status") not in VALID_STATUSES:
+        errors.append(f"status must be one of {sorted(VALID_STATUSES)}")
+    if receipt.get("exit_promise") not in VALID_EXIT_PROMISES:
+        errors.append(f"exit_promise must be one of {sorted(VALID_EXIT_PROMISES)}")
+    if (
+        receipt.get("status") in VALID_STATUSES
+        and receipt.get("exit_promise") in VALID_EXIT_PROMISES
+        and (receipt["status"], receipt["exit_promise"]) not in VALID_TRANSITIONS
+    ):
+        errors.append(
+            f"invalid status/exit_promise pair: {receipt.get('status')}/{receipt.get('exit_promise')}"
+        )
+    if not isinstance(receipt.get("commit_sha"), str) or not receipt["commit_sha"]:
+        errors.append("commit_sha must be a non-empty string")
+    files_changed = receipt.get("files_changed")
+    if not isinstance(files_changed, list) or any(not isinstance(f, str) for f in files_changed):
+        errors.append("files_changed must be a string[]")
+    tactile = receipt.get("tactile_execution")
+    if not isinstance(tactile, dict):
+        errors.append("tactile_execution must be an object")
+    else:
+        if not isinstance(tactile.get("command_run"), str):
+            errors.append("tactile_execution.command_run must be a string")
+        if not isinstance(tactile.get("exit_code"), int) or isinstance(tactile.get("exit_code"), bool):
+            errors.append("tactile_execution.exit_code must be an integer")
+        if not isinstance(tactile.get("summary_output"), str):
+            errors.append("tactile_execution.summary_output must be a string")
+    if not isinstance(receipt.get("agent_summary"), str):
+        errors.append("agent_summary must be a string")
+    metrics = receipt.get("token_metrics")
+    if not isinstance(metrics, dict):
+        errors.append("token_metrics must be an object")
+    else:
+        for key in ("input_tokens", "output_tokens"):
+            v = metrics.get(key)
+            if v is not None and (
+                not isinstance(v, int) or isinstance(v, bool) or v < 0
+            ):
+                errors.append(f"token_metrics.{key} must be a non-negative int or null")
+        cost = metrics.get("cost")
+        if cost is not None and (
+            not isinstance(cost, (int, float)) or isinstance(cost, bool) or float(cost) < 0
+        ):
+            errors.append("token_metrics.cost must be a non-negative number or null")
+    return errors
+
+
 def _write_receipt(
     receipt_path: Path,
     *,
@@ -328,21 +571,35 @@ def _write_receipt(
         "token_metrics": token_metrics,
     }
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    # Wrapper owns the envelope: reject invalid receipts before they hit disk.
+    pre_errors = _validate_receipt(receipt)
+    if pre_errors:
+        raise ValueError(f"refusing to write invalid receipt: {'; '.join(pre_errors)}")
     # Write atomically via tmp + rename
     tmp = receipt_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     tmp.replace(receipt_path)
+    # Read-back: guarantee the serialized file is schema-valid JSON
+    try:
+        on_disk = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"receipt read-back failed: {e}") from e
+    post_errors = _validate_receipt(on_disk)
+    if post_errors:
+        raise ValueError(f"receipt failed read-back validation: {'; '.join(post_errors)}")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Cell harness stage 2: frame load + forbidden_paths -> BLOCKED, tactile ground truth -> FAILED")
+    parser = argparse.ArgumentParser(description="Cell harness stage 3: frame load + forbidden_paths -> BLOCKED, tactile ground truth -> FAILED, git SHAs + schema-valid task_receipt.json with nullable token_metrics")
     parser.add_argument("--attempt", required=True, help="Attempt index (1-indexed)")
     parser.add_argument("--frame", required=True, help="Path to current_task.json (read-only)")
     parser.add_argument("--receipt", required=True, help="Path to write task_receipt.json")
+    parser.add_argument("--agent-log", required=False, default=None, help="Optional agent stdout/log text for best-effort token telemetry parsing")
     args = parser.parse_args()
 
     frame_path = Path(args.frame)
     receipt_path = Path(args.receipt)
+    agent_log_text: str | None = args.agent_log
 
     # 1. Load frame (read-only)
     frame, err = _load_frame(frame_path)
@@ -368,7 +625,7 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution={"command_run": "", "exit_code": 0, "summary_output": ""},
             agent_summary=f"BLOCKED: frame load failed: {err}",
-            token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
+            token_metrics=_collect_token_metrics(agent_log_text),
         )
         print(f"BLOCKED: frame load failed: {err}", file=sys.stderr)
         return EXIT_BLOCKED
@@ -396,7 +653,7 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution={"command_run": tactile_command, "exit_code": 0, "summary_output": ""},
             agent_summary=summary,
-            token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
+            token_metrics=_collect_token_metrics(agent_log_text),
         )
         return EXIT_BLOCKED
 
@@ -423,13 +680,13 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution=tactile_execution,
             agent_summary=summary,
-            token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
+            token_metrics=_collect_token_metrics(agent_log_text),
         )
         return EXIT_FAILED
 
     # No LLM dispatch yet per stage 1-2. Clean diff + tactile pass emits
     # SUCCESS; future stages add AST/hold-out gating.
-    summary = f"stage 2: frame loaded (task {task_id} attempt {args.attempt}), tactile passed; LLM dispatch not yet wired"
+    summary = f"stage 3: frame loaded (task {task_id} attempt {args.attempt}), tactile passed, receipt serialized with git SHAs + nullable token_metrics; LLM dispatch not yet wired"
     print(summary)
     _write_receipt(
         receipt_path,
@@ -440,7 +697,7 @@ def main() -> int:
         files_changed=files_changed,
         tactile_execution=tactile_execution,
         agent_summary=summary,
-        token_metrics={"input_tokens": None, "output_tokens": None, "cost": None},
+        token_metrics=_collect_token_metrics(agent_log_text),
     )
     return EXIT_SUCCESS
 
