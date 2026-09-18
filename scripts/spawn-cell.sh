@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./scripts/spawn-cell.sh create       # TASK_ID, WORKSPACE_DIR, CRED_PROVIDER
-#   ./scripts/spawn-cell.sh exec-attempt # CELL, FRAME_JSON, ATTEMPT [, OUT_DIR]
+#   ./scripts/spawn-cell.sh exec-attempt # CELL, FRAME_JSON, ATTEMPT [, OUT_DIR] [, PROMPT_FILE]
 #   ./scripts/spawn-cell.sh destroy      # CELL
 #
 # Env:
@@ -18,6 +18,10 @@
 #   FRAME_JSON     local current_task.json frame to upload (exec-attempt)
 #   ATTEMPT        1-indexed attempt number (exec-attempt)
 #   OUT_DIR        receipt destination dir, default . (exec-attempt)
+#   PROMPT_FILE    optional host-authored prompt override to upload as the
+#                  per-attempt /sandbox/.task/worker_prompt.txt (exec-attempt;
+#                  re-uploaded every attempt, never agent-persistent — the
+#                  wrapper prefers it over the image default; unset = default)
 #   EXEC_TIMEOUT   sandbox exec timeout secs, default 600 (exec-attempt)
 #   UUID4          optional 4-hex suffix; generated when unset (create)
 #   CELL_CPU       optional, default 1 (create)
@@ -102,6 +106,13 @@ do_exec_attempt() {
   : "${CELL:?set CELL}" "${FRAME_JSON:?set FRAME_JSON}" "${ATTEMPT:?set ATTEMPT}"
   local out="${OUT_DIR:-.}"
   openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/current_task.json
+  if [[ -n "${PROMPT_FILE:-}" ]]; then
+    if [[ ! -r "${PROMPT_FILE}" ]]; then
+      echo "prompt file not readable: ${PROMPT_FILE}" >&2
+      return 1
+    fi
+    openshell sandbox upload "${CELL}" "${PROMPT_FILE}" /sandbox/.task/worker_prompt.txt
+  fi
   openshell sandbox exec -n "${CELL}" --workdir /sandbox \
     --timeout "${EXEC_TIMEOUT:-600}" -- /usr/local/bin/cell-harness \
     --attempt "${ATTEMPT}" --frame /sandbox/.task/current_task.json \

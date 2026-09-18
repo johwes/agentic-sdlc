@@ -293,6 +293,18 @@ Tool equivalents:
   CI/container runs; OpenShell's external Landlock/seccomp policy is the
   actual security perimeter.)
 
+## Delivery tiers: image-immutable vs. host-injected per attempt
+
+`/usr` and `/etc` are read-only at runtime, so anything living there must
+arrive via the image build — nothing can be uploaded or created in-cell.
+Within that constraint, artifacts split three ways (locked 2026-09-18):
+
+| Artifact | Delivery | Mutability |
+|----------|----------|------------|
+| `cell-harness` (`/usr/local/bin`) | Image-baked only | Immutable — the judged agent can never rewrite the judge (anti-gaming load-bearing, see `03-inner-loop.md`). |
+| Worker prompt | Image default (`/etc/prompts/worker_contract.txt`) + per-attempt host-upload override (`/sandbox/.task/worker_prompt.txt`) | Host varies it per task/attempt; agent never persists it (re-uploaded every attempt; flows through Temporal activity inputs so history records what the worker was told). Override source: explicit `PROMPT_FILE` env wins, else `prompts/overrides/<TASK_ID>.txt`, else the image default. |
+| OpenCode config (`/etc/opencode/opencode.json`, source `config/opencode-sandbox.json`) | Image-baked defaults + per-run `--model` CLI override | Defaults frozen. opencode needs blanket permission from config (unlike Claude's `--dangerously-skip-permissions` flag), so the file must exist in-cell; auth still arrives only via the attached provider. |
+
 ## Failure modes
 
 - Credential exposure via env inspection → prevented by provider injection +

@@ -548,14 +548,22 @@ def _ensure_git_identity() -> dict:
     return result
 
 
-def _resolve_contract_prompt_text(explicit_path: str | None = None) -> tuple[str, str | None]:
+ATTEMPT_PROMPT_DEFAULT = "/sandbox/.task/worker_prompt.txt"
+
+
+def _resolve_contract_prompt_text(
+    explicit_path: str | None = None,
+    attempt_path: str | None = ATTEMPT_PROMPT_DEFAULT,
+) -> tuple[str, str | None]:
     """Load the worker contract prompt. Returns (text, source_path or None).
 
-    Search order: explicit --contract-prompt / CELL_CONTRACT_PROMPT, then the
-    in-cell path /etc/prompts/worker_contract.txt (baked by
-    docker/worker-cell.Dockerfile), then repo-relative fallbacks for offline
-    use. Missing prompt yields ("", None) with a stderr warning — dispatch
-    still runs so gates stay testable offline.
+    Search order: explicit --contract-prompt / CELL_CONTRACT_PROMPT, then
+    the per-attempt host upload (/sandbox/.task/worker_prompt.txt —
+    re-uploaded by the host on every attempt, never agent-persistent),
+    then the in-cell path /etc/prompts/worker_contract.txt (baked by
+    docker/worker-cell.Dockerfile), then repo-relative fallbacks for
+    offline use. Missing prompt yields ("", None) with a stderr warning —
+    dispatch still runs so gates stay testable offline.
     """
     candidates: list[str] = []
     if explicit_path:
@@ -563,6 +571,8 @@ def _resolve_contract_prompt_text(explicit_path: str | None = None) -> tuple[str
     env_path = os.environ.get("CELL_CONTRACT_PROMPT")
     if env_path and env_path not in candidates:
         candidates.append(env_path)
+    if attempt_path and attempt_path not in candidates:
+        candidates.append(attempt_path)
     candidates.append("/etc/prompts/worker_contract.txt")
     try:
         here = Path(__file__).resolve()
