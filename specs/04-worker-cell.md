@@ -104,10 +104,18 @@ are exempt by design.
 
 ## Spawn contract (real CLI, verified against `openshell --help`)
 
-Base image for PoC spawns: `quay.io/jwesterl/openshell-base:latest` (the
-checked-in CentOS build, pulled — no local build step at spawn time). The
-cell layer (`docker/worker-cell.Dockerfile`, `ARG BASE_IMAGE`) builds
-identically atop it. Entrypoint stays the base default (`/bin/bash`); cell keepalive is provided
+Base image for PoC spawns: `quay.io/jwesterl/worker-cell:2026-09-18-828dd5b`
+(the cell layer below, pulled — no local build step at spawn time),
+built atop `quay.io/jwesterl/openshell-base:latest` (the checked-in
+CentOS build). The cell layer (`docker/worker-cell.Dockerfile`, `ARG
+BASE_IMAGE`) adds the Ralph-loop contract (prompt, harness, OpenCode
+config) that the base deliberately lacks. Tag convention (locked
+2026-09-18): immutable `date-shortsha` tags naming the baked-content
+commit — never retag changed content under an existing tag (the
+gateway may resolve by tag with pull-through cache semantics, silently
+running stale layers); the spawner default (`CELL_IMAGE_PINNED` in
+`scripts/spawn-cell.sh`) moves forward only to pushed, digest-verified
+tags. Entrypoint stays the base default (`/bin/bash`); cell keepalive is provided
 by the sandbox runtime (no `CMD` in the checked-in Dockerfiles — the pushed
 base / gateway driver holds it), so `create` takes no initial command, and
 the wrapper is invoked explicitly per exec — never as PID 1.

@@ -28,11 +28,18 @@
 #   CELL_MEM       optional, default 4Gi (create)
 #   CREATE_WAIT_TRIES    optional, Ready polls, default 60 (create)
 #   CREATE_WAIT_INTERVAL optional, secs between polls, default 10 (create)
-#   BASE_IMAGE     optional, default quay.io/jwesterl/openshell-base:latest
+#   BASE_IMAGE     optional, default the pinned cell image below (immutable
+#                  date-shortsha tag — never retag changed content, see 04)
 #   POLICY         optional, default policy/upstream-base-policy.yaml (abs path resolved)
 set -euo pipefail
 
 cmd="${1:-}"; shift || true
+
+# Pinned cell image (immutable date-shortsha tag; baked content frozen at
+# the named commit — later commits touch only unbaked files. Never retag
+# changed content under an existing tag: the gateway may resolve by tag
+# with pull-through cache semantics. See specs/04-worker-cell.md.)
+CELL_IMAGE_PINNED="quay.io/jwesterl/worker-cell:2026-09-18-828dd5b"
 
 resolve_policy() {
   local p="${POLICY:-policy/upstream-base-policy.yaml}"
@@ -65,7 +72,7 @@ do_create() {
   echo "creating ${cell} (log ${log})" >&2
   openshell sandbox create \
     --name "${cell}" \
-    --from "${BASE_IMAGE:-quay.io/jwesterl/openshell-base:latest}" \
+    --from "${BASE_IMAGE:-${CELL_IMAGE_PINNED}}" \
     --policy "${policy}" \
     --provider "${CRED_PROVIDER:-opencode-go}" \
     --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
