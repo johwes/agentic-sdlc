@@ -434,6 +434,193 @@ def read_receipt_file(out_dir: str | Path) -> dict[str, Any]:
     return data
 
 
+# In-cell repo path: the spawn contract uploads the workspace seed to
+# /sandbox/repo (see 04). Env override covers driver layout drift.
+CELL_REPO_DEFAULT = "/sandbox/repo"
+
+# Wall-clock per in-cell git op (reset/rev-parse/status/add/commit are fast
+# local ops; Temporal activity timeouts bound the outermost layer, see 03).
+CELL_EXEC_TIMEOUT_SECONDS = 120
+
+# Non-secret commit identity, mirroring harness/wrapper.py (which sets the
+# same values in-cell before dispatch). Kept as literals so this module
+# stays importable without the harness on sys.path.
+GIT_IDENTITY_NAME = "Ralph Worker"
+GIT_IDENTITY_EMAIL = "ralph-worker@localhost"
+
+# Git subcommands this module may run inside the cell. Allowlist, not
+# convention: argv is fixed (no shell), so push/fetch/clone can never be
+# constructed here — "local-only, no push" is structural (see 03: workers
+# have no push path; only the promotion step pushes, see 02).
+ALLOWED_CELL_GIT_OPS = ("reset", "rev-parse", "status", "add", "commit", "config")
+
+
+def openshell_bin() -> str:
+    """Local openshell CLI (env override wins, for tests/dev gateways)."""
+    env = os.environ.get("OPENSHELL_BIN")
+    if env and env.strip():
+        return env.strip()
+    return "openshell"
+
+
+def cell_repo_path() -> str:
+    """In-cell checkout path (env override wins)."""
+    env = os.environ.get("CELL_REPO_PATH")
+    if env and env.strip():
+        return env.strip()
+    return CELL_REPO_DEFAULT
+
+
+def cell_exec_argv(
+    cell: str, repo: str, git_args: list[str], timeout: int = CELL_EXEC_TIMEOUT_SECONDS
+) -> list[str]:
+    """Build `openshell sandbox exec` argv for one in-cell git op.
+
+    Fixed argv, no shell: the ref/message ride as single arguments after
+    `--`, so they cannot escape into options or commands.
+    """
+    return [
+        openshell_bin(),
+        "sandbox",
+        "exec",
+        "-n",
+        str(cell),
+        "--workdir",
+        str(repo),
+        "--timeout",
+        str(timeout),
+        "--",
+        "git",
+        *[str(a) for a in git_args],
+    ]
+
+
+def run_cell_git(
+    cell: str,
+    git_args: list[str],
+    repo: str | None = None,
+    runner: Callable[..., Any] | None = None,
+    timeout: int = CELL_EXEC_TIMEOUT_SECONDS,
+) -> Any:
+    """Run one allowlisted git op in the cell. Returns the result.
+
+    Raises RuntimeError on non-git op names or nonzero exit (stderr tail
+    attached); Temporal retries the activity.
+    """
+    op = git_args[0] if git_args else ""
+    if op not in ALLOWED_CELL_GIT_OPS:
+        raise ValueError(f"refusing non-local git op in cell: {op!r}")
+    run = runner or subprocess.run
+    argv = cell_exec_argv(cell, repo or cell_repo_path(), list(git_args), timeout)
+    try:
+        r = run(argv, capture_output=True, text=True, timeout=timeout + 60)
+    except FileNotFoundError as e:
+        raise RuntimeError(f"openshell CLI not found: {e}")
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"cell git {' '.join(list(git_args)[:3])} failed: "
+            f"{(r.stderr or '').strip()}"[:2000]
+        )
+    return r
+
+
+def validate_baseline(ref: Any) -> str | None:
+    """Check the reset baseline ref. Returns an error string, or None if ok.
+
+    Single git revision only: rejects empty values and leading dashes
+    (which git would parse as flags, not refs).
+    """
+    if not isinstance(ref, str) or not ref.strip():
+        return "baseline_sha must be a non-empty string"
+    if ref.strip().startswith("-"):
+        return f"baseline_sha must be a revision, not a flag: {ref!r}"
+    if any(c.isspace() for c in ref.strip()):
+        return f"baseline_sha must be a single revision: {ref!r}"
+    return None
+
+
+def checkpoint_message(task_id: str, attempt: Any) -> str:
+    """Local checkpoint commit message (squashed at promotion, see 02)."""
+    try:
+        n = int(attempt)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        n = "?"
+    return f"checkpoint({task_id}): SUCCESS attempt {n}"
+
+
+def reset_cell_impl(
+    cell: str,
+    baseline_sha: str,
+    repo: str | None = None,
+    runner: Callable[..., Any] | None = None,
+) -> dict[str, str]:
+    """Atomic `git reset --hard baseline_sha` in the cell (strategy reset).
+
+    One git command = atomic; failed commits stay in reflog/diagnostics
+    (see 03). Returns the post-reset HEAD for the ledger.
+    """
+    name = str(cell or "").strip()
+    if not name:
+        raise ValueError("reset_cell: empty cell name")
+    err = validate_baseline(baseline_sha)
+    if err is not None:
+        raise ValueError(f"reset_cell: {err}")
+    target = str(repo or cell_repo_path())
+    run_cell_git(name, ["reset", "--hard", baseline_sha.strip()], target, runner)
+    r = run_cell_git(name, ["rev-parse", "HEAD"], target, runner)
+    return {
+        "cell": name,
+        "baseline_sha": baseline_sha.strip(),
+        "commit_sha": (r.stdout or "").strip(),
+        "reset": "true",
+    }
+
+
+def checkpoint_commit_impl(
+    cell: str,
+    task_id: str,
+    attempt: Any = "?",
+    repo: str | None = None,
+    runner: Callable[..., Any] | None = None,
+) -> dict[str, str]:
+    """Local checkpoint commit in the cell checkout (no push, see 03).
+
+    The agent commits per the prompt contract; when it already did, the
+    tree is clean and this records HEAD (`committed: false`). When the
+    tree is dirty (untracked edits, agent forgot to commit), stage all
+    (`add -A` captures new files too — no partial checkpoints, see 03
+    failure modes) and commit locally under the worker identity. Gate (a)
+    already passed, so no forbidden paths can be in the tree. Returns the
+    checkpoint SHA for Temporal history (see 03: wrapper records it,
+    Temporal logs it).
+    """
+    name = str(cell or "").strip()
+    if not name:
+        raise ValueError("checkpoint_commit: empty cell name")
+    tid = str(task_id or "").strip()
+    if not tid:
+        raise ValueError("checkpoint_commit: empty task_id")
+    target = str(repo or cell_repo_path())
+    head = run_cell_git(name, ["rev-parse", "HEAD"], target, runner)
+    sha = (head.stdout or "").strip()
+    if not sha:
+        raise RuntimeError("checkpoint_commit: empty HEAD (no commits in cell?)")
+    dirty = run_cell_git(name, ["status", "--porcelain"], target, runner)
+    if not (dirty.stdout or "").strip():
+        return {"cell": name, "task_id": tid, "commit_sha": sha, "committed": "false"}
+    run_cell_git(name, ["config", "user.name", GIT_IDENTITY_NAME], target, runner)
+    run_cell_git(name, ["config", "user.email", GIT_IDENTITY_EMAIL], target, runner)
+    run_cell_git(name, ["add", "-A"], target, runner)
+    run_cell_git(
+        name, ["commit", "-m", checkpoint_message(tid, attempt)], target, runner
+    )
+    new_head = run_cell_git(name, ["rev-parse", "HEAD"], target, runner)
+    new_sha = (new_head.stdout or "").strip()
+    if not new_sha:
+        raise RuntimeError("checkpoint_commit: commit left empty HEAD")
+    return {"cell": name, "task_id": tid, "commit_sha": new_sha, "committed": "true"}
+
+
 # ---------------------------------------------------------------------------
 # Temporal wiring (guarded: module imports without the SDK for offline use)
 # ---------------------------------------------------------------------------
@@ -576,29 +763,42 @@ async def run_attempt(frame: dict[str, Any]) -> dict[str, Any]:
 
 
 @activity.defn(name="reset_cell")
-async def reset_cell(baseline_sha: str) -> dict[str, str]:
-    """Atomic `git reset --hard baseline_sha` in the cell (strategy reset).
+async def reset_cell(payload: dict[str, Any]) -> dict[str, str]:
+    """Host activity: atomic `git reset --hard baseline_sha` in the cell.
 
-    Failed commits remain in reflog/diagnostics. Strategy "continue" skips
-    this activity and builds on top (explicit opt-in only, see 03).
+    Payload {"cell", "baseline_sha"} (strategy "reset", the default; the
+    workflow skips this activity entirely on "continue", see 03). The cell
+    name rides the frame across continue_as_new retries, so this runs in
+    the per-task cell before the next attempt. Failed commits remain in
+    reflog/diagnostics. Local op only — the argv allowlist cannot express
+    push/fetch/clone. Raises on failure (Temporal retries).
     """
-    raise NotImplementedError(
-        "reset_cell not yet implemented: runs git reset --hard "
-        f"{baseline_sha!r} inside the per-task cell before the next attempt "
-        "(see specs/03-inner-loop.md retry_strategy)."
+    if not isinstance(payload, dict):
+        raise ValueError("reset_cell: payload must be {cell, baseline_sha}")
+    return await _run_in_thread(
+        reset_cell_impl,
+        str(payload.get("cell") or ""),
+        str(payload.get("baseline_sha") or ""),
     )
 
 
 @activity.defn(name="checkpoint_commit")
-async def checkpoint_commit(task_id: str) -> dict[str, str]:
-    """Local checkpoint commit inside the cell/host checkout (no push).
+async def checkpoint_commit(payload: dict[str, Any]) -> dict[str, str]:
+    """Host activity: local checkpoint commit in the cell checkout (no push).
 
-    Workers never push to origin — promotion squashes + pushes on the host
-    (see 03 checkpoint & promotion model + 02 promotion).
+    Payload {"cell", "task_id", "attempt"} (attempt optional, for the
+    message). Records the agent's commit when the tree is clean, else
+    stages + commits locally. Returns the checkpoint SHA; Temporal logs
+    it in history (see 03 checkpoint model). Promotion squashes + pushes
+    on the host later (see 02) — never here.
     """
-    raise NotImplementedError(
-        "checkpoint_commit not yet implemented: local commit only, no push "
-        f"(task {task_id}); promotion squashes + opens the draft PR."
+    if not isinstance(payload, dict):
+        raise ValueError("checkpoint_commit: payload must be {cell, task_id}")
+    return await _run_in_thread(
+        checkpoint_commit_impl,
+        str(payload.get("cell") or ""),
+        str(payload.get("task_id") or ""),
+        payload.get("attempt", "?"),
     )
 
 
@@ -696,11 +896,12 @@ class ChildWorkflow:
         action, detail = decide_next(receipt, frame, failures)
 
         if action == COMPLETE:
-            await workflow.execute_activity(
+            checkpoint = await workflow.execute_activity(
                 checkpoint_commit,
-                task_id,
+                {"cell": cell, "task_id": task_id, "attempt": attempt},
                 schedule_to_close_timeout=_dt.timedelta(minutes=5),
             )
+            detail = f"{detail} | checkpoint {checkpoint['commit_sha']}"[:4000]
             detail = await self._delete_cell(cell, detail)
             return ChildResult(
                 task_id=task_id,
@@ -729,7 +930,7 @@ class ChildWorkflow:
             baseline = str(frame.get("baseline_sha", frame.get("target_branch", "HEAD")))
             await workflow.execute_activity(
                 reset_cell,
-                baseline,
+                {"cell": cell, "baseline_sha": baseline},
                 schedule_to_close_timeout=_dt.timedelta(minutes=5),
             )
         fresh = next_frame(frame, str(receipt.get("agent_summary", "")))
