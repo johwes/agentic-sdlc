@@ -12,13 +12,14 @@ Usage:
 Stage order per invocation:
 
 1. Load --frame (read-only).
-2. Dispatch the agent CLI (opencode / claude) with the contract prompt.
-3. Capture stdout/stderr; collect the agent's summary trailer.
-4. Run forbidden_paths diff assertion -> BLOCKED / HALT:BLOCKED (no retry).
-5. Run tactile_command (timeout, 50-line tail) -> nonzero means FAILED.
-6. Collect git rev-parse HEAD + git diff --name-only + token telemetry
+2. Ensure cell-local git commit identity (user.name/user.email, no secrets).
+3. Dispatch the agent CLI (opencode / claude) with the contract prompt.
+4. Capture stdout/stderr; collect the agent's summary trailer.
+5. Run forbidden_paths diff assertion -> BLOCKED / HALT:BLOCKED (no retry).
+6. Run tactile_command (timeout, 50-line tail) -> nonzero means FAILED.
+7. Collect git rev-parse HEAD + git diff --name-only + token telemetry
    (nullable, best-effort).
-7. Serialize schema-valid task_receipt.json to --receipt.
+8. Serialize schema-valid task_receipt.json to --receipt.
 
 Exit code mirrors the receipt outcome for `sandbox exec` propagation.
 
@@ -32,6 +33,7 @@ import argparse
 import fnmatch
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path, PurePath
@@ -485,6 +487,257 @@ def _collect_token_metrics(agent_log_text: str | None = None) -> dict:
 
 VALID_STATUSES = {"SUCCESS", "FAILED", "BLOCKED"}
 VALID_EXIT_PROMISES = {"COMPLETE", "RETRYABLE_FAILURE", "HALT:EXHAUSTED", "HALT:BLOCKED"}
+
+# Stage 4: LLM dispatch + cell gitconfig identity (see specs/04-worker-cell.md).
+#
+# Tier-1 transfer path (locked): the wrapper performs LOCAL git ops only
+# (config user.name/user.email, rev-parse, diff, ls-files, status) — never
+# clone/push/fetch, and no credentials ever enter the cell. Candidate code
+# leaves the cell exclusively as a host-downloaded `git bundle` (see
+# specs/02-control-plane.md promotion); there is deliberately no push logic
+# here.
+#
+# Dispatch posture mirrors specs/04-worker-cell.md tool equivalents:
+#   opencode: opencode run --auto --model <id> "<contract prompt>"
+#   claude:   claude -p "<contract prompt>" --dangerously-skip-permissions --no-auto-updater
+# Model default matches config/opencode-sandbox.json (locked in spec 04);
+# override via --model / CELL_MODEL. A future `model` frame field is recorded
+# in spec 04, not built here.
+
+DEFAULT_MODEL = "opencode-go/muse-spark-1.3-contributor"
+
+GIT_IDENTITY_NAME = "Ralph Worker"
+GIT_IDENTITY_EMAIL = "ralph-worker@localhost"
+
+AGENT_TIMEOUT_DEFAULT = 480
+AGENT_SUMMARY_MAX_LINES = 50
+AGENT_SUMMARY_MAX_CHARS = 4096
+
+
+def _ensure_git_identity() -> dict:
+    """Write the non-secret commit identity into the cell repo config.
+
+    Runs `git config user.name` / `git config user.email` (local repo scope
+    by default — never --global, never credentials). Best-effort: returns
+    {"name", "email", "configured"} and never raises; a missing git repo or
+    git binary yields configured=False with a stderr warning. Must run before
+    agent dispatch since nothing else sets identity in-cell.
+    """
+    result = {"name": GIT_IDENTITY_NAME, "email": GIT_IDENTITY_EMAIL, "configured": False}
+    for key, value in (("user.name", GIT_IDENTITY_NAME), ("user.email", GIT_IDENTITY_EMAIL)):
+        try:
+            r = subprocess.run(
+                ["git", "config", key, value],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if r.returncode != 0:
+                print(
+                    f"warning: git config {key} failed: {(r.stderr or '').strip()}",
+                    file=sys.stderr,
+                )
+                return result
+        except FileNotFoundError:
+            print("warning: git binary not found; commit identity not set", file=sys.stderr)
+            return result
+        except Exception as e:
+            print(f"warning: git config {key} error: {e}", file=sys.stderr)
+            return result
+    result["configured"] = True
+    return result
+
+
+def _resolve_contract_prompt_text(explicit_path: str | None = None) -> tuple[str, str | None]:
+    """Load the worker contract prompt. Returns (text, source_path or None).
+
+    Search order: explicit --contract-prompt / CELL_CONTRACT_PROMPT, then the
+    in-cell path /etc/prompts/worker_contract.txt (baked by
+    docker/worker-cell.Dockerfile), then repo-relative fallbacks for offline
+    use. Missing prompt yields ("", None) with a stderr warning — dispatch
+    still runs so gates stay testable offline.
+    """
+    candidates: list[str] = []
+    if explicit_path:
+        candidates.append(explicit_path)
+    env_path = os.environ.get("CELL_CONTRACT_PROMPT")
+    if env_path and env_path not in candidates:
+        candidates.append(env_path)
+    candidates.append("/etc/prompts/worker_contract.txt")
+    try:
+        here = Path(__file__).resolve()
+        candidates.append(str(here.parent.parent / "prompts" / "worker_contract.txt"))
+    except Exception:
+        pass
+    candidates.append("prompts/worker_contract.txt")
+    for cand in candidates:
+        try:
+            p = Path(cand)
+            if p.is_file():
+                return p.read_text(encoding="utf-8", errors="replace"), str(p)
+        except Exception:
+            continue
+    print("warning: worker contract prompt not found; dispatching with empty prompt", file=sys.stderr)
+    return "", None
+
+
+def _resolve_model(cli_model: str | None = None) -> str:
+    """Model ID: --model flag wins, then CELL_MODEL env, then spec default."""
+    if cli_model:
+        return cli_model
+    env_model = os.environ.get("CELL_MODEL")
+    if env_model and env_model.strip():
+        return env_model.strip()
+    return DEFAULT_MODEL
+
+
+def _resolve_agent_choice(cli_agent: str | None = None) -> str:
+    """Agent selector: --agent flag wins, then CELL_AGENT_CLI env, else auto."""
+    raw = cli_agent or os.environ.get("CELL_AGENT_CLI", "auto")
+    choice = str(raw).strip().lower()
+    if choice in ("auto", "opencode", "claude", "none", "skip", "off"):
+        if choice in ("skip", "off"):
+            return "none"
+        return choice
+    print(f"warning: unknown agent choice {raw!r}; falling back to auto", file=sys.stderr)
+    return "auto"
+
+
+def _resolve_agent_timeout(cli_timeout: int | None = None) -> int:
+    """Agent dispatch kill timeout. --agent-timeout wins, then env, else 480s.
+
+    480s leaves margin for the tactile budget (default 180s) + receipt work
+    inside the spawn-cell EXEC_TIMEOUT default (600s). Tunable, not spec-locked.
+    """
+    if cli_timeout is not None:
+        try:
+            if int(cli_timeout) > 0:
+                return int(cli_timeout)
+        except (TypeError, ValueError):
+            pass
+    try:
+        env_timeout = int(str(os.environ.get("CELL_AGENT_TIMEOUT_SECONDS", "")).strip())
+        if env_timeout > 0:
+            return env_timeout
+    except (TypeError, ValueError):
+        pass
+    return AGENT_TIMEOUT_DEFAULT
+
+
+def _resolve_agent_argv(agent: str, model: str, prompt_text: str) -> list[str] | None:
+    """Build the headless CLI argv per specs/04-worker-cell.md, or None to skip.
+
+    auto prefers opencode (PoC default provider opencode-go) when its binary
+    is on PATH, else claude, else None (offline/demo hosts without CLIs).
+    Returns None instead of raising; callers log the skip and continue so
+    offline gates stay runnable without infrastructure.
+    """
+    choice = agent
+    if choice == "none":
+        return None
+    if choice == "auto":
+        if shutil.which("opencode") is not None:
+            choice = "opencode"
+        elif shutil.which("claude") is not None:
+            choice = "claude"
+        else:
+            return None
+    if choice == "opencode":
+        if shutil.which("opencode") is None:
+            return None
+        # Spec 04: opencode run --auto --model <id> "<prompt>"
+        return ["opencode", "run", "--auto", "--model", model, prompt_text]
+    if choice == "claude":
+        if shutil.which("claude") is None:
+            return None
+        # Spec 04: claude -p "<prompt>" --dangerously-skip-permissions --no-auto-updater
+        return ["claude", "-p", prompt_text, "--dangerously-skip-permissions", "--no-auto-updater"]
+    return None
+
+
+def _run_agent(argv: list[str], timeout_seconds: int) -> dict:
+    """Run the agent CLI headless. Never raises; timeouts/failures are data.
+
+    Returns {"stdout", "stderr", "exit_code" (int|None; None on timeout),
+    "timed_out" (bool), "argv"}. Agent exit never gates the receipt on its
+    own — tactile ground truth + forbidden_paths do (see 07-contracts.md);
+    the result feeds agent_summary diagnostics + token-metrics parsing only.
+    """
+    try:
+        r = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        return {
+            "stdout": r.stdout or "",
+            "stderr": r.stderr or "",
+            "exit_code": r.returncode,
+            "timed_out": False,
+            "argv": argv,
+        }
+    except subprocess.TimeoutExpired as e:
+        stdout = e.stdout.decode() if isinstance(getattr(e, "stdout", None), bytes) else (e.stdout or "")
+        stderr = e.stderr.decode() if isinstance(getattr(e, "stderr", None), bytes) else (e.stderr or "")
+        print(f"agent dispatch timed out after {timeout_seconds} seconds", file=sys.stderr)
+        return {"stdout": stdout, "stderr": stderr, "exit_code": None, "timed_out": True, "argv": argv}
+    except FileNotFoundError:
+        return {"stdout": "", "stderr": f"agent binary not found: {argv[0]}", "exit_code": None, "timed_out": False, "argv": argv}
+    except Exception as e:
+        return {"stdout": "", "stderr": f"agent dispatch error: {e}", "exit_code": None, "timed_out": False, "argv": argv}
+
+
+def _build_agent_summary(
+    *,
+    argv: list[str] | None,
+    model: str,
+    contract_source: str | None,
+    agent_result: dict | None,
+    skipped_reason: str | None = None,
+) -> tuple[str, str]:
+    """Build (agent_summary, agent_log_text) for receipt + metrics parsing.
+
+    agent_log_text is the raw stdout+stderr tail source for
+    _collect_token_metrics (best-effort, nullable). agent_summary is the
+    truncated human-readable trailer: CLI/model/prompt source, exit/timeout,
+    COMPLETE trailer detection, and the output tail capped at 50 lines/~4KB.
+    Never raises.
+    """
+    try:
+        if skipped_reason is not None or argv is None:
+            reason = skipped_reason or "no agent CLI available"
+            summary = f"agent dispatch skipped ({reason}); model {model}"
+            return summary, ""
+        result = agent_result or {}
+        stdout = str(result.get("stdout") or "")
+        stderr = str(result.get("stderr") or "")
+        exit_code = result.get("exit_code")
+        timed_out = bool(result.get("timed_out"))
+        cli = argv[0] if argv else "unknown"
+        combined = stdout
+        if stderr:
+            combined += ("\n[stderr]\n" if combined else "") + stderr
+        tail = _truncate_output(combined, AGENT_SUMMARY_MAX_LINES, AGENT_SUMMARY_MAX_CHARS)
+        complete = "COMPLETE" in combined
+        if timed_out:
+            status_note = "timed out (exit unknown)"
+        elif exit_code is None:
+            status_note = "not executed"
+        else:
+            status_note = f"exit {exit_code}"
+        header = f"agent {cli} (model {model}, prompt {contract_source or 'empty'}) {status_note}"
+        trailer = "trailer COMPLETE present" if complete else "trailer COMPLETE absent"
+        summary = f"{header}; {trailer}"
+        if tail:
+            summary += f"\n{tail}"
+        log_text = combined
+        # Keep the receipt field bounded even if truncation missed multibyte tails
+        if len(summary) > AGENT_SUMMARY_MAX_CHARS + 512:
+            summary = summary[-(AGENT_SUMMARY_MAX_CHARS + 512):]
+        return summary, log_text
+    except Exception as e:
+        return f"agent summary build failed: {e}", ""
 # Status / exit_promise matrix per specs/07-contracts.md
 VALID_TRANSITIONS = {
     ("SUCCESS", "COMPLETE"),
@@ -590,16 +843,21 @@ def _write_receipt(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Cell harness stage 3: frame load + forbidden_paths -> BLOCKED, tactile ground truth -> FAILED, git SHAs + schema-valid task_receipt.json with nullable token_metrics")
+    parser = argparse.ArgumentParser(description="Cell harness stage 4: frame load + cell gitconfig identity + LLM dispatch, forbidden_paths -> BLOCKED, tactile ground truth -> FAILED, git SHAs + schema-valid task_receipt.json with nullable token_metrics (local git ops only, no push)")
     parser.add_argument("--attempt", required=True, help="Attempt index (1-indexed)")
     parser.add_argument("--frame", required=True, help="Path to current_task.json (read-only)")
     parser.add_argument("--receipt", required=True, help="Path to write task_receipt.json")
     parser.add_argument("--agent-log", required=False, default=None, help="Optional agent stdout/log text for best-effort token telemetry parsing")
+    parser.add_argument("--agent", required=False, default=None, help="Agent CLI: auto (default), opencode, claude, none (skip dispatch). Env CELL_AGENT_CLI fallback.")
+    parser.add_argument("--model", required=False, default=None, help="Model ID for opencode dispatch. Env CELL_MODEL fallback, else spec default.")
+    parser.add_argument("--agent-timeout", required=False, default=None, type=int, help="Kill timeout secs for agent dispatch. Env CELL_AGENT_TIMEOUT_SECONDS fallback, else 480.")
+    parser.add_argument("--contract-prompt", required=False, default=None, help="Explicit worker contract prompt path. Env CELL_CONTRACT_PROMPT fallback, else /etc/prompts/worker_contract.txt.")
+    parser.add_argument("--no-agent", action="store_true", help="Skip LLM dispatch (offline/demo; same as --agent none)")
     args = parser.parse_args()
 
     frame_path = Path(args.frame)
     receipt_path = Path(args.receipt)
-    agent_log_text: str | None = args.agent_log
+    explicit_agent_log: str | None = args.agent_log
 
     # 1. Load frame (read-only)
     frame, err = _load_frame(frame_path)
@@ -625,7 +883,7 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution={"command_run": "", "exit_code": 0, "summary_output": ""},
             agent_summary=f"BLOCKED: frame load failed: {err}",
-            token_metrics=_collect_token_metrics(agent_log_text),
+            token_metrics=_collect_token_metrics(explicit_agent_log),
         )
         print(f"BLOCKED: frame load failed: {err}", file=sys.stderr)
         return EXIT_BLOCKED
@@ -634,7 +892,39 @@ def main() -> int:
     forbidden_paths = list(frame.get("forbidden_paths") or [])
     tactile_command = str(frame.get("tactile_command") or "")
 
-    # Collect git state
+    # 2. Cell-local git identity before dispatch (non-secret, local scope only).
+    identity = _ensure_git_identity()
+
+    # 3. LLM dispatch (best-effort; agent exit never overrides gates).
+    agent_choice = "none" if args.no_agent else _resolve_agent_choice(args.agent)
+    model = _resolve_model(args.model)
+    agent_timeout = _resolve_agent_timeout(args.agent_timeout)
+    prompt_text, contract_source = _resolve_contract_prompt_text(args.contract_prompt)
+    agent_argv = _resolve_agent_argv(agent_choice, model, prompt_text)
+    agent_result: dict | None = None
+    skipped_reason: str | None = None
+    if agent_argv is None:
+        if agent_choice == "none":
+            skipped_reason = "dispatch disabled (--no-agent/--agent none)"
+        else:
+            skipped_reason = f"no {agent_choice} CLI on PATH (offline/demo)"
+        print(f"agent dispatch skipped ({skipped_reason})", file=sys.stderr)
+    else:
+        print(f"dispatching agent: {agent_argv[0]} (model {model})", file=sys.stderr)
+        agent_result = _run_agent(agent_argv, agent_timeout)
+    agent_summary, agent_log_text = _build_agent_summary(
+        argv=agent_argv,
+        model=model,
+        contract_source=contract_source,
+        agent_result=agent_result,
+        skipped_reason=skipped_reason,
+    )
+    if explicit_agent_log:
+        agent_log_text = (agent_log_text + "\n" + explicit_agent_log) if agent_log_text else explicit_agent_log
+    token_metrics = _collect_token_metrics(agent_log_text)
+    identity_note = "git identity configured" if identity.get("configured") else "git identity NOT configured (see stderr)"
+
+    # Collect post-dispatch git state (agent edits land here; gates run on this).
     commit_sha = _get_commit_sha()
     files_changed = _get_files_changed()
 
@@ -642,7 +932,7 @@ def main() -> int:
     violations = _check_forbidden(files_changed, forbidden_paths, receipt_path)
     if violations:
         detail = ", ".join(f"{f} matched {pat}" for f, pat in violations)
-        summary = f"BLOCKED: forbidden_paths violation: {detail}"
+        summary = f"BLOCKED: forbidden_paths violation: {detail} | {identity_note} | {agent_summary}"
         print(summary, file=sys.stderr)
         _write_receipt(
             receipt_path,
@@ -653,7 +943,7 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution={"command_run": tactile_command, "exit_code": 0, "summary_output": ""},
             agent_summary=summary,
-            token_metrics=_collect_token_metrics(agent_log_text),
+            token_metrics=token_metrics,
         )
         return EXIT_BLOCKED
 
@@ -669,7 +959,7 @@ def main() -> int:
     }
     if exit_code != 0:
         exit_promise = "HALT:EXHAUSTED" if attempt >= max_attempts else "RETRYABLE_FAILURE"
-        summary = f"FAILED: tactile_command exited {exit_code}: {tactile_command}"
+        summary = f"FAILED: tactile_command exited {exit_code}: {tactile_command} | {identity_note} | {agent_summary}"
         print(summary, file=sys.stderr)
         _write_receipt(
             receipt_path,
@@ -680,13 +970,15 @@ def main() -> int:
             files_changed=files_changed,
             tactile_execution=tactile_execution,
             agent_summary=summary,
-            token_metrics=_collect_token_metrics(agent_log_text),
+            token_metrics=token_metrics,
         )
         return EXIT_FAILED
 
-    # No LLM dispatch yet per stage 1-2. Clean diff + tactile pass emits
-    # SUCCESS; future stages add AST/hold-out gating.
-    summary = f"stage 3: frame loaded (task {task_id} attempt {args.attempt}), tactile passed, receipt serialized with git SHAs + nullable token_metrics; LLM dispatch not yet wired"
+    # Clean diff + tactile pass emits SUCCESS; agent output rides as diagnostics.
+    summary = (
+        f"stage 4: task {task_id} attempt {args.attempt}, tactile passed, "
+        f"{identity_note} | {agent_summary}"
+    )
     print(summary)
     _write_receipt(
         receipt_path,
@@ -697,7 +989,7 @@ def main() -> int:
         files_changed=files_changed,
         tactile_execution=tactile_execution,
         agent_summary=summary,
-        token_metrics=_collect_token_metrics(agent_log_text),
+        token_metrics=token_metrics,
     )
     return EXIT_SUCCESS
 

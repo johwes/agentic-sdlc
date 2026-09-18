@@ -13,7 +13,7 @@ then exits. See AGENTS.md git workflow. -->
 - [x] Seed `tasks/inbox/TASK-402.json` example frame + `tasks/ledger.md` projection stub (see `specs/02-control-plane.md`)
 - [x] Add sensor stub activity: logged no-op (`review: skipped, no sensors configured`), block/advise split ready (see `specs/05-sensors.md`)
 - [x] Add root README: project overview + offline/infra getting-started demo (public audience)
-- [ ] Wire `harness/wrapper.py` stage 4: LLM dispatch + summary/metrics capture + cell gitconfig identity (no push logic; Tier-1 locked, see `specs/04-worker-cell.md`)
+- [x] Wire `harness/wrapper.py` stage 4: LLM dispatch + summary/metrics capture + cell gitconfig identity (no push logic; Tier-1 locked, see `specs/04-worker-cell.md`)
 - [ ] Bootstrap public demo repo (tic-tac-toe + planted bug + zero-dep node tests) + `tasks/inbox/TASK-4xx.json` frame
 - [ ] Wire child `run_attempt` + cell create/destroy activities to `scripts/spawn-cell.sh` (see `specs/03-inner-loop.md`, `specs/04-worker-cell.md`)
 - [ ] Wire child `reset_cell` + `checkpoint_commit` activities (local-only, no push; see `specs/03-inner-loop.md`)
