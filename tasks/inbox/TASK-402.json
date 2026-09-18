@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-402",
+  "title": "Sanitize search input (reflected XSS)",
+  "acceptance_criteria": [
+    "Search input is sanitized so the reflected XSS payload at src/api/search.ts:58 no longer executes",
+    "tactile_command passes with exit code 0",
+    "No files outside allowed_paths are modified"
+  ],
+  "target_branch": "feat/TASK-402-sanitize-search",
+  "allowed_paths": ["src/api/**", "tests/unit/**"],
+  "forbidden_paths": ["tests/evals/**", ".task/**"],
+  "sensor_context": [
+    {
+      "tool_name": "SonarQube",
+      "rule_id": "S5144",
+      "file_path": "src/api/search.ts",
+      "line_number": 58,
+      "message": "Reflected XSS: unsanitized search input flows to response"
+    }
+  ],
+  "attempt": 1,
+  "max_attempts": 5,
+  "tactile_command": "pytest tests/unit/test_search.py",
+  "tactile_timeout_seconds": 180,
+  "retry_strategy": "reset"
+}
