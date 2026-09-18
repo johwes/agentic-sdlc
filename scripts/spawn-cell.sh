@@ -45,7 +45,10 @@ resolve_policy() {
 do_create() {
   : "${TASK_ID:?set TASK_ID}" "${WORKSPACE_DIR:?set WORKSPACE_DIR}"
   local uuid="${UUID4:-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:4])')}"
-  local cell="cell-${TASK_ID}-${uuid}"
+  # Gateway names are lowercase-only (uppercase rejected at create); the
+  # frame task_id (TASK-403) and the --label below keep canonical case —
+  # the sandbox name is opaque after creation (see specs/04-worker-cell.md).
+  local cell="cell-$(printf '%s' "${TASK_ID}" | tr '[:upper:]' '[:lower:]')-${uuid}"
   local policy
   policy="$(resolve_policy)"
   # The create CLI stays attached to the runtime keepalive and does not
