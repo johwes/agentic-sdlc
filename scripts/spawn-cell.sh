@@ -102,16 +102,40 @@ do_create() {
   return 1
 }
 
+# Upload one host file to a fixed in-cell name under /sandbox/.task/.
+# Driver semantics (observed live 2026-09-18): `sandbox upload` treats DEST
+# as a directory (mkdir -p), so uploading straight to a file path yields a
+# directory containing the file. Upload to the dir, then rename into place.
+# Basename is validated before any openshell call (fail fast, no partial
+# state); the scoped rm -rf repairs stale dirs from earlier attempts, so
+# retries heal the same cell. Remote names are caller-fixed literals.
+upload_file_to() {
+  local cell="$1" local_path="$2" remote_name="$3"
+  local base
+  base="$(basename "${local_path}")"
+  if [[ ! "${base}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "refusing unsafe upload filename: ${base}" >&2
+    return 1
+  fi
+  # Best-effort stale cleanup (missing dir on fresh cells is fine; real
+  # failures surface at upload below).
+  openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
+    --timeout 60 -- rm -rf -- "${remote_name}" || true
+  openshell sandbox upload "${cell}" "${local_path}" /sandbox/.task/
+  openshell sandbox exec -n "${cell}" --workdir /sandbox/.task \
+    --timeout 60 -- mv -- "${base}" "${remote_name}"
+}
+
 do_exec_attempt() {
   : "${CELL:?set CELL}" "${FRAME_JSON:?set FRAME_JSON}" "${ATTEMPT:?set ATTEMPT}"
   local out="${OUT_DIR:-.}"
-  openshell sandbox upload "${CELL}" "${FRAME_JSON}" /sandbox/.task/current_task.json
+  upload_file_to "${CELL}" "${FRAME_JSON}" current_task.json
   if [[ -n "${PROMPT_FILE:-}" ]]; then
     if [[ ! -r "${PROMPT_FILE}" ]]; then
       echo "prompt file not readable: ${PROMPT_FILE}" >&2
       return 1
     fi
-    openshell sandbox upload "${CELL}" "${PROMPT_FILE}" /sandbox/.task/worker_prompt.txt
+    upload_file_to "${CELL}" "${PROMPT_FILE}" worker_prompt.txt
   fi
   openshell sandbox exec -n "${CELL}" --workdir /sandbox \
     --timeout "${EXEC_TIMEOUT:-600}" -- /usr/local/bin/cell-harness \

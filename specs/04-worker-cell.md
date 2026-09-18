@@ -143,8 +143,13 @@ openshell sandbox download "${CELL}" /sandbox/.task/task_receipt.json "${OUT_DIR
 ```
 
 (`upload`/`download` take positional `NAME PATH [DEST]` — no `-n`, no
-`local:dest` colon form; verified against CLI help 2026-09-18 and live
-round-trip upload → `exec cat`.)
+`local:dest` colon form; verified against CLI help 2026-09-18. `upload`
+treats `DEST` as a directory (observed live 2026-09-18: uploading to a
+file path yields a directory containing the file under its basename —
+there is no file-vs-dir flag), so the spawner uploads to
+`/sandbox/.task/` and `mv`s into place (`current_task.json`,
+`worker_prompt.txt`), repairing stale dirs so retries heal the same
+cell. `download` to a directory lands the file under its basename.)
 
 Flag notes (all verified in CLI help unless marked):
 - `--policy` needs an **absolute, readable path** — relative paths fail
