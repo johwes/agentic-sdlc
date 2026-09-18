@@ -18,6 +18,13 @@ Stack-agnostic greenfield repo. No build/test/lint toolchain configured — do n
 
 Update the relevant `specs/NN-*.md` file **only** if you changed behavior or locked a tuning decision (e.g. pinning a model ID, fixing an allowlist, locking `retry_strategy`). Pure progress (toggling the box, fixing a typo, wiring code the spec already describes) does not touch specs.
 
+## Verification
+
+Verify `harness/wrapper.py` hermetically: always pass `--no-agent` (or
+`CELL_AGENT_CLI=none`) with an isolated cwd for offline checks — `auto` mode
+dispatches real agent CLIs when they are on `PATH`, which mutates the repo
+and escapes the one-item-per-run boundary.
+
 ## Git
 
 Repo is initialized on `main` (remote `origin`). Short-lived `feat/<task-id>-<slug>` branches from `main` — one branch per Ralph backlog item. Small commits linking the relevant spec + gate evidence; push the branch when the item is done. Commit only intended files (code + `PROGRESS.md` + spec delta if any); never commit secrets.
