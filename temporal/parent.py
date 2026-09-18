@@ -205,6 +205,16 @@ except ImportError:  # pragma: no cover - offline fallback
     workflow = _Dummy()  # type: ignore[no-redef]
 
 
+try:  # Child workflow (see specs/03-inner-loop.md); guarded for offline import.
+    from child import ChildInputs, ChildWorkflow
+except ImportError:
+    try:
+        from temporal.child import ChildInputs, ChildWorkflow
+    except ImportError:
+        ChildInputs = None  # type: ignore[assignment]
+        ChildWorkflow = None  # type: ignore[assignment]
+
+
 @dataclasses.dataclass
 class ParentInputs:
     """One inbox file = one parent run (1:1 default, no decomposition)."""
@@ -222,10 +232,14 @@ class ParentResult:
 
 @activity.defn(name="dispatch_child")
 async def dispatch_child(frame: dict[str, Any]) -> dict[str, Any]:
-    """Child-workflow slot (see 03-inner-loop.md). Not built in this item."""
+    """Legacy dispatch slot, superseded by ChildWorkflow (see 03-inner-loop.md).
+
+    Kept registered for backwards compatibility; ParentWorkflow now spawns
+    the child workflow directly (1 file = 1 ledger task = 1 child).
+    """
     raise NotImplementedError(
-        "child workflow not yet implemented (see specs/03-inner-loop.md); "
-        "parent stub stops at dispatch."
+        "dispatch_child superseded by temporal/child.py ChildWorkflow; "
+        "ParentWorkflow spawns the child via execute_child_workflow."
     )
 
 
@@ -263,11 +277,20 @@ class ParentWorkflow:
         # child loop; constant locked here per 02).
         _deadline = TASK_WALL_CLOCK_SECONDS  # noqa: F841 (consumed when live)
         # active: dispatch 1 file -> 1 child (no decomposition in PoC).
-        receipt: dict[str, Any] = await workflow.execute_activity(
-            dispatch_child,
-            inputs.frame,
-            schedule_to_close_timeout=_dt.timedelta(seconds=TASK_WALL_CLOCK_SECONDS),
-        )
+        if ChildWorkflow is not None and ChildInputs is not None:
+            child_result = await workflow.execute_child_workflow(
+                ChildWorkflow.run,
+                ChildInputs(frame=inputs.frame),
+                id=f"child-{task_id}",
+                task_queue=TASK_QUEUE,
+            )
+            receipt: dict[str, Any] = child_result.receipt
+        else:  # offline fallback (no child module): legacy activity slot.
+            receipt = await workflow.execute_activity(
+                dispatch_child,
+                inputs.frame,
+                schedule_to_close_timeout=_dt.timedelta(seconds=TASK_WALL_CLOCK_SECONDS),
+            )
         # Terminal receipts escalate immediately (never retried, never dropped).
         terminal = decide_terminal(receipt)
         if terminal is not None:

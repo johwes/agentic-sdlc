@@ -1,6 +1,6 @@
 """Laptop-local Temporal worker (PoC).
 
-Runs the parent workflow (+ future child) as local processes on the same
+Runs the parent + child workflows as local processes on the same
 machine as the `openshell` CLI — no cluster deployment (see
 specs/02-control-plane.md locality). Pair with ./dev-server.sh first.
 
@@ -24,6 +24,13 @@ try:
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
     )
+    from child import (
+        ChildWorkflow,
+        ast_check,
+        checkpoint_commit,
+        reset_cell,
+        run_attempt,
+    )
 except ImportError:  # allow `python3 -m temporal.worker` / package-style import
     from temporal.parent import (
         ParentWorkflow,
@@ -32,6 +39,13 @@ except ImportError:  # allow `python3 -m temporal.worker` / package-style import
         sensor_review,
         TASK_QUEUE,
         TEMPORAL_ADDRESS,
+    )
+    from temporal.child import (
+        ChildWorkflow,
+        ast_check,
+        checkpoint_commit,
+        reset_cell,
+        run_attempt,
     )
 
 
@@ -49,8 +63,16 @@ async def _run(address: str) -> None:
     worker = Worker(
         client,
         task_queue=TASK_QUEUE,
-        workflows=[ParentWorkflow],
-        activities=[dispatch_child, sensor_review, open_draft_pr],
+        workflows=[ParentWorkflow, ChildWorkflow],
+        activities=[
+            dispatch_child,
+            sensor_review,
+            open_draft_pr,
+            run_attempt,
+            reset_cell,
+            checkpoint_commit,
+            ast_check,
+        ],
     )
     print(f"worker polling task queue {TASK_QUEUE!r} on {address} (Ctrl-C to stop)")
     await worker.run()
