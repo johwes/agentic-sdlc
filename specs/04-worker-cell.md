@@ -160,6 +160,19 @@ cells need no approval for this model.
   `small_model: opencode-go/glm-5` (changeable later); per-run override via
   `opencode run --model <id>` (future: a `model` frame field flowing into the
   wrapper invocation — recorded, not built).
+- Provider profile scope (locked 2026-09-18): `policy/opencode-profile.yaml`
+  scopes `OPENCODE_API_KEY` injection to `opencode.ai` +
+  `models.opencode.ai` only (L7 `rest`/`enforce`, opencode + node binaries —
+  no `curl`). npm registry + nvidia network access stays in the sandbox
+  network-policy baseline (`policy/upstream-base-policy.yaml` `opencode`
+  block), not in the credential profile: the gateway linter rejects L4-only
+  endpoints on credentialed profiles, and L7-promoting them would wrongly
+  inject the bearer there. Imported workspace-scoped on the gateway
+  (`openshell provider profile import` → `list-profiles` shows
+  `opencode … user … 2 inference`); headless re-proven live
+  (`opencode run --model opencode-go/muse-spark-1.3-contributor`, exit 0).
+  In-cell injection re-prove rides the next cell spawn once the `opencode-go`
+  provider credential exists gateway-side.
 - Pricing/terms note: hosted-catalog models carry their own pricing and data
   terms (some discounted tiers permit training use of prompts/completions) —
   check the active model's terms before routing proprietary code; revisit at

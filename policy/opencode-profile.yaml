@@ -1,6 +1,6 @@
 id: opencode
 display_name: OpenCode
-description: OpenCode hosted catalog (Go/Zen) — opencode.ai + registry
+description: OpenCode hosted catalog — opencode.ai + models.opencode.ai
 category: inference
 credentials:
 - name: api_key
@@ -25,17 +25,17 @@ endpoints:
   protocol: rest
   access: read-write
   enforcement: enforce
-- host: registry.npmjs.org
-  port: 443
-- host: integrate.api.nvidia.com
-  port: 443
+# Note: npm registry + nvidia network access lives in the sandbox network
+# policy baseline (policy/upstream-base-policy.yaml `opencode` block), not
+# here: this profile scopes OPENCODE_API_KEY injection to the two hosted-
+# catalog hosts only. Gateway lint rejects L4-only endpoints on credentialed
+# profiles, and promoting them to L7 would wrongly inject the bearer there.
 binaries:
 - /usr/lib/node_modules/opencode-ai/bin/.opencode
 - /usr/bin/node
 - /usr/local/bin/opencode
 # Runtime-approved binary path observed in probe-inference effective policy.
 - /usr/local/lib/node_modules/opencode-ai/bin/opencode.exe
-- /usr/bin/curl
 inference_capable: true
 discovery:
   credentials:
