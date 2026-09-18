@@ -118,11 +118,17 @@ def initial_ledger_entry(
     frame: dict[str, Any],
     child_workflow_id: str,
     state: str = "active",
+    updated_at: str | None = None,
 ) -> dict[str, Any]:
     """Build the Temporal-owned ledger row for a newly opened task.
 
     The checked-in tasks/ledger.md projection is rendered from rows like
     this one — never hand-edited (see 02 ledger + 07 PROGRESS.md rules).
+
+    `updated_at` defaults to now for direct callers; pass "" when the
+    entry is built inside workflow code — wall-clock reads break Temporal
+    replay determinism, so the projection activity stamps the real time
+    at write (see the ledger write-path block below).
     """
     if state not in LEDGER_STATES:
         raise ValueError(f"unknown ledger state: {state}")
@@ -135,7 +141,7 @@ def initial_ledger_entry(
         "commit_shas": [],
         "final_receipt": None,
         "pr_url": None,
-        "updated_at": _utcnow_iso(),
+        "updated_at": updated_at if updated_at is not None else _utcnow_iso(),
     }
 
 
@@ -237,6 +243,251 @@ def render_ledger_row(entry: dict[str, Any]) -> str:
         f"| {entry.get('pr_url') or "-"} "
         f"| {entry.get('updated_at', '-')} |"
     )
+
+
+# ---------------------------------------------------------------------------
+# Ledger projection write path: Temporal-rendered tasks/ledger.md (see 02)
+# ---------------------------------------------------------------------------
+#
+# Temporal workflow state is the source of truth (see 01-principles.md); the
+# checked-in tasks/ledger.md is a PoC-readable projection — never hand-edited
+# (see 02 ledger + tasks/inbox/README.md). This block is the write path the
+# projection stub was waiting for:
+#
+#   pure helpers (stdlib-only, deterministic — safe to call from workflows):
+#     update_ledger_entry / receipt_summary / render_ledger_file /
+#     upsert_ledger_row_text
+#   IO edge (activities only, never from workflow code):
+#     project_ledger_impl stamps updated_at + atomic-writes one row;
+#     the project_ledger activity wraps it off the event loop.
+#
+# updated_at is stamped in the activity, not in workflow code: wall-clock
+# reads inside a workflow break Temporal replay determinism, while an
+# activity may be non-deterministic. Workflow-built entries carry "" and the
+# projected file row always gets a fresh stamp.
+#
+# Merge is line-level (replace the `| task_id |...` row, else append): each
+# single-task parent run upserts only its own row, so sibling task rows
+# survive byte-for-byte and no markdown-table reparse is needed. Writes are
+# atomic (tmp file in the same dir + os.replace) so a crashed projection
+# never leaves a half-written ledger.
+
+LEDGER_DIRNAME = "tasks"
+LEDGER_FILENAME = "ledger.md"
+
+# Verbatim copy of the checked-in ledger.md header: projections into a
+# missing/empty ledger reproduce it byte-for-byte (existing files keep
+# their own header — upsert only touches the task row).
+LEDGER_FILE_PREAMBLE = (
+    "# Task Ledger — Temporal projection (PoC stub)\n"
+    "\n"
+    "> Temporal workflow state is the source of truth (see `specs/01-principles.md`).\n"
+    "> This file is a Temporal-rendered projection — never hand-edit\n"
+    "> (see `specs/02-control-plane.md` ledger). Seed stub until the parent\n"
+    "> workflow projects live rows. Task states:\n"
+    "> `inbox → active → review → promoted | escalated`."
+)
+LEDGER_TABLE_HEADER = (
+    "| task_id | state | attempt/max_attempts | child_workflow_id "
+    "| commit_shas | final_receipt | pr_url | updated_at |"
+)
+LEDGER_TABLE_SEPARATOR = (
+    "|---------|-------|----------------------|-------------------|"
+    "-------------|---------------|--------|------------|"
+)
+
+# First table cell of a `| ... |` line (header, separator, and task rows
+# all match; callers skip the header/separator explicitly).
+_ROW_FIRST_CELL_RE = re.compile(r"^\|\s*([^|]+?)\s*\|")
+
+
+def ledger_path_default() -> str:
+    """Resolve tasks/ledger.md (env LEDGER_PATH wins, repo-root fallback).
+
+    Laptop-local per 02 locality: the worker runs on the owner's machine,
+    so the projection lands in the repo checkout. Env override covers
+    tests and isolated runs (same pattern as spawn_script_path in
+    temporal/child.py).
+    """
+    env = os.environ.get("LEDGER_PATH")
+    if env and env.strip():
+        return env.strip()
+    try:
+        here = Path(__file__).resolve()
+        candidate = here.parent.parent / LEDGER_DIRNAME / LEDGER_FILENAME
+        return str(candidate)
+    except Exception:
+        return os.path.join(LEDGER_DIRNAME, LEDGER_FILENAME)
+
+
+def update_ledger_entry(
+    entry: dict[str, Any],
+    *,
+    state: str | None = None,
+    attempt: int | None = None,
+    commit_sha: str | None = None,
+    receipt: dict[str, Any] | None = None,
+    pr_url: str | None = None,
+) -> dict[str, Any]:
+    """Return an updated copy of a ledger entry (pure; no IO, no clock).
+
+    - state must be one of LEDGER_STATES (unknown -> ValueError).
+    - commit_sha appends to commit_shas (order-kept, blank/duplicates
+      skipped) — per-attempt local SHAs from receipts (see 02 ledger).
+    - receipt is the final_receipt summary ({status, exit_promise} — the
+      row renderer prints dicts as `status/exit_promise`; the full
+      receipt stays in Temporal history).
+    - pr_url sets the promotion link (None leaves it untouched).
+    - updated_at is NOT bumped here — the projection activity stamps it
+      at write time so workflow code stays replay-deterministic.
+    """
+    fresh = dict(entry)
+    if state is not None:
+        if state not in LEDGER_STATES:
+            raise ValueError(f"unknown ledger state: {state}")
+        fresh["state"] = state
+    if attempt is not None:
+        try:
+            n = int(attempt)
+        except (TypeError, ValueError):
+            raise ValueError(f"attempt must be an integer, got {attempt!r}")
+        if n < 1:
+            raise ValueError(f"attempt must be >= 1, got {attempt!r}")
+        fresh["attempt"] = n
+    if commit_sha:
+        sha = str(commit_sha).strip()
+        if sha:
+            shas = list(fresh.get("commit_shas") or [])
+            if sha not in shas:
+                shas.append(sha)
+            fresh["commit_shas"] = shas
+    if receipt is not None:
+        if not isinstance(receipt, dict):
+            raise ValueError("receipt must be an object")
+        fresh["final_receipt"] = dict(receipt)
+    if pr_url is not None:
+        if not isinstance(pr_url, str) or not pr_url.strip():
+            raise ValueError("pr_url must be a non-empty string")
+        fresh["pr_url"] = pr_url.strip()
+    return fresh
+
+
+def receipt_summary(receipt: dict[str, Any]) -> dict[str, str]:
+    """Ledger-sized receipt digest ({status, exit_promise}) for final_receipt."""
+    return {
+        "status": str(receipt.get("status", "?")),
+        "exit_promise": str(receipt.get("exit_promise", "?")),
+    }
+
+
+def render_ledger_file(entries: list[dict[str, Any]]) -> str:
+    """Render the full ledger.md projection (preamble + table, by task_id)."""
+    rows = sorted(entries, key=lambda e: str(e.get("task_id", "?")))
+    lines = [
+        LEDGER_FILE_PREAMBLE.rstrip("\n"),
+        "",
+        LEDGER_TABLE_HEADER,
+        LEDGER_TABLE_SEPARATOR,
+    ]
+    lines += [render_ledger_row(e) for e in rows]
+    return "\n".join(lines) + "\n"
+
+
+def _is_separator_row(line: str) -> bool:
+    cells = line.strip().strip("|").replace(" ", "")
+    return bool(cells) and set(cells) <= {"-", ":"}
+
+
+def upsert_ledger_row_text(existing_text: str, entry: dict[str, Any]) -> str:
+    """Merge one rendered row into existing ledger markdown (pure).
+
+    Replaces the `| task_id |...` line when present, else inserts it after
+    the table separator (or appends a fresh preamble + table block when the
+    file has none — e.g. first projection into a missing ledger). All other
+    lines pass through untouched, so sibling task rows survive.
+    """
+    task_id = str(entry.get("task_id", "")).strip()
+    if not task_id:
+        raise ValueError("upsert_ledger_row_text: entry needs a non-empty task_id")
+    row = render_ledger_row(entry)
+    lines = (existing_text or "").splitlines()
+    for i, line in enumerate(lines):
+        if not line.startswith("|"):
+            continue
+        m = _ROW_FIRST_CELL_RE.match(line)
+        if not m:
+            continue
+        first = m.group(1).strip()
+        if first == "task_id" or _is_separator_row(line):
+            continue
+        if first == task_id:
+            lines[i] = row
+            return "\n".join(lines) + "\n"
+    for i, line in enumerate(lines):
+        if line.startswith("|") and _is_separator_row(line):
+            lines.insert(i + 1, row)
+            return "\n".join(lines) + "\n"
+    block = ["", LEDGER_TABLE_HEADER, LEDGER_TABLE_SEPARATOR, row] if lines else [
+        LEDGER_FILE_PREAMBLE,
+        "",
+        LEDGER_TABLE_HEADER,
+        LEDGER_TABLE_SEPARATOR,
+        row,
+    ]
+    return "\n".join(lines + block) + "\n"
+
+
+def project_ledger_impl(
+    entry: dict[str, Any],
+    ledger_path: str | Path | None = None,
+) -> dict[str, str]:
+    """Project one ledger entry into tasks/ledger.md (IO edge: activity only).
+
+    Reads the current file (missing -> fresh), upserts the entry's row,
+    stamps updated_at on the projected copy, and atomic-writes (tmp file
+    in the same dir + os.replace). Returns {"ledger_path", "task_id",
+    "state"}. Raises ValueError on bad entries, RuntimeError on IO
+    failure (Temporal retries the activity).
+    """
+    if not isinstance(entry, dict):
+        raise ValueError("project_ledger: entry must be an object")
+    task_id = str(entry.get("task_id", "")).strip()
+    if not task_id:
+        raise ValueError("project_ledger: entry needs a non-empty task_id")
+    state = entry.get("state")
+    if state not in LEDGER_STATES:
+        raise ValueError(f"project_ledger: unknown ledger state: {state!r}")
+    raw_path = str(ledger_path).strip() if ledger_path else ""
+    path = Path(raw_path or ledger_path_default())
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError(f"project_ledger: cannot create {path.parent}: {e}")
+    try:
+        existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    except OSError as e:
+        raise RuntimeError(f"project_ledger: read failed for {path}: {e}")
+    projected = dict(entry)
+    projected["task_id"] = task_id
+    projected["updated_at"] = _utcnow_iso()
+    new_text = upsert_ledger_row_text(existing, projected)
+    try:
+        fd, tmp = tempfile.mkstemp(
+            dir=str(path.parent), prefix=path.name + ".", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(new_text)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+    except OSError as e:
+        raise RuntimeError(f"project_ledger: write failed for {path}: {e}")
+    return {"ledger_path": str(path), "task_id": task_id, "state": str(state)}
 
 
 # ---------------------------------------------------------------------------
@@ -1069,9 +1320,44 @@ async def open_draft_pr(payload: dict[str, Any]) -> dict[str, str]:
     return await _run_in_thread(promotion_impl, dict(payload))
 
 
+@activity.defn(name="project_ledger")
+async def project_ledger(
+    entry: dict[str, Any], ledger_path: str | None = None
+) -> dict[str, str]:
+    """Projection activity: upsert one ledger row into tasks/ledger.md.
+
+    Runs on the laptop-local worker (see 02 locality) with the default
+    repo-checkout path; `ledger_path` overrides it for tests and isolated
+    runs. updated_at is stamped here at write time — never in workflow
+    code (replay determinism). IO failure raises so Temporal retries
+    instead of diverging silently from the checked-in projection.
+    """
+    return await _run_in_thread(project_ledger_impl, dict(entry), ledger_path)
+
+
 @workflow.defn(name="ParentWorkflow")
 class ParentWorkflow:
     """Parent lifecycle stub: inbox -> active -> review -> promoted|escalated."""
+
+    async def _project(self, entry: dict[str, Any]) -> str:
+        """Project one ledger row; returns "" or a failure suffix for the annotation.
+
+        The projection is derived state (Temporal history stays source of
+        truth), so a failed write never fails the task — the gap rides the
+        annotation instead of diverging silently (see 02 failure modes:
+        ledger divergence; same pattern as the cell-delete annotation
+        below). The entry keeps "" updated_at in workflow memory; the
+        activity stamps the real time at write.
+        """
+        try:
+            await workflow.execute_activity(
+                project_ledger,
+                entry,
+                schedule_to_close_timeout=_dt.timedelta(minutes=2),
+            )
+        except Exception as e:
+            return f" | ledger projection failed ({entry.get('task_id', '?')}): {e}"[:500]
+        return ""
 
     @workflow.run
     async def run(self, inputs: ParentInputs) -> ParentResult:
@@ -1081,12 +1367,13 @@ class ParentWorkflow:
         # child loop; constant locked here per 02).
         _deadline = TASK_WALL_CLOCK_SECONDS  # noqa: F841 (consumed when live)
         # active: dispatch 1 file -> 1 child (no decomposition in PoC).
+        child_id = f"child-{task_id}"
         child_cell = ""
         if ChildWorkflow is not None and ChildInputs is not None:
             child_result = await workflow.execute_child_workflow(
                 ChildWorkflow.run,
                 ChildInputs(frame=inputs.frame),
-                id=f"child-{task_id}",
+                id=child_id,
                 task_queue=TASK_QUEUE,
             )
             receipt: dict[str, Any] = child_result.receipt
@@ -1102,13 +1389,26 @@ class ParentWorkflow:
                 inputs.frame,
                 schedule_to_close_timeout=_dt.timedelta(seconds=TASK_WALL_CLOCK_SECONDS),
             )
+        # Ledger baseline: the task is active with the child dispatched
+        # (1 file = 1 ledger task = 1 child, no decomposition in PoC).
+        # updated_at="" here — the projection activity stamps the real
+        # time at write so workflow code stays replay-deterministic.
+        entry = initial_ledger_entry(inputs.frame, child_id, state="active", updated_at="")
+        entry = update_ledger_entry(
+            entry,
+            commit_sha=receipt.get("commit_sha") if isinstance(receipt, dict) else None,
+            receipt=receipt_summary(receipt) if isinstance(receipt, dict) else None,
+        )
         # Terminal receipts escalate immediately (never retried, never dropped).
         terminal = decide_terminal(receipt)
         if terminal is not None:
+            entry = update_ledger_entry(entry, state=terminal)
+            annotation = f"{receipt.get('exit_promise')}: awaiting human triage"
+            annotation += await self._project(entry)
             return ParentResult(
                 task_id=task_id,
                 state=terminal,
-                annotation=f"{receipt.get('exit_promise')}: awaiting human triage",
+                annotation=annotation[:2000],
             )
         # review: sensor-only gate, degrading to deferred no-op in PoC.
         review = await workflow.execute_activity(
@@ -1117,8 +1417,10 @@ class ParentWorkflow:
             schedule_to_close_timeout=_dt.timedelta(minutes=10),
         )
         if review["next_state"] != "promoted":
+            entry = update_ledger_entry(entry, state=review["next_state"])
+            annotation = str(review["annotation"]) + await self._project(entry)
             return ParentResult(
-                task_id=task_id, state=review["next_state"], annotation=review["annotation"]
+                task_id=task_id, state=review["next_state"], annotation=annotation[:2000]
             )
         # Promotion queue: host-side push + draft PR, but only when the
         # candidate source rides along (the child's retained `cell` for
@@ -1132,8 +1434,10 @@ class ParentWorkflow:
         bundle_path = bundle_path.strip() if isinstance(bundle_path, str) else ""
         cell = child_cell or frame_cell
         if not cell and not bundle_path:
+            entry = update_ledger_entry(entry, state="promoted")
+            annotation = str(review["annotation"]) + await self._project(entry)
             return ParentResult(
-                task_id=task_id, state="promoted", annotation=review["annotation"]
+                task_id=task_id, state="promoted", annotation=annotation[:2000]
             )
         # The bundle download consumes cell content, so the cell is
         # deleted here — after promotion — never before (see the ordering
@@ -1154,12 +1458,18 @@ class ParentWorkflow:
                 schedule_to_close_timeout=_dt.timedelta(minutes=15),
             )
             annotation = f"{annotation} | {promo['pr_url']}"
+            entry = update_ledger_entry(
+                entry,
+                state="promoted",
+                pr_url=promo["pr_url"],
+            )
         except Exception as e:
             # Promotion failure (secret halt or infra) awaits human triage
             # — never auto-retried into origin, never dropped (see 02
             # escalation handling).
             state = "escalated"
             annotation = f"promotion halted: {e}"
+            entry = update_ledger_entry(entry, state="escalated")
         finally:
             if delete_after:
                 if destroy_cell is not None:
@@ -1176,6 +1486,7 @@ class ParentWorkflow:
                         f"{annotation} | cell {cell} needs manual delete "
                         "(no destroy activity)"
                     )
+        annotation += await self._project(entry)
         return ParentResult(
             task_id=task_id, state=state, annotation=annotation[:2000]
         )
