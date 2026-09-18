@@ -186,6 +186,33 @@ def _get_files_changed(repo_dir: str | None = None) -> list[str]:
     return sorted(files)
 
 
+def _get_commit_range_files(pre_sha: str | None, repo_dir: str | None = None) -> list[str]:
+    """Files committed between pre_sha (exclusive) and HEAD (inclusive).
+
+    A committed tree is clean vs HEAD, so working-tree diffs go blind the
+    moment the agent commits — including to forbidden_paths violations the
+    gate below must see. The caller records pre_sha before dispatch; this
+    diffs it against post-dispatch HEAD. Skipped when pre_sha is missing
+    or "unknown" (non-repo contexts keep today's behavior exactly).
+    Never raises; failures yield [].
+    """
+    if not pre_sha or pre_sha == "unknown":
+        return []
+    try:
+        r = subprocess.run(
+            ["git", "diff", "--name-only", pre_sha, "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=repo_dir or None,
+        )
+        if r.returncode != 0:
+            return []
+        return sorted({line.strip() for line in r.stdout.splitlines() if line.strip()})
+    except Exception:
+        return []
+
+
 def _is_exempt(file_path: str, receipt_path: Path | None) -> bool:
     # Direct exemption set
     if file_path in VERIFICATION_EXEMPT:
@@ -1010,6 +1037,12 @@ def main() -> int:
     # 2. Cell-local git identity before dispatch (non-secret, local scope only).
     identity = _ensure_git_identity(repo_dir)
 
+    # Pre-dispatch HEAD: bounds the candidate commit range. Agent commits
+    # vanish from working-tree diffs once made, so files_changed below
+    # unions the tree state with diff(pre_sha, HEAD) — see
+    # _get_commit_range_files.
+    pre_sha = _get_commit_sha(repo_dir)
+
     # 3. LLM dispatch (best-effort; agent exit never overrides gates).
     agent_choice = "none" if args.no_agent else _resolve_agent_choice(args.agent)
     model = _resolve_model(args.model)
@@ -1040,8 +1073,14 @@ def main() -> int:
     identity_note = "git identity configured" if identity.get("configured") else "git identity NOT configured (see stderr)"
 
     # Collect post-dispatch git state (agent edits land here; gates run on this).
+    # Union working-tree changes with the attempt's commit range so committed
+    # changes (a clean tree vs HEAD) stay visible to the forbidden_paths gate
+    # and sensor diff-scope — committing must never hide a touched path.
     commit_sha = _get_commit_sha(repo_dir)
-    files_changed = _get_files_changed(repo_dir)
+    files_changed = sorted(
+        set(_get_files_changed(repo_dir))
+        | set(_get_commit_range_files(pre_sha, repo_dir))
+    )
 
     # 4. Forbidden_paths diff assertion -> BLOCKED / HALT:BLOCKED (no retry)
     violations = _check_forbidden(files_changed, forbidden_paths, receipt_path)
