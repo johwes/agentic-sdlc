@@ -256,12 +256,21 @@ Source of truth: `prompts/worker_contract.txt` (synced to
 > * Run the command specified in tactile_command to verify your changes.
 > * Once tests pass, create a git commit with a descriptive message
 >   referencing the task_id.
-> * Output a final summary of changes and the word COMPLETE."
+> * Output a final summary of changes and the word COMPLETE.
+> * Never ask questions or wait for input — there is no user attached. If
+>   you cannot proceed, write your summary, state what blocked you, and
+>   finish."
 
 Tool equivalents:
 
 - OpenCode (non-interactive batch mode):
-  `opencode run --prompt "$(cat /etc/prompts/worker_contract.txt)"`
+  `opencode run --auto --model <id> "$(cat /etc/prompts/worker_contract.txt)"`
+  (`--auto` auto-approves everything not explicitly denied; paired with
+  `"permission": "allow"` in `config/opencode-sandbox.json` so nothing —
+  notably `question`, `doom_loop`, `external_directory`, which default to
+  `ask` — can stall a headless cell waiting on input. Same posture as the
+  Claude flag below: OpenShell's external Landlock/seccomp policy is the
+  actual security perimeter. Locked 2026-09-18.)
 - Claude Code (headless print mode):
   `claude -p "$(cat /etc/prompts/worker_contract.txt)" --dangerously-skip-permissions --no-auto-updater`
   (`--dangerously-skip-permissions` is expected for non-interactive
