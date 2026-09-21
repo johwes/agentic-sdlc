@@ -12,9 +12,10 @@ accumulated conversation history. Static analysis moves upstream as sensory
 organs driving remediation loops instead of downstream gates needing human
 intervention.
 
-> **Status: proof of concept.** The orchestration scaffolding, deterministic
-> gates, and contracts are wired; live execution activities and the
-> promotion step are still stubs (see [PoC status](#poc-status-whats-wired-vs-stubbed)).
+> **Status: proof of concept — live end-to-end rehearsal complete.** The full
+> loop (inbox file → cell → gates → ledger → draft PR) is wired and has
+> produced a real promotion: `TASK-403 promoted — https://github.com/johwes/tic-tac-toe/pull/1`
+> (see [PoC status](#poc-status-whats-wired-vs-stubbed) and `tasks/ledger.md`).
 > Start with `specs/README.md` (spec index) and `specs/intent.md` (frozen
 > provenance); if code conflicts with specs, the specs win.
 
@@ -85,23 +86,41 @@ flowchart TD
 
 ## PoC status: what's wired vs. stubbed
 
-Wired and exercised without any infrastructure:
+Rehearsal `2026-09-21` — `TASK-403` (`https://github.com/johwes/tic-tac-toe.git`,
+`feat/TASK-403-tictactoe-antidiagonal`, `node --test tictactoe.test.js`) went
+`inbox → active → review → promoted` in one attempt: child `SUCCESS/COMPLETE`
+(SHA `c087968c2bdaed978433a39d0e0675dc0f5da497`, `tictactoe.js` anti-diagonal fix),
+sensor review logged `review: skipped, no sensors configured`, ledger projected
+live to `tasks/ledger.md`, promotion pushed the branch and opened draft PR #1
+(`https://github.com/johwes/tic-tac-toe/pull/1`). Cell image pinned
+`quay.io/jwesterl/worker-cell:2026-09-18-f33cc67` (baked `cell-harness`,
+`worker_contract.txt`, `opencode.json`).
 
-- Wrapper stages 1–3 (frame validation, `forbidden_paths` → `BLOCKED`,
+Wired and exercised (offline + live):
+
+- Wrapper stages 1–4 (frame validation, `forbidden_paths` → `BLOCKED`,
   tactile timeout/truncation with nonzero → `FAILED`, SHAs + receipt
-  serialization with nullable `token_metrics`).
-- Parent workflow stub (file trigger, ledger rows, sensor no-op review,
-  2h SLA constants) and child workflow (attempt loop, gates a/b/c,
-  `continue_as_new`, `reset` default, linear backoff).
+  serialization with nullable `token_metrics`, LLM dispatch + git identity,
+  repo-dir resolution, fail-closed checkout, `files_changed` union).
+- Parent workflow (file trigger, ledger projection via `project_ledger`,
+  sensor no-op review, 2h SLA constants) and child workflow (attempt loop,
+  gates a/b/c, `continue_as_new`, `reset` default, linear backoff) — both
+  exercised through Temporal (see `temporal/worker.py`).
+- Cell lifecycle (`scripts/spawn-cell.sh`: `create` tarball seeding,
+  `exec-attempt` upload-to-dir + `mv`, receipt-first download, `destroy`;
+  verified live including same-name `current_task.json` handling).
+- Promotion `open_draft_pr` (bundle-download → host fetch → secret scan →
+  squash → push → draft PR, `GIT_TERMINAL_PROMPT=0` fail-fast, host `gh`
+  credential helper via `gh auth setup-git` — see `specs/02-control-plane.md`).
 - Sensor suite stub: logged no-op with block/advise split, severity map,
   diff-scope, and curation budget ready for the first real sensor.
-- Example frame `tasks/inbox/TASK-402.json` + ledger projection stub.
+- Example frames `tasks/inbox/TASK-402.json` + `TASK-403.json` and live ledger.
 
-Still stubs (raise `NotImplementedError`, not runnable live):
+Still stubs (expected):
 
-- `run_attempt` / `reset_cell` / `checkpoint_commit` (shell-out to the
-  `openshell` CLI) and the `open_draft_pr` promotion activity.
-- No live sensors; no webhook adapter (file trigger only); no Tekton/ArgoCD.
+- No live sensors beyond the no-op; no webhook adapter (file trigger only); no Tekton/ArgoCD.
+- `tasks/ledger.md` row for `TASK-403` shows the first promotion; a retry
+  demonstration of `continue_as_new` (e.g. a failing `TASK-404`) is future work.
 
 ## Getting started — offline demo (no infrastructure)
 
@@ -144,11 +163,13 @@ parent workflow open — all without a Temporal server.
 ## Getting started — infra path (requires access)
 
 Prerequisites: the `temporal` CLI, `pip install -r temporal/requirements.txt`,
-the `openshell` CLI with `gateway login` (Connected) and an `opencode-go`
-provider. Honest caveat: **a live run currently stops at attempt
-execution** — `run_attempt` is not yet implemented (see PoC status above).
-This path is for bringing up the fabric and the cell lifecycle, not for a
-full green run.
+the `openshell` CLI with `gateway login` (Connected), an `opencode-go`
+provider, and host `gh` auth wired to git (`gh auth login` + `gh auth setup-git`
+— see `specs/02-control-plane.md` promotion). Without `setup-git`, the
+`git push` step hangs on `Username for 'https://github.com':` until the
+`GIT_TERMINAL_PROMPT=0` fast-fail (observed live; now fails in seconds, not 300s).
+
+Live rehearsal (proven 2026-09-21 on `TASK-403`):
 
 ```bash
 # Terminal 1: laptop-local Temporal dev server (localhost:7233, UI :8233)
@@ -158,12 +179,16 @@ full green run.
 pip install -r temporal/requirements.txt
 python3 temporal/worker.py
 
-# Terminal 3: open a parent workflow from the example frame
-python3 temporal/starter.py tasks/inbox/TASK-402.json
+# Terminal 3: open a parent workflow from the demo frame (use TASK-403; TASK-402 has no repo_url)
+python3 temporal/starter.py --dry-run tasks/inbox/TASK-403.json
+python3 temporal/starter.py tasks/inbox/TASK-403.json
+# → parent-TASK-403-* opens, child goes active → review (logged no-op) → promoted
+# → branch feat/TASK-403-tictactoe-antidiagonal pushed, draft PR opened
+# → tasks/ledger.md gains the promoted row (e.g. https://github.com/johwes/tic-tac-toe/pull/1)
 
 # Cell lifecycle directly (no Temporal needed):
-TASK_ID=TASK-402 WORKSPACE_DIR=/tmp/wk402 ./scripts/spawn-cell.sh create
-CELL=<name-from-create> FRAME_JSON=tasks/inbox/TASK-402.json ATTEMPT=1 ./scripts/spawn-cell.sh exec-attempt
+TASK_ID=TASK-403 WORKSPACE_DIR=/tmp/wk403 ./scripts/spawn-cell.sh create
+CELL=<name-from-create> FRAME_JSON=tasks/inbox/TASK-403.json ATTEMPT=1 ./scripts/spawn-cell.sh exec-attempt
 CELL=<name> ./scripts/spawn-cell.sh destroy
 ```
 

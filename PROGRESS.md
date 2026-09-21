@@ -19,4 +19,4 @@ then exits. See AGENTS.md git workflow. -->
 - [x] Wire child `reset_cell` + `checkpoint_commit` activities (local-only, no push; see `specs/03-inner-loop.md`)
 - [x] Wire promotion `open_draft_pr`: bundle-download → host fetch → secret scan → squash → push → draft PR (see `specs/02-control-plane.md`)
 - [x] Wire ledger projection write path to `tasks/ledger.md` (see `specs/02-control-plane.md`)
-- [ ] Private end-to-end rehearsal + refresh README demo from real output
+- [x] Private end-to-end rehearsal + refresh README demo from real output
