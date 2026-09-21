@@ -394,7 +394,7 @@ def render_ledger_file(entries: list[dict[str, Any]]) -> str:
 
 
 def _is_separator_row(line: str) -> bool:
-    cells = line.strip().strip("|").replace(" ", "")
+    cells = line.strip().replace("|", "").replace(" ", "")
     return bool(cells) and set(cells) <= {"-", ":"}
 
 
