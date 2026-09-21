@@ -30,7 +30,9 @@ The ephemeral projected task frame, compiled per attempt by Temporal.
 | `max_attempts` | integer | yes | Ceiling before escalation. |
 | `tactile_command` | string | yes | Local reality-check command ("tactile feedback" — the worker feels/tests its work before asserting completion), e.g. `"pytest tests/unit/test_search.py"`. Name is intentional. |
 | `tactile_timeout_seconds` | integer | no | Kill timeout for `tactile_command`. Default `180`; sane range `120–300`. |
-| `retry_strategy` | enum | no | `"reset"` (default) = reset to baseline before next attempt; `"continue"` = build on failed commit. See `03-inner-loop.md`. |
+| `retry_strategy` | enum | no | `"adaptive"` (default, locked 2026-09-21) = surgical repair first then strike-2 reset with sprawl guard; `"reset"` = always reset; `"continue"` = always keep diff. See `03-inner-loop.md`. Omitted → `adaptive`. |
+| `prior_diagnostics` | string | no | Previous attempt's `agent_summary` tail (`[-4000:]`) attached by `next_frame()` — text only, never conversational memory. |
+| `tactile_injection` | — | — | On retryable tactile failure under `adaptive`, the child injects one synthetic `sensor_context` finding `{tool_name:"TactileTestGate", rule_id:"AssertionFailure", message:"Previous attempt failed…\n<summary_output[-2000:]>"} `. Not a frame field — an appended `sensor_context` entry. |
 
 ### Must never carry
 
@@ -128,7 +130,8 @@ the wrapper writes only the receipt there.
 - Workers never mutate shared progress/ledger state directly.
 - Workers never write hold-out evals (read-only mounts per `04-worker-cell.md`).
 - Never weaken tests to pass: no editing assertions/mocks to green, no
-  commenting out failures. Failing gate = reset + retry.
+  commenting out failures. Failing gate = adaptive repair (keep diff + exact
+  trace) then strike-2 reset.
 
 ## Open questions
 

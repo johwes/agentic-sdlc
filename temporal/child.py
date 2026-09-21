@@ -18,9 +18,10 @@ Attempt lifecycle this module encodes (per-task cell, exec-per-attempt):
      -> pass -> SUCCESS / COMPLETE (local checkpoint commit, no push;
         cell RETAINED — the parent downloads the bundle before deleting,
         see 02 ordering constraint)
-      -> retryable fail + attempt < max -> reset cell to baseline (default),
-         linear backoff, continue_as_new() at attempt N+1 (zero context,
-         cell name rides the frame — no recreate)
+      -> retryable fail + attempt < max -> adaptive: sprawl? immediate reset;
+         else strike0 -> keep diff + inject tactile trace (repair turn),
+         strike1 -> reset + autopsy, linear backoff, continue_as_new()
+         at attempt N+1 (fresh process, cell name rides the frame)
       -> retryable fail + attempt == max -> FAILED / HALT:EXHAUSTED (escalate)
       -> halt states (halt_*): delete cell, then return (nothing to promote)
       -> complete: retain cell, then return (parent promotes, then deletes)
@@ -59,11 +60,19 @@ TASK_QUEUE = "agentic-sdlc-dev"
 # defaults to 5 (see 03 retry budget & backoff).
 MAX_ATTEMPTS_DEFAULT = 5
 
-# retry_strategy frame field: "reset" = `git reset --hard baseline_sha` inside
-# the cell before the next attempt (clean slate; default); "continue" = keep
-# the failed attempt commit and build on top (explicit opt-in only).
-RETRY_STRATEGY_DEFAULT = "reset"
-VALID_RETRY_STRATEGIES = ("reset", "continue")
+# retry_strategy frame field (locked 2026-09-21): "adaptive" = surgical
+# repair first (keep diff + inject exact tactile trace), strike-2 reset +
+# diff-sprawl guard (default); "reset" = always `git reset --hard
+# baseline_sha`; "continue" = always keep diff. Omitted -> adaptive.
+RETRY_STRATEGY_DEFAULT = "adaptive"
+VALID_RETRY_STRATEGIES = ("reset", "continue", "adaptive")
+
+# Adaptive thresholds (tunable with evidence): surgical diffs worth keeping
+# are small and scoped; catastrophic sprawl triggers immediate reset even on
+# attempt 1. Values per external review adoption.
+ADAPTIVE_MAX_FILES = 8
+ADAPTIVE_MAX_CHARS = 10_000  # ~200 lines * ~50 chars
+TACTILE_INJECTION_MAX_CHARS = 2000
 
 # Linear backoff between attempts: delay = 60s x attempt, capped at 5 min.
 BACKOFF_BASE_SECONDS = 60
@@ -100,15 +109,106 @@ def coerce_max_attempts(frame: dict[str, Any]) -> int:
 
 
 def coerce_retry_strategy(frame: dict[str, Any]) -> str:
-    """Frame retry_strategy, defaulting to "reset" (see 03).
+    """Frame retry_strategy, defaulting to "adaptive" (see 03).
 
-    Unknown/missing values fall back to "reset" — the clean-slate default
-    matching process-per-attempt freshness. "continue" is explicit opt-in.
+    Unknown/missing values fall back to "adaptive" — surgical repair first,
+    strike-2 reset + sprawl guard. Explicit "reset"/"continue" are honored
+    when set (back-compat for existing frames).
     """
     strategy = frame.get("retry_strategy", RETRY_STRATEGY_DEFAULT)
     if strategy in VALID_RETRY_STRATEGIES:
         return str(strategy)
     return RETRY_STRATEGY_DEFAULT
+
+
+def _is_allowed_path(file_path: str, allowed_paths: list[str]) -> bool:
+    """Whether file_path matches any allowed_paths glob (fnmatch)."""
+    import fnmatch as _fnm
+    from pathlib import PurePath as _PP
+
+    fp = file_path.lstrip("./")
+    for pat in allowed_paths or []:
+        p = pat.lstrip("./")
+        if _fnm.fnmatch(fp, p):
+            return True
+        try:
+            if _PP(fp).match(p):
+                return True
+        except Exception:
+            pass
+        if p.endswith("/**"):
+            prefix = p[:-3]
+            if fp == prefix or fp.startswith(prefix + "/"):
+                return True
+    return False
+
+
+def _classify_sprawl(
+    files_changed: list[str] | None,
+    allowed_paths: list[str] | None,
+    tactile_summary_len: int = 0,
+) -> tuple[bool, str]:
+    """Diff-sprawl guard: catastrophic vs surgical.
+
+    Returns (is_sprawl, reason). Sprawl triggers immediate reset even on
+    attempt 1. Heuristics (tunable):
+    - any file outside allowed_paths -> sprawl (unknown scope)
+    - > ADAPTIVE_MAX_FILES files -> sprawl (30-file random edits)
+    - tactile trace > ADAPTIVE_MAX_CHARS hinting 1000+ line diff — caller
+      may pass estimated diff chars; not used for pure count path.
+    Surgical = small, coherent, scoped to allowed_paths.
+    """
+    files = list(files_changed or [])
+    if not files:
+        return False, "no files changed"
+    # Outside allowed_paths => catastrophic (when allowlist is nonempty)
+    if allowed_paths:
+        for f in files:
+            if not _is_allowed_path(f, list(allowed_paths)):
+                return True, f"sprawl: {f!r} outside allowed_paths"
+    if len(files) > ADAPTIVE_MAX_FILES:
+        return True, f"sprawl: {len(files)} files > {ADAPTIVE_MAX_FILES}"
+    if tactile_summary_len and tactile_summary_len > ADAPTIVE_MAX_CHARS:
+        return True, f"sprawl: tactile trace {tactile_summary_len} > {ADAPTIVE_MAX_CHARS}"
+    return False, "surgical"
+
+
+def build_tactile_finding(
+    frame: dict[str, Any],
+    receipt: dict[str, Any],
+    max_chars: int = TACTILE_INJECTION_MAX_CHARS,
+) -> dict[str, Any]:
+    """Synthetic sensor_context finding carrying the exact tactile failure.
+
+    Capped to max_chars (default 2000 per review) so the frame stays bounded.
+    Injected into next_frame's sensor_context so the fresh agent sees the
+    precise AssertionError/stacktrace, not just the vague agent_summary.
+    """
+    tactile = receipt.get("tactile_execution") or {}
+    out = str(tactile.get("summary_output") or "")
+    tail = out[-max_chars:] if len(out) > max_chars else out
+    cmd = str(tactile.get("command_run") or frame.get("tactile_command") or "")
+    code = tactile.get("exit_code", "?")
+    # Prefer first allowed_path as location hint; fallback to unknown
+    allowed = frame.get("allowed_paths") or []
+    file_hint = str(allowed[0]) if allowed else "unknown"
+    # Strip glob suffix for file_path so it looks like a file
+    if file_hint.endswith("/**"):
+        file_hint = file_hint[:-3] + "/<file>"
+    elif file_hint.endswith("/*"):
+        file_hint = file_hint[:-2] + "/<file>"
+    msg = (
+        f"Previous attempt failed local verification (tactile exit {code}: {cmd}):\n"
+        f"{tail}"
+    ).strip()
+    # On strike 2 the caller wraps this with autopsy note; keep base concise
+    return {
+        "tool_name": "TactileTestGate",
+        "rule_id": "AssertionFailure",
+        "file_path": file_hint,
+        "line_number": 1,
+        "message": msg[-4000:],
+    }
 
 
 def backoff_delay_seconds(attempt: int) -> int:
@@ -122,19 +222,61 @@ def backoff_delay_seconds(attempt: int) -> int:
     return min(BACKOFF_BASE_SECONDS * n, BACKOFF_CAP_SECONDS)
 
 
-def next_frame(frame: dict[str, Any], agent_summary: str | None = None) -> dict[str, Any]:
+def next_frame(
+    frame: dict[str, Any],
+    agent_summary: str | None = None,
+    tactile_output: str | None = None,
+    extra_sensor_findings: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Fresh frame for continue_as_new() at attempt + 1 (zero context).
 
     Copies the frame, bumps `attempt`, and — when provided — attaches the
     previous attempt's `agent_summary` as text diagnostics under
     `prior_diagnostics` (never as conversational memory; the wrapper ignores
-    it, the next attempt reads it as file text only).
+    it, the next attempt reads it as file text only). When `tactile_output`
+    or `extra_sensor_findings` are given, appends one capped tactile finding
+    (and any extra findings) to `sensor_context` so the fresh agent sees the
+    exact failure trace.
     """
     fresh = dict(frame)
     fresh["attempt"] = coerce_attempt(frame) + 1
     if agent_summary:
         prior = str(agent_summary)[-4000:]
         fresh["prior_diagnostics"] = prior
+    # Preserve sensor_context list identity per attempt (copy)
+    base_ctx = list(frame.get("sensor_context") or [])
+    injected: list[dict[str, Any]] = []
+    if tactile_output is not None:
+        out = str(tactile_output)
+        if out.strip():
+            tail = out[-TACTILE_INJECTION_MAX_CHARS:] if len(out) > TACTILE_INJECTION_MAX_CHARS else out
+            allowed = frame.get("allowed_paths") or []
+            file_hint = str(allowed[0]) if allowed else "unknown"
+            if file_hint.endswith("/**"):
+                file_hint = file_hint[:-3] + "/<file>"
+            elif file_hint.endswith("/*"):
+                file_hint = file_hint[:-2] + "/<file>"
+            injected.append(
+                {
+                    "tool_name": "TactileTestGate",
+                    "rule_id": "AssertionFailure",
+                    "file_path": file_hint,
+                    "line_number": 1,
+                    "message": (
+                        f"Previous attempt failed local verification:\n{tail}"
+                    )[-4000:],
+                }
+            )
+    if extra_sensor_findings:
+        injected.extend(list(extra_sensor_findings))
+    if injected:
+        fresh["sensor_context"] = base_ctx + injected
+    else:
+        # Ensure copy even when nothing injected (avoid alias)
+        fresh["sensor_context"] = base_ctx
+    # Carry strike bookkeeping forward when present
+    if "_adaptive_strikes" in frame:
+        fresh["_adaptive_strikes"] = frame.get("_adaptive_strikes")
     return fresh
 
 
@@ -206,8 +348,8 @@ def decide_next(
 
     Returns (action, detail) where action is one of:
       complete       -> gate pass: SUCCESS / COMPLETE (checkpoint + promote)
-      retry_reset    -> retryable fail, strategy reset (default)
-      retry_continue -> retryable fail, strategy continue (opt-in)
+      retry_reset    -> retryable fail, strategy reset (or adaptive sprawl/strike2)
+      retry_continue -> retryable fail, strategy continue (or adaptive repair turn)
       halt_blocked   -> gate (a) BLOCKED / HALT:BLOCKED (immediate, no retry)
       halt_exhausted -> budget spent (attempt >= max): HALT:EXHAUSTED
 
@@ -217,6 +359,12 @@ def decide_next(
       (b) tactile exit != 0 (incl. 124 timeout) or status FAILED -> FAILED.
       (c) ast_failures non-empty -> treated as FAILED (same budget rules).
     Unknown statuses halt blocked (safe default, needs human inspection).
+
+    Adaptive policy (default, see 03):
+      sprawl guard runs before strike logic — catastrophic diffs reset
+      immediately even on attempt 1. Otherwise strike bookkeeping:
+      _adaptive_strikes==0 -> surgical repair (continue), >=1 -> reset.
+      Explicit "reset"/"continue" strategies bypass adaptive logic.
     """
     attempt = coerce_attempt(frame)
     max_attempts = coerce_max_attempts(frame)
@@ -227,6 +375,7 @@ def decide_next(
     promise = receipt.get("exit_promise")
     tactile = receipt.get("tactile_execution") or {}
     exit_code = tactile.get("exit_code", 0)
+    files_changed = receipt.get("files_changed") or []
 
     # Gate (a): forbidden_paths violation halts immediately, no retry.
     if status == "BLOCKED" or promise == "HALT:BLOCKED":
@@ -257,9 +406,33 @@ def decide_next(
 
     if attempt >= max_attempts:
         return HALT_EXHAUSTED, f"HALT:EXHAUSTED (attempt {attempt}/{max_attempts}): {reason}"[:4000]
+
+    # Explicit strategies bypass adaptive logic (back-compat)
     if strategy == "continue":
         return RETRY_CONTINUE, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, continue): {reason}"[:4000]
-    return RETRY_RESET, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, reset): {reason}"[:4000]
+    if strategy == "reset":
+        return RETRY_RESET, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, reset): {reason}"[:4000]
+
+    # Adaptive (default): sprawl guard first, then 2-strike circuit breaker
+    # Sprawl uses files_changed vs allowed_paths + breadth heuristics
+    try:
+        allowed = frame.get("allowed_paths") or []
+        sprawl, sprawl_reason = _classify_sprawl(
+            list(files_changed), list(allowed), len(str(tactile.get("summary_output") or ""))
+        )
+    except Exception:
+        sprawl, sprawl_reason = False, "surgical"
+    if sprawl:
+        return RETRY_RESET, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, adaptive reset — {sprawl_reason}): {reason}"[:4000]
+
+    strikes = 0
+    try:
+        strikes = int(frame.get("_adaptive_strikes", 0) or 0)
+    except (TypeError, ValueError):
+        strikes = 0
+    if strikes <= 0:
+        return RETRY_CONTINUE, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, adaptive repair): {reason}"[:4000]
+    return RETRY_RESET, f"RETRYABLE_FAILURE (attempt {attempt}/{max_attempts}, adaptive reset — strike 2): {reason}"[:4000]
 
 
 # ---------------------------------------------------------------------------
@@ -1007,6 +1180,8 @@ class ChildWorkflow:
             )
 
         # 4. Retryable fail with budget left: backoff, optional reset, fresh run.
+        # Adaptive: tactile trace + sprawl already decided action in decide_next.
+        # Keep diff on RETRY_CONTINUE (surgical repair), reset on RETRY_RESET.
         delay = backoff_delay_seconds(attempt)
         await workflow.sleep(_dt.timedelta(seconds=delay))
         if action == RETRY_RESET:
@@ -1016,7 +1191,26 @@ class ChildWorkflow:
                 {"cell": cell, "baseline_sha": baseline},
                 schedule_to_close_timeout=_dt.timedelta(minutes=5),
             )
-        fresh = next_frame(frame, str(receipt.get("agent_summary", "")))
+        # Inject exact tactile failure into next sensor_context + carry strike count
+        tactile_out = str((receipt.get("tactile_execution") or {}).get("summary_output") or "")
+        # Include AST failures in trace when tactile was clean but parse failed
+        if failures and not tactile_out.strip():
+            tactile_out = f"AST parse fail: {'; '.join(failures)}"
+        # Adaptive strike bookkeeping: continue increments, reset clears
+        try:
+            prev_strikes = int(frame.get("_adaptive_strikes", 0) or 0)
+        except (TypeError, ValueError):
+            prev_strikes = 0
+        if action == RETRY_CONTINUE:
+            next_strikes = prev_strikes + 1
+            # Repair turn: keep diff, inject trace for surgical fix
+            fresh = next_frame(frame, str(receipt.get("agent_summary", "")), tactile_out)
+        else:
+            next_strikes = 0
+            # Reset turn: disk wiped, inject autopsy + trace so next agent avoids same path
+            autopsy = f"Previous approach failed at attempt {attempt} ({action}); starting fresh from baseline. Prior trace:\n{tactile_out[-1500:]}" if tactile_out.strip() else f"Previous approach failed at attempt {attempt} ({action}); starting fresh."
+            fresh = next_frame(frame, str(receipt.get("agent_summary", "")), autopsy)
+        fresh["_adaptive_strikes"] = next_strikes
         # next_frame() copies the frame, so frame["cell"] rides along: the
         # retried run reuses the per-task cell (no create/delete on retry).
         _guard = (attempt, max_attempts)  # noqa: F841 (attempt accounting)
