@@ -783,6 +783,7 @@ def _run_checked(
     timeout: int = 120,
     runner: Any | None = None,
     label: str = "command",
+    env: dict[str, str] | None = None,
 ) -> Any:
     """Run fixed argv (no shell) and raise on failure. Returns the result.
 
@@ -793,7 +794,10 @@ def _run_checked(
     """
     run = runner or subprocess.run
     try:
-        r = run(list(argv), capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        kwargs: dict[str, Any] = dict(capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        if env is not None:
+            kwargs["env"] = env
+        r = run(list(argv), **kwargs)
     except FileNotFoundError as e:
         raise RuntimeError(f"{label}: binary not found: {e}")
     if r.returncode != 0:
@@ -1101,14 +1105,20 @@ def push_branch_impl(
 
     A non-fast-forward push (stale branch from an earlier run) fails
     here and escalates for human triage instead of rewriting origin
-    history (see 03: no force-push races).
+    history (see 03: no force-push races). GIT_TERMINAL_PROMPT=0 makes
+    a missing credential fail fast with a clear auth error instead of
+    hanging 300s on an interactive Username prompt (observed live
+    2026-09-18).
     """
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
     _run_checked(
         ["git", "push", "origin", str(target_branch)],
         cwd=str(host_checkout),
         timeout=PUSH_TIMEOUT_SECONDS,
         runner=runner,
         label="git push origin",
+        env=env,
     )
 
 
