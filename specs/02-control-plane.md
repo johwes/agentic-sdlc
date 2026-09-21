@@ -116,7 +116,13 @@ The promotion activity runs the local-commit + squash model from
    origin.
 3. Squash per-attempt commits into one clean commit
    (e.g. `fix(TASK-402): sanitize search input`).
-4. Push `target_branch` to the frame's `repo_url` origin.
+4. Push `target_branch` to the frame's `repo_url` origin. Host
+   prerequisite (locked 2026-09-18): `gh auth login` on `github.com`
+   + `gh auth setup-git` so `git push` over HTTPS uses `gh`’s
+   credential helper (`credential.https://github.com.helper`); the
+   push runs with `GIT_TERMINAL_PROMPT=0` so a missing credential fails
+   fast with a clear auth error instead of hanging 300s on an interactive
+   `Username for 'https://github.com':` prompt (observed live).
 5. Open a **draft** PR via the `gh` API against the frame's `repo_url`,
    seeding the body from the receipt's
    `agent_summary` plus gate evidence (tactile command, sensor results).
