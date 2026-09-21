@@ -14,17 +14,29 @@ diagnostic sensor array.
 - Executing atomic code attempts (child-workflow concern, see `03-inner-loop.md`).
 - Release packaging (see `06-release.md`).
 
-## Inputs (PoC): manual / file trigger
+## Inputs (PoC): manual / file trigger + single-fetch issue adapter
 
 No webhook server in the PoC. A task enters the system when a human drops a
 hand-written `current_task.json` frame into `tasks/inbox/TASK-<n>.json` (or
 runs the starter CLI against it). A Temporal client starter picks the file
 up and opens the parent workflow.
 
-The frame shape is preserved deliberately so a GitHub webhook receiver
-(issue / PR / label events) can slot in later as an alternate input adapter
-without changing anything downstream. Webhook auth/dedup stays a post-PoC
-open question.
+*Alternate ingest for demos (locked 2026-09-21):* `scripts/analyze-issue.py
+--repo https://github.com/<owner>/<repo>.git --issue-id <n>` fetches that
+single GitHub issue via host `gh` (`gh issue view` / `gh api`, host `gh`
+auth outside the cell policy — policy only jails `sandbox exec`, see
+`04-worker-cell.md`), runs in-cell triage (`opencode-go/glm-5.3-flash`,
+`prompts/triage_contract.txt` via `PROMPT_FILE_TRIAGE` upload, see
+`04-worker-cell.md` triage tier), curates a `current_task.json` frame
+(`title`, `acceptance_criteria`, `allowed_paths`/`forbidden_paths`,
+`tactile_command`, `slug` → `target_branch feat/TASK-n-<slug>`) and writes
+`tasks/inbox/TASK-n.json` (one file = one task, `issue.number → task_id
+TASK-n`, dedup against `tasks/ledger.md` `promoted|active`). The second
+command `python3 temporal/starter.py tasks/inbox/TASK-n.json` reuses the
+existing file-trigger path verbatim — production would replace the manual
+fetch with a webhook/polling adapter that produces the same frame shape
+without changing anything downstream. Issue comments (`gh issue comment`)
+are host-side, outside the cell policy.
 
 ## Locality (PoC): laptop-local orchestration
 

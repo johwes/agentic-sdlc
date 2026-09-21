@@ -21,8 +21,9 @@ FROM ${BASE_IMAGE}
 # all the sandbox user needs (read_only mounts are readable, not writable).
 USER root
 RUN mkdir -p /etc/prompts /etc/opencode
-# Contract prompt (source: prompts/worker_contract.txt in repo).
+# Contract prompts (source: prompts/* in repo).
 COPY prompts/worker_contract.txt /etc/prompts/worker_contract.txt
+COPY prompts/triage_contract.txt /etc/prompts/triage_contract.txt
 # Sandbox OpenCode config (source: config/opencode-sandbox.json in repo).
 # opencode needs blanket permission from config (unlike claude's CLI flag),
 # and /etc is read-only at runtime — so the file must be baked here, never
@@ -37,7 +38,7 @@ COPY config/opencode-sandbox.json /etc/opencode/opencode.json
 # The wrapper is invoked explicitly per exec — never as PID 1.
 COPY harness/wrapper.py /usr/local/bin/cell-harness
 RUN chmod +x /usr/local/bin/cell-harness \
- && chmod 644 /etc/prompts/worker_contract.txt /etc/opencode/opencode.json
+  && chmod 644 /etc/prompts/worker_contract.txt /etc/prompts/triage_contract.txt /etc/opencode/opencode.json
 USER sandbox
 
 WORKDIR /sandbox
