@@ -9,4 +9,4 @@
 | task_id | state | attempt/max_attempts | child_workflow_id | commit_shas | final_receipt | pr_url | updated_at |
 |---------|-------|----------------------|-------------------|-------------|---------------|--------|------------|
 | TASK-402 | inbox | 1/5 | - | - | - | - | - |
-| TASK-403 | escalated | 1/5 | child-TASK-403 | fda6c95e4db31137ad28f772ad03c2aac8efd59e | SUCCESS/COMPLETE | - | 2026-09-18T14:28:57+00:00 |
+| TASK-403 | promoted | 1/5 | child-TASK-403 | c087968c2bdaed978433a39d0e0675dc0f5da497 | SUCCESS/COMPLETE | https://github.com/johwes/tic-tac-toe/pull/1 | 2026-09-21T08:07:27+00:00 |
