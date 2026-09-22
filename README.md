@@ -21,6 +21,9 @@ intervention.
 
 ## Architecture
 
+Target architecture (enterprise end-state, verbatim from `intent.md` §3 —
+prose below it describes the PoC delta):
+
 ```mermaid
 flowchart TD
     subgraph T1 [Tier 1: Macro Control Plane - Temporal Parent Workflow]
@@ -48,16 +51,53 @@ flowchart TD
     T3 -->|Emits task_receipt.json| T2
 ```
 
+PoC reality (what actually runs — laptop-local, `/tmp` demo flow):
+
+```mermaid
+flowchart TD
+    subgraph P1 [Tier 1: Parent - file trigger + host promotion]
+        I[Issue via analyze-issue<br/>--out /tmp] --> S[starter.py<br/>any path]
+        S --> L[Ledger inbox→active→review→promoted|escalated<br/>LEDGER_PATH=/tmp for demos]
+        L --> R[Sensor review: logged no-op<br/>no sensors configured]
+        R --> P[Host promotion: bundle→scan→squash→push→draft PR<br/>owner gh auth]
+    end
+
+    subgraph P2 [Tier 2: Child - adaptive Ralph loop]
+        F[Frame attempt N] --> X[exec-attempt<br/>fresh process]
+        X --> G{Gates a/b/c:<br/>forbidden / tactile / AST-stdlib}
+        G -->|pass| K[Checkpoint commit<br/>retain cell]
+        G -->|surgical fail| N[Repair turn: keep diff + tactile trace<br/>continue_as_new]
+        G -->|sprawl/strike-2/exhausted| Z[Reset or escalate<br/>HALT:BLOCKED/EXHAUSTED]
+    end
+
+    subgraph P3 [Tier 3: OpenShell sandbox cell]
+        W[Image-baked harness + prompts<br/>immutable /usr /etc] --> E[exec wrapper per attempt<br/>local git only, no push]
+        V[Attached provider injects OPENCODE_API_KEY<br/>never on disk] -.-> E
+    end
+
+    P1 -->|spawns| P2
+    P2 -->|upload frame / download receipt| P3
+```
+
+Target → PoC map: webhook → file trigger + issue adapter (`02`);
+decomposition → 1 file = 1 task (`02`); SonarQube/Snyk/DAST → logged
+no-op (`05`); review panel → post-PoC slot (`02`); release trigger →
+merging the PR *is* the release (`06`); worker pod/OpenShift →
+OpenShift-free OpenShell sandbox, laptop-local worker (`04`); Tree-sitter
++ hold-outs → stdlib `ast`/`json` syntax only (`03`); always-reset →
+`adaptive` (surgical continue first, `03`/`07`); egress proxy →
+attached-provider injection (`04`).
+
 - **Tier 1 — Macro Control Plane** (`temporal/parent.py`, `temporal/starter.py`):
   task lifecycles, ledger states (`inbox → active → review → promoted | escalated`),
   sensor review gate, draft-PR promotion. See `specs/02-control-plane.md`.
-- **Tier 2 — Inner-Loop State Engine** (`temporal/child.py`): atomic Ralph
+- **Tier 2 — Inner-Loop State Engine** (`temporal/child.py`): adaptive Ralph
   cycles — gates (a) `forbidden_paths`, (b) tactile command, (c) AST syntax —
-  with atomic reset + `continue_as_new` on retryable failure. See
-  `specs/03-inner-loop.md`.
+  with surgical repair first, strike-2/sprawl reset, `continue_as_new` on
+  retryable failure. See `specs/03-inner-loop.md`.
 - **Tier 3 — Governed Worker Cell** (`harness/wrapper.py`, `scripts/spawn-cell.sh`,
   `docker/`, `policy/`): ephemeral OpenShell sandbox per task, one headless
-  agent run per attempt, egress token injection (no secrets on disk).
+  agent run per attempt, attached-provider credential injection (no secrets on disk).
   See `specs/04-worker-cell.md`.
 - **Sensors** (`temporal/sensors.py`): upstream findings normalized to
   SARIF/JSON with a block/advise severity split and diff-scope rule.
@@ -75,8 +115,8 @@ flowchart TD
 | `harness/wrapper.py` | In-cell harness: frame load, agent dispatch, `forbidden_paths` assertion, tactile check, receipt serialization |
 | `temporal/` | Parent + child workflows, sensor suite, laptop-local worker/starter/dev-server (`requirements.txt` = `temporalio`) |
 | `scripts/spawn-cell.sh` | Cell lifecycle: `create` / `exec-attempt` / `destroy` via the `openshell` CLI |
-| `tasks/inbox/` | PoC file trigger — drop hand-written `TASK-<n>.json` frames here |
-| `tasks/ledger.md` | Temporal-rendered projection (never hand-edit) |
+| `tasks/inbox/` | File-trigger seeds (`TASK-402/403.json` frozen); live triage writes `--out /tmp/...`, starter opens any path |
+| `tasks/ledger.md` | Temporal-rendered projection, seed rows only (never hand-edit; demos project via `LEDGER_PATH=/tmp/...`) |
 | `policy/`, `config/` | Sandbox network/provider policy, OpenCode sandbox config |
 | `prompts/` | Canonical worker prompt contract (baked into the cell image) |
 | `docker/` | Sandbox base image port + worker-cell layer |
