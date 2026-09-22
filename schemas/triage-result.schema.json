@@ -52,7 +52,6 @@
     },
     "clarifying_question": {
       "type": "string",
-      "minLength": 1,
       "maxLength": 500
     }
   },
@@ -63,7 +62,7 @@
     },
     {
       "if": { "properties": { "verdict": { "const": "insufficient" } }, "required": ["verdict"] },
-      "then": { "required": ["clarifying_question"] }
+      "then": { "required": ["clarifying_question"], "properties": { "clarifying_question": { "minLength": 1 } } }
     }
   ]
 }
