@@ -47,10 +47,13 @@ flowchart TD
     F -->|nonzero| G{Attempts left?}
     F -->|zero| H{Gate c:<br/>AST parses?}
     H -->|parse fail| G
-    H -->|parse ok| Z2[SUCCESS / COMPLETE<br/>local checkpoint commit<br/>delete cell, promote]
-    G -->|attempt LT max| R[Reset cell to baseline<br/>backoff<br/>continue_as_new attempt N+1]
+    H -->|parse ok| Z2[SUCCESS / COMPLETE<br/>local checkpoint commit<br/>retain cell, promote]
+    G -->|attempt LT max| R{Adaptive retry?<br/>sprawl vs surgical}
+    R -->|surgical: keep diff<br/>inject tactile trace| R1[Repair turn<br/>keep diff on disk<br/>fresh process + sensor_context<br/>backoff → continue_as_new N+1]
+    R -->|catastrophic: sprawl/drift<br/>or strike 2| R2[Reset cell to baseline<br/>backoff → continue_as_new N+1<br/>autopsy in sensor_context]
     G -->|attempt EQ max| Z3[FAILED / HALT:EXHAUSTED<br/>delete cell, escalate]
-    R --> A
+    R1 --> A
+    R2 --> A
 ```
 
 Cell failure mid-task (sandbox lost/unreachable): recreate the cell,
@@ -81,14 +84,34 @@ live in Temporal history.
   per-task value always wins.
 - **Linear backoff** between attempts: delay = `60s × attempt`, capped at
   5 min. (Constants are defaults; tune with evidence, not vibes.)
-- Retry carries **zero context**: `continue_as_new()` with a fresh frame at
-  `attempt + 1`. The previous attempt's `agent_summary` may ride along as
-  text diagnostics — never as conversational memory.
-- `retry_strategy` frame field (default `"reset"`): `"reset"` =
-  `git reset --hard baseline_sha` inside the cell before the next attempt
-  (clean slate; matches process-per-attempt freshness); `"continue"` = keep
-  the failed attempt commit and build on top (explicit opt-in only). Failed
-  commits remain in reflog/diagnostics either way.
+- Retry carries **zero conversational context**: `continue_as_new()` with a
+  fresh frame at `attempt + 1`. The previous attempt's `agent_summary` may
+  ride along as `prior_diagnostics` text — never as conversational memory.
+  On retryable tactile/AST failure the exact `tactile_execution.summary_output`
+  tail is injected as a synthetic `sensor_context` finding (see below).
+- `retry_strategy` frame field (default `"adaptive"` — locked 2026-09-21,
+  replaces the earlier `"reset"` default after external review):
+  explicit `"reset"` or `"continue"` still honored when set, but an omitted
+  or `"adaptive"` value runs the adaptive repair policy:
+  - **Attempt 1 fail → repair turn:** preserve the git diff on disk, start a
+    fresh agent process (zero memory rot), inject the exact
+    `tactile_execution.summary_output[-2000:]` as a `TactileTestGate /
+    AssertionFailure` finding into `sensor_context` of attempt 2. The agent
+    sees the diff via `git diff` plus the failure trace and applies a
+    surgical fix.
+  - **Strike 2 → hard reset:** if attempt 2 also fails (or later attempts
+    under `adaptive`), run `git reset --hard baseline_sha` before the next
+    attempt and inject an autopsy note ("approach X failed twice").
+    Prevents architectural dead-ends from compounding.
+  - **Diff-sprawl guard (immediate reset):** before the strike logic, check
+    `files_changed` vs `allowed_paths` and breadth. If the diff touches any
+    forbidden outcome, edits files outside `allowed_paths`, or sprawls to
+    `>200` diff lines / `>8` files / `>10k` chars, treat as catastrophic
+    and reset immediately — even on attempt 1. Surgical diffs (`≤200` lines,
+    within `allowed_paths`) are worth keeping.
+  Failed commits remain in reflog/diagnostics either way. Per-attempt
+  `sensor_context` injection is capped to one synthetic finding of
+  `[-2000:]` chars so the frame stays bounded.
 
 ## Checkpoint & promotion model: local commit + eventual squash
 
@@ -136,5 +159,6 @@ live in Temporal history.
 
 - Tree-sitter grammar set pinning (which grammars ship in the worker image?).
 - Backoff constant tuning under real attempt-latency data.
-- Confirm `retry_strategy` default stays `"reset"` after PoC evidence.
+- ~~Confirm `retry_strategy` default stays `"reset"` after PoC evidence.~~ Resolved 2026-09-21: default is `"adaptive"` (surgical repair first, strike-2 reset + sprawl guard).
 - Hold-out suite sourcing, rotation, and activation criteria (post-PoC).
+- Tuning sprawl thresholds (`200` lines / `8` files) under real diff-size data.

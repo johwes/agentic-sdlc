@@ -36,6 +36,7 @@ Our cell layer (`docker/worker-cell.Dockerfile`, `FROM` the locally built
 base) adds only the Ralph-loop contract:
 
 - `/etc/prompts/worker_contract.txt` (source: `prompts/worker_contract.txt`).
+- `/etc/prompts/triage_contract.txt` (source: `prompts/triage_contract.txt` — in-cell triage for `scripts/analyze-issue.py`, model `opencode-go/glm-5.3-flash`).
 - `/usr/local/bin/cell-harness` (source: `harness/wrapper.py`), set as the
   cell `ENTRYPOINT` (base default is `/bin/bash`).
 
@@ -221,10 +222,10 @@ correctly). The `models.opencode.ai` endpoint and both binary paths
 cells need no approval for this model.
 
 - Template default: `config/opencode-sandbox.json` pins
-  `model: opencode-go/muse-spark-1.3-contributor` and
-  `small_model: opencode-go/glm-5` (changeable later); per-run override via
-  `opencode run --model <id>` (future: a `model` frame field flowing into the
-  wrapper invocation — recorded, not built).
+  `model: opencode-go/muse-spark-1.3-contributor` (fix agent, see `03-inner-loop.md` adaptive) and
+  `small_model: opencode-go/glm-5.3-flash` (triage agent for `scripts/analyze-issue.py`, locked
+  2026-09-21) — changeable later; per-run override via `opencode run --model <id>` (future: a `model`
+  frame field flowing into the wrapper invocation — recorded, not built).
 - Provider profile scope (locked 2026-09-18): `policy/opencode-profile.yaml`
   scopes `OPENCODE_API_KEY` injection to `opencode.ai` +
   `models.opencode.ai` only (L7 `rest`/`enforce`, opencode + node binaries —
@@ -351,7 +352,8 @@ Within that constraint, artifacts split three ways (locked 2026-09-18):
 |----------|----------|------------|
 | `cell-harness` (`/usr/local/bin`) | Image-baked only | Immutable — the judged agent can never rewrite the judge (anti-gaming load-bearing, see `03-inner-loop.md`). |
 | Worker prompt | Image default (`/etc/prompts/worker_contract.txt`) + per-attempt host-upload override (`/sandbox/.task/worker_prompt.txt`) | Host varies it per task/attempt; agent never persists it (re-uploaded every attempt; flows through Temporal activity inputs so history records what the worker was told). Override source: explicit `PROMPT_FILE` env wins, else `prompts/overrides/<TASK_ID>.txt`, else the image default. |
-| OpenCode config (`/etc/opencode/opencode.json`, source `config/opencode-sandbox.json`) | Image-baked defaults + per-run `--model` CLI override | Defaults frozen. opencode needs blanket permission from config (unlike Claude's `--dangerously-skip-permissions` flag), so the file must exist in-cell; auth still arrives only via the attached provider. |
+| Triage prompt | Image default (`/etc/prompts/triage_contract.txt`, source `prompts/triage_contract.txt`) + host-upload `PROMPT_FILE_TRIAGE` for `scripts/analyze-issue.py` | In-cell triage only (`opencode-go/glm-5.3-flash`), short-lived triage cell then destroyed; fix cell still uses worker prompt above. |
+| OpenCode config (`/etc/opencode/opencode.json`, source `config/opencode-sandbox.json`) | Image-baked defaults + per-run `--model` CLI override | Defaults frozen. opencode needs blanket permission from config (unlike Claude's `--dangerously-skip-permissions` flag), so the file must exist in-cell; auth still arrives only via the attached provider. Triage pins `small_model glm-5.3-flash` for host-spawned triage. |
 
 ## Failure modes
 

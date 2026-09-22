@@ -147,7 +147,7 @@ print('wrapper frame fields:', len(wrapper.REQUIRED_FIELDS), 'required')
 "
 # frame: TASK-402 | attempt 1/5 | pytest tests/unit/test_search.py
 # review (PoC no-op): ('promoted', 'review: skipped, no sensors configured')
-# backoff attempt 1/3 -> 60 / 180 seconds; retry default: reset
+# backoff attempt 1/3 -> 60 / 180 seconds; retry default: adaptive
 # wrapper frame fields: 10 required
 
 # 3. Validate the starter path without a server
@@ -169,22 +169,33 @@ provider, and host `gh` auth wired to git (`gh auth login` + `gh auth setup-git`
 `git push` step hangs on `Username for 'https://github.com':` until the
 `GIT_TERMINAL_PROMPT=0` fast-fail (observed live; now fails in seconds, not 300s).
 
-Live rehearsal (proven 2026-09-21 on `TASK-403`):
+Demo flow — GitHub issue → /tmp → Temporal (leaves `git status` clean):
 
 ```bash
+export LEDGER_PATH=/tmp/opencode/demo-ledger.md
+
+# 1. Fetch the issue, triage to a frame in /tmp (no repo writes)
+python3 scripts/analyze-issue.py --repo https://github.com/johwes/tic-tac-toe.git --issue-id 3 --out /tmp/opencode/demo-TASK-3.json
+python3 temporal/starter.py --dry-run /tmp/opencode/demo-TASK-3.json
+# dry-run: would open ParentWorkflow (workflow_id=parent-TASK-3, task_queue='agentic-sdlc-dev') from /tmp/opencode/demo-TASK-3.json (attempt 1/5, branch feat/task-3-anti-diagonal-win-broken)
+
 # Terminal 1: laptop-local Temporal dev server (localhost:7233, UI :8233)
 ./temporal/dev-server.sh
 
 # Terminal 2: worker polling the dev queue (parent + child workflows, all activities)
 pip install -r temporal/requirements.txt
-python3 temporal/worker.py
+LEDGER_PATH=/tmp/opencode/demo-ledger.md python3 temporal/worker.py
 
-# Terminal 3: open a parent workflow from the demo frame (use TASK-403; TASK-402 has no repo_url)
-python3 temporal/starter.py --dry-run tasks/inbox/TASK-403.json
-python3 temporal/starter.py tasks/inbox/TASK-403.json
-# → parent-TASK-403-* opens, child goes active → review (logged no-op) → promoted
-# → branch feat/TASK-403-tictactoe-antidiagonal pushed, draft PR opened
-# → tasks/ledger.md gains the promoted row (e.g. https://github.com/johwes/tic-tac-toe/pull/1)
+# Terminal 3: open the parent workflow from the /tmp frame
+python3 temporal/starter.py /tmp/opencode/demo-TASK-3.json
+# → parent-TASK-3-* opens, child goes active → review (logged no-op) → promoted
+# → branch feat/task-3-anti-diagonal-win-broken pushed, draft PR opened
+# → /tmp/opencode/demo-ledger.md gains the promoted row; git status stays clean
+```
+
+Prior rehearsals (`TASK-403/pull/1`, `TASK-1/pull/4`, `TASK-3/pull/5`)
+followed this same path; their ledger rows live on the tic-tac-toe PRs,
+not in the checked-in `tasks/ledger.md` (seed rows only).
 
 # Cell lifecycle directly (no Temporal needed):
 TASK_ID=TASK-403 WORKSPACE_DIR=/tmp/wk403 ./scripts/spawn-cell.sh create
