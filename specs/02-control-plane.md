@@ -45,6 +45,16 @@ checked-in `tasks/inbox/TASK-402.json` / `TASK-403.json` frames are frozen
 offline seeds only; live frames are git-ignored by construction (see
 `.gitignore`), so demos leave `git status` clean.
 
+*Sufficiency gate (locked 2026-09-22):* triage may refuse a vague issue
+instead of emitting a doomed frame. The triage result schema
+(`schemas/triage-result.schema.json`, draft 2020-12, validated by the
+adapter before curation) carries a `verdict`: `sufficient` requires the
+full frame fields; `insufficient` requires one `clarifying_question` and
+nothing else. On `insufficient` the adapter prints the question, posts it
+as the issue comment (unless `--no-comment`), writes no frame, and exits
+3 — the loop never starts on a ticket nobody can work. Malformed triage
+output falls back to deterministic triage, never to a guessed frame.
+
 ## Locality (PoC): laptop-local orchestration
 
 The OpenShell execution plane is reachable only from the owner's laptop, so

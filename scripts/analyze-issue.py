@@ -192,10 +192,13 @@ def _deterministic_triage(issue: dict[str, Any], repo_url: str) -> dict[str, Any
 
 def _parse_triage_output(text: str) -> dict[str, Any] | None:
     """Extract JSON from LLM output. Last JSON object wins."""
+    def _looks_like_triage(obj: object) -> bool:
+        return isinstance(obj, dict) and ("title" in obj or "verdict" in obj)
+
     # Try whole blob
     try:
         obj = json.loads(text.strip())
-        if isinstance(obj, dict) and "title" in obj:
+        if _looks_like_triage(obj):
             return obj
     except Exception:
         pass
@@ -204,7 +207,7 @@ def _parse_triage_output(text: str) -> dict[str, Any] | None:
     if m:
         try:
             obj = json.loads(m.group(0))
-            if isinstance(obj, dict) and "title" in obj:
+            if _looks_like_triage(obj):
                 return obj
         except Exception:
             pass
@@ -214,11 +217,115 @@ def _parse_triage_output(text: str) -> dict[str, Any] | None:
         if line.startswith("{") and line.endswith("}"):
             try:
                 obj = json.loads(line)
-                if isinstance(obj, dict) and "title" in obj:
+                if _looks_like_triage(obj):
                     return obj
             except Exception:
                 continue
     return None
+
+
+TRIAGE_SCHEMA_DEFAULT = "schemas/triage-result.schema.json"
+
+
+def _triage_schema_path(explicit: str | None = None) -> str:
+    """Resolve schemas/triage-result.schema.json (env TRIAGE_SCHEMA wins)."""
+    for cand in [explicit, os.environ.get("TRIAGE_SCHEMA")]:
+        if cand and cand.strip() and Path(cand.strip()).is_file():
+            return cand.strip()
+    try:
+        here = Path(__file__).resolve()
+        cand = here.parent.parent / "schemas" / "triage-result.schema.json"
+        if cand.is_file():
+            return str(cand)
+    except Exception:
+        pass
+    return TRIAGE_SCHEMA_DEFAULT
+
+
+def _validate_against_schema(obj: object, schema: dict[str, Any], path: str = "$") -> list[str]:
+    """Stdlib-only JSON Schema subset validator (no external deps per repo rule).
+
+    Supports the constructs used by schemas/triage-result.schema.json:
+    type (object/array/string/integer/number/boolean), required,
+    properties, additionalProperties:false, enum, const, minLength,
+    maxLength, minItems, maxItems, items, allOf + if/then. Returns a list
+    of error strings (empty = valid). Unknown keywords are ignored.
+    """
+    errors: list[str] = []
+    if not isinstance(schema, dict):
+        return errors
+    stype = schema.get("type")
+    if stype is not None:
+        ok = (
+            (stype == "object" and isinstance(obj, dict))
+            or (stype == "array" and isinstance(obj, list))
+            or (stype == "string" and isinstance(obj, str))
+            or (stype == "integer" and isinstance(obj, int) and not isinstance(obj, bool))
+            or (stype == "number" and isinstance(obj, (int, float)) and not isinstance(obj, bool))
+            or (stype == "boolean" and isinstance(obj, bool))
+        )
+        if not ok:
+            return [f"{path}: expected {stype}, got {type(obj).__name__}"]
+    if isinstance(obj, dict):
+        for key in schema.get("required") or []:
+            if key not in obj:
+                errors.append(f"{path}: missing required key {key!r}")
+        props = schema.get("properties") or {}
+        for key, value in obj.items():
+            if key in props:
+                errors += _validate_against_schema(value, props[key], f"{path}.{key}")
+            elif schema.get("additionalProperties") is False:
+                errors.append(f"{path}: unexpected key {key!r}")
+    if isinstance(obj, list):
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for i, value in enumerate(obj):
+                errors += _validate_against_schema(value, items, f"{path}[{i}]")
+        for bound, op in (("minItems", "fewer"), ("maxItems", "more")):
+            lim = schema.get(bound)
+            if isinstance(lim, int) and ((op == "fewer" and len(obj) < lim) or (op == "more" and len(obj) > lim)):
+                errors.append(f"{path}: {bound} {lim} violated (n={len(obj)})")
+    if isinstance(obj, str):
+        for bound, op in (("minLength", "shorter"), ("maxLength", "longer")):
+            lim = schema.get(bound)
+            if isinstance(lim, int) and ((op == "shorter" and len(obj) < lim) or (op == "longer" and len(obj) > lim)):
+                errors.append(f"{path}: {bound} {lim} violated (n={len(obj)})")
+    if "enum" in schema and obj not in schema["enum"]:
+        errors.append(f"{path}: {obj!r} not in {schema['enum']}")
+    if "const" in schema and obj != schema["const"]:
+        errors.append(f"{path}: {obj!r} != const {schema['const']!r}")
+    for clause in schema.get("allOf") or []:
+        if not isinstance(clause, dict):
+            continue
+        cond = clause.get("if")
+        if cond is None:
+            errors += _validate_against_schema(obj, {k: v for k, v in clause.items() if k != "if"}, path)
+            continue
+        if not _validate_against_schema(obj, cond, path):
+            errors += _validate_against_schema(obj, clause.get("then", {}), path)
+    return errors
+
+
+def _load_triage_schema() -> tuple[dict[str, Any] | None, str | None]:
+    """Load the triage result schema. Returns (schema, error)."""
+    spath = _triage_schema_path()
+    try:
+        raw = Path(spath).read_text(encoding="utf-8")
+    except OSError as e:
+        return None, f"triage schema unreadable ({spath}): {e}"
+    try:
+        schema = json.loads(raw)
+    except json.JSONDecodeError as e:
+        return None, f"triage schema invalid JSON ({spath}): {e}"
+    if not isinstance(schema, dict):
+        return None, f"triage schema must be an object ({spath})"
+    return schema, None
+
+
+def _verdict_of(raw: dict[str, Any]) -> str:
+    """Triage verdict, defaulting to sufficient (back-compat for older outputs)."""
+    v = str(raw.get("verdict", "sufficient") or "sufficient").strip().lower()
+    return v if v in ("sufficient", "insufficient") else "sufficient"
 
 
 def _curate_triage_output(raw: dict[str, Any], issue: dict[str, Any], repo_url: str) -> dict[str, Any]:
@@ -430,7 +537,7 @@ def _run_triage_in_cell(
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Fetch GitHub issue, triage in-cell (glm-5.3-flash), write tasks/inbox frame")
+    p = argparse.ArgumentParser(description="Fetch GitHub issue, triage in-cell (glm-5.3-flash), write tasks/inbox frame. Exit codes: 0 ok (or already-triaged skip), 1 fetch/frame failure, 2 bad --repo, 3 insufficient issue (clarifying question, no frame).")
     p.add_argument("--repo", required=True, help="Target repo URL https://github.com/owner/repo.git (public https)")
     p.add_argument("--issue-id", required=True, type=int, help="GitHub issue number")
     p.add_argument("--out", required=False, default=None, help="Output inbox path (default tasks/inbox/TASK-<n>.json)")
@@ -489,6 +596,48 @@ def main() -> int:
             print(f"Triage in-cell failed: {e}\nFalling back to deterministic triage", file=sys.stderr)
             triage_raw = _deterministic_triage(issue, args.repo.strip())
             triage_text = json.dumps(triage_raw, indent=2)
+
+    # Schema gate: malformed triage never becomes a frame. Invalid output
+    # falls back to deterministic triage (same as an exec failure); a valid
+    # `insufficient` verdict stops the line with a clarifying question.
+    schema, schema_err = _load_triage_schema()
+    if schema_err is not None or schema is None:
+        print(f"Triage schema unavailable: {schema_err}; skipping validation", file=sys.stderr)
+    elif args.dry_run:
+        pass  # deterministic output is valid by construction; validated in tests
+    else:
+        schema_errors = _validate_against_schema(triage_raw, schema)
+        if schema_errors:
+            print(f"Triage output failed schema validation ({len(schema_errors)}):", file=sys.stderr)
+            for e in schema_errors[:5]:
+                print(f"  - {e}", file=sys.stderr)
+            print("Falling back to deterministic triage", file=sys.stderr)
+            triage_raw = _deterministic_triage(issue, args.repo.strip())
+
+    if _verdict_of(triage_raw) == "insufficient":
+        question = str(triage_raw.get("clarifying_question") or "").strip()
+        if not question:
+            question = (
+                "Please add reproduction steps (exact command + observed vs "
+                "expected output) and name the files involved."
+            )
+        print(f"INSUFFICIENT: no frame emitted for issue #{issue.get('number', args.issue_id)}", file=sys.stderr)
+        print(f"Clarifying question: {question}", file=sys.stderr)
+        if not args.no_comment:
+            slug = _repo_slug(args.repo.strip())
+            try:
+                r = subprocess.run(
+                    ["gh", "issue", "comment", str(issue.get("number", args.issue_id)),
+                     "--repo", slug or "", "--body", question[:2000]],
+                    capture_output=True, text=True, timeout=30,
+                )
+                if r.returncode != 0:
+                    print(f"gh issue comment failed (non-fatal): {(r.stderr or '').strip()}", file=sys.stderr)
+                else:
+                    print(f"Posted clarifying question on issue #{issue.get('number')} ({slug})", file=sys.stderr)
+            except Exception as e:
+                print(f"Comment failed (non-fatal): {e}", file=sys.stderr)
+        return 3
 
     curated = _curate_triage_output(triage_raw, issue, args.repo.strip())
     print(f"Curated: {json.dumps(curated, indent=2)}", file=sys.stderr)
