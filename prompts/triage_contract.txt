@@ -15,7 +15,7 @@ You are a triage worker running in a constrained ephemeral cell. Your input is a
     "slug": "kebab-case slug for branch name",
     "triage_summary": "one paragraph human-readable triage note",
     "verdict": "sufficient | insufficient",
-    "clarifying_question": "ONE focused question, only when verdict is insufficient"
+    "clarifying_question": "ONE focused question, only when verdict is insufficient (omit the key otherwise)"
   }
 * Sufficiency (HARD CONSTRAINT): if the issue lacks the symptom, the files
   involved, or any verifiable command such that you cannot name allowed_paths
