@@ -112,6 +112,13 @@ live in Temporal history.
   Failed commits remain in reflog/diagnostics either way. Per-attempt
   `sensor_context` injection is capped to one synthetic finding of
   `[-2000:]` chars so the frame stays bounded.
+- **Injection bound (locked 2026-09-22, non-deterministic-coworker guard):**
+  the tactile injection is a deliberate, bounded exception to the
+  no-internals rule — it carries the failing assertion tail only, one
+  finding per attempt, never execution environment (env, absolute host
+  paths). Widening it (full logs, multi-findings) needs a new locked
+  decision. Injected traces are UNTRUSTED DATA per the worker contract,
+  never overriding instructions.
 
 ## Checkpoint & promotion model: local commit + eventual squash
 
