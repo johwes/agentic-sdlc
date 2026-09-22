@@ -137,7 +137,7 @@ the wrapper writes only the receipt there.
 
 ## Open questions
 
-- JSON Schema (draft 2020-12) files for both artifacts — checked in where?
+- ~~JSON Schema (draft 2020-12) files for both artifacts — checked in where?~~ Resolved 2026-09-22 for triage: `schemas/triage-result.schema.json` (verdict + frame fields, validated in `analyze-issue.py` before curation — see `02-control-plane.md` sufficiency gate). Frame/receipt schemas still open.
 - `PROGRESS.md` projection trigger (per checkpoint vs. per attempt)?
 - Receipt size limits and diff encoding beyond the 50-line/4KB tail?
 - Temporal workflow SDK: TypeScript recommended, pending lock (non-blocking for 07/04).

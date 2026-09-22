@@ -20,3 +20,5 @@ then exits. See AGENTS.md git workflow. -->
 - [x] Wire promotion `open_draft_pr`: bundle-download → host fetch → secret scan → squash → push → draft PR (see `specs/02-control-plane.md`)
 - [x] Wire ledger projection write path to `tasks/ledger.md` (see `specs/02-control-plane.md`)
 - [x] Private end-to-end rehearsal + refresh README demo from real output
+- [x] Triage sufficiency gate: `insufficient` verdict + clarifying question instead of a doomed frame (see `specs/02-control-plane.md`)
+- [x] Check in `schemas/triage-result.schema.json` (draft 2020-12) + validate LLM triage output before curation (see `specs/07-contracts.md`)
