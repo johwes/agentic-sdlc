@@ -38,6 +38,13 @@ fetch with a webhook/polling adapter that produces the same frame shape
 without changing anything downstream. Issue comments (`gh issue comment`)
 are host-side, outside the cell policy.
 
+*Demo default (locked 2026-09-22):* live triage writes outside the repo —
+`--out /tmp/opencode/demo-TASK-n.json` — and the starter opens any path
+(`python3 temporal/starter.py /tmp/opencode/demo-TASK-n.json`). The
+checked-in `tasks/inbox/TASK-402.json` / `TASK-403.json` frames are frozen
+offline seeds only; live frames are git-ignored by construction (see
+`.gitignore`), so demos leave `git status` clean.
+
 ## Locality (PoC): laptop-local orchestration
 
 The OpenShell execution plane is reachable only from the owner's laptop, so
@@ -70,6 +77,9 @@ the PoC control plane runs there too — no cluster deployment:
 Temporal workflow state is the source of truth (per `01-principles.md`).
 The PoC-readable projection is `tasks/ledger.md` — Temporal-rendered,
 checked in, same projection pattern as `PROGRESS.md`. Never hand-edited.
+The checked-in file keeps seed rows only; demos project to
+`LEDGER_PATH=/tmp/...` (supported by `ledger_path_default()`) so live
+promotion rows never dirty the checkout.
 
 Task states: `inbox → active → review → promoted | escalated`.
 
