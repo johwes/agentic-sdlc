@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-404",
+  "title": "Fix tic-tac-toe anti-diagonal win detection — surgical repair demo",
+  "acceptance_criteria": [
+    "checkWinner returns the winner for an anti-diagonal (2-4-6) line in tictactoe.js",
+    "tactile_command passes with exit code 0",
+    "No files outside allowed_paths are modified"
+  ],
+  "repo_url": "https://github.com/johwes/tic-tac-toe.git",
+  "target_branch": "feat/TASK-404-repair-demo",
+  "allowed_paths": ["tictactoe.js"],
+  "forbidden_paths": ["tictactoe.test.js", ".task/**"],
+  "sensor_context": [],
+  "attempt": 1,
+  "max_attempts": 5,
+  "tactile_command": "node --test tictactoe.test.js",
+  "tactile_timeout_seconds": 120
+}
