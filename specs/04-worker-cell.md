@@ -147,10 +147,12 @@ openshell sandbox create \
   --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
   --approval-mode manual \
   --no-auto-providers \
-  --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
   --label "task=${TASK_ID}"
 # (no --upload here: the repo seed follows post-Ready as a tarball, and
 # per-attempt files ride upload-to-dir + mv — see below and ingestion.)
+# (no --cpu/--memory: explicit requests reserve full units and stall
+# scheduling on constrained gateways — locked 2026-09-22; the spawner
+# takes gateway defaults.)
 ```
 
 ## Exec-per-attempt contract
@@ -374,6 +376,7 @@ Within that constraint, artifacts split three ways (locked 2026-09-18):
 - Deltas from the upstream baseline (OpenRouter? general npm?) — list or close.
 - Provider per model backend: PoC default `opencode-go` (type `opencode`);
   Claude-Code path needs its own provider name when activated.
-- Resource values (CPU/mem/GPU, wall-clock) per attempt — flags pinned,
-  numbers TBD under real attempt-latency data.
+- Resource requests intentionally unset (locked 2026-09-22): explicit
+  `--cpu/--memory` reserves full units and stalls scheduling — the spawner
+  takes gateway defaults. Revisit only with quota headroom.
 - Sandbox image registry + build/push flow for base and cell layers.
