@@ -24,8 +24,6 @@
 #                  wrapper prefers it over the image default; unset = default)
 #   EXEC_TIMEOUT   sandbox exec timeout secs, default 600 (exec-attempt)
 #   UUID4          optional 4-hex suffix; generated when unset (create)
-#   CELL_CPU       optional, default 1 (create)
-#   CELL_MEM       optional, default 4Gi (create)
 #   CREATE_WAIT_TRIES    optional, Ready polls, default 60 (create)
 #   CREATE_WAIT_INTERVAL optional, secs between polls, default 10 (create)
 #   BASE_IMAGE     optional, default the pinned cell image below (immutable
@@ -82,7 +80,6 @@ do_create() {
     --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
     --approval-mode manual \
     --no-auto-providers \
-    --cpu "${CELL_CPU:-1}" --memory "${CELL_MEM:-4Gi}" \
     --label "task=${TASK_ID}" \
     >"${log}" 2>&1 &
   local pid=$!
