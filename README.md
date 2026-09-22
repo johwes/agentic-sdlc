@@ -57,7 +57,7 @@ PoC reality (what actually runs — laptop-local, `/tmp` demo flow):
 flowchart TD
     subgraph P1 [Tier 1: Parent - file trigger + host promotion]
         I[Issue via analyze-issue<br/>--out /tmp] --> S[starter.py<br/>any path]
-        S --> L[Ledger inbox→active→review→promoted|escalated<br/>LEDGER_PATH=/tmp for demos]
+        S --> L[Ledger inbox to promoted or escalated<br/>LEDGER_PATH=/tmp for demos]
         L --> R[Sensor review: logged no-op<br/>no sensors configured]
         R --> P[Host promotion: bundle→scan→squash→push→draft PR<br/>owner gh auth]
     end
