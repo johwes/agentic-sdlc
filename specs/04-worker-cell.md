@@ -113,8 +113,8 @@ are exempt by design.
 
 ## Spawn contract (real CLI, verified against `openshell --help`)
 
-Base image for PoC spawns: `quay.io/jwesterl/worker-cell:2026-09-22-47a2ea9`
-(digest `sha256:d0933ab567c36730940b6a463273ac3447004874f25bc1fa68b814b9ad0059ed`,
+Base image for PoC spawns: `quay.io/jwesterl/worker-cell:2026-09-22-47b3e60`
+(digest `sha256:3eed461587d699f93bfb4a6bc9a0e72cc1f3f12144629699a581f2bbdd203173`,
 built atop `quay.io/jwesterl/openshell-base:latest` (the checked-in
 CentOS build). The cell layer (`docker/worker-cell.Dockerfile`, `ARG
 BASE_IMAGE`) adds the Ralph-loop contract (prompt, harness, OpenCode
@@ -141,7 +141,7 @@ alphanumerics/hyphens.
 ```bash
 openshell sandbox create \
   --name "cell-${TASK_ID_LOWER}-${UUID4}" \
-  --from quay.io/jwesterl/worker-cell:2026-09-22-47a2ea9 \
+  --from quay.io/jwesterl/worker-cell:2026-09-22-47b3e60 \
   --policy /abs/path/to/policy/upstream-base-policy.yaml \
   --provider "${CRED_PROVIDER:-opencode-go}" \
   --env "OPENCODE_CONFIG=/etc/opencode/opencode.json" \
