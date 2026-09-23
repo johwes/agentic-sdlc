@@ -1,0 +1,46 @@
+# 11 — Human *on* the loop, not *in* every step
+
+## Principle
+
+The system runs autonomously; humans **steer at critical gates** rather than approving every minor action. Dashboarding surfaces exactly where intervention is needed — the rest of the time, humans do higher-value work.
+
+## Why this matters
+
+Two structures contrast directly:
+
+- **In the loop:** a human gates every step. Safe, but a bottleneck — it doesn't scale.
+- **On the loop:** the system alerts engineers when intervention is required. Humans act as pilots, not gatekeepers.
+
+The shift doesn't diminish the engineer's role — it elevates it. The work that historically consumed the most time (boilerplate, first drafts, manual review) moves to the pipeline. The engineer's scarce attention shifts to:
+
+- Understanding customer problems deeply.
+- Shaping solutions against real-world constraints.
+- Exercising domain judgment no pipeline can provide on its own.
+
+The mechanism that makes this possible is a **central management layer** — a dashboard that is the source of truth for what the system is doing:
+
+- **Metric tracking:** throughput baselines (planned vs. past delivery, contextualized with activity from the code forge) so you can spot overcommitment early and measure how AI changes team velocity — not just agent activity.
+- **Release and team visibility:** where every feature sits, where bottlenecks form, without hunting through five reports.
+- **Steering infrastructure:** the signals that tell humans *when* to intervene, surfaced at the exact moment intervention is required — distinguishing this from "in the loop" where humans are required at every iteration.
+
+The trust contract is explicit: the pipeline *proposes* — humans *approve* merges, deployments, and critical decisions. The dashboard is how humans know when a proposal is ready and whether it's worth their time.
+
+## Running example
+
+The rate-limit feature moves through triage → plan → code → review → verify, all autonomously. The team doesn't watch each step. They watch a single dashboard row: green for "ready for human merge review," amber for "blocked — needs a plan decision," red for "escalated after max attempts." When the row turns amber (the agent needs to know whether to rate-limit at the gateway or in the service), a human is paged with the two options and the evidence for each — not with a raw agent transcript.
+
+## Conformance check
+
+1. **Dashboard test:** without asking the pipeline, can a team lead answer "which features are in `Verify` and which are stuck in `Build`"? If the answer requires opening Temporal UI + Jira + GitHub + a spreadsheet, you have four sources of truth, not one.
+2. **Intervention-load test:** count human approvals per feature end-to-end. If the number scales linearly with the number of agent steps (every draft, every tool call needs a click), you're *in* the loop. The target is a small constant (spec approval, merge approval, plus escalations) regardless of how many agent attempts ran underneath.
+3. **Overcommit test:** can your dashboard compare planned work against *historical* throughput and flag when the plan exceeds what the team (humans + agents) actually delivers? If not, planning is detached from the system's demonstrated capacity.
+
+## In this repo
+
+Humans approve the merge that ships the draft PR; the harness never auto-merges. The Temporal UI and ledger projection (`tasks/ledger.md`, `LEDGER_PATH=/tmp` for demos) are the PoC-scale version of the management layer — the production Org Pulse equivalent is explicitly a post-PoC slot.
+
+## Sources
+
+- Red Hat — [The "on the loop" philosophy + Org Pulse](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (in vs. on the loop, steering infra, metric tracking — the most quoted passage in this blueprint)
+- Forrester/Greene — [Define invariants or . . . branching & escalation caps](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (when to escalate *to* the human)
+- Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (continuous human risk calibration)
