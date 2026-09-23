@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 temporal-dev.db*
+site/
 # Live triage frames stay out of git (demo default is --out /tmp/...);
 # only the frozen offline seeds are tracked.
 tasks/inbox/TASK-*.json
