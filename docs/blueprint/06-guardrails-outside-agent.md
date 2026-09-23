@@ -25,6 +25,8 @@ The agent's first rate-limit patch fails the architecture review (middleware in 
 
 1. **Regression test:** make the agent produce a revision that *lowers* your quality metric (worse test coverage, slower benchmark, lower rubric score). The pipeline must block, not promote, even though the agent reports success. If it promotes, your guardrail is inside the agent.
 2. **Cap test:** set `max_attempts` low, then give the agent a task it cannot solve in one attempt. It should hit the cap, publish the final state, and escalate — not loop. If you can get it to loop forever by tweaking the prompt, the cap is a suggestion, not a guardrail.
+3. **Transient-vs-regression test:** fail the suite with an infrastructure error (rate-limited registry, DNS blip), not a code error. The harness should classify it as transient — back off and retry without consuming the *revision* budget or, worse, letting the agent "fix" correct code to satisfy a red build. If infra failures and test failures share one counter, a flaky platform burns the budget real bugs need.
+4. **Recovery test:** kill the harness mid-promotion (after the branch push, before the PR opens). Restart from persisted state: the run must resume or roll the partial promotion back — never push twice, never leave a branch with no PR. Partial world-state with no compensating path is a guardrail gap, not bad luck.
 
 ## In this repo
 
@@ -34,3 +36,7 @@ Attempt budget (`max_attempts` 5, linear backoff), strike-2 reset + sprawl guard
 
 - Forrester/Greene — [The agent will always think it's "helping"](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (deletion of customer evidence, revision 0→0, two-cycle cap, six-child branching cap)
 - Bynum — [Epic Creator's adversarial review and dependency ordering](https://cabynum.github.io/posts/software-factory-floor/#epic-creator) (a separate reviewer checks that epics cover the strategy)
+
+## Longevity: Permanent
+
+Optimism, sycophancy, and confirmation bias are training properties, not version properties — future models will justify their regressions *better*, which makes external verification more necessary, not less. Budgets, caps, and terminal states are arithmetic; arithmetic doesn't drift.

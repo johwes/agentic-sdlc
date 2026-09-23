@@ -39,3 +39,7 @@ Each attempt is a fresh headless process; the wrapper (harness) owns the receipt
 - HumanLayer 12-Factor — [Factor 8: Own your control flow](https://github.com/humanlayer/12-factor-agents)
 - InfoQ — [Nondeterministic reasoning vs. deterministic state](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (capability-matrix framing: LLM reasoning only where alternative interpretations are possible)
 - arXiv A-SDLC — [Governance and Safety as the least mature layer](https://arxiv.org/abs/2604.26275) (L5 governance as the bottleneck)
+
+## Longevity: Permanent
+
+The math of probabilistic inference doesn't version: a sampler cannot impartially verify, count, or bound itself. Capability growth improves plans, not state tracking — extended reasoning makes better proposals inside the shell, never a reason to move branching, caps, or promotion gates into the model. Asymmetric failure modes (one bad auto-merge vs. one wasted retry) keep the shell's conservatism rational at any capability level.

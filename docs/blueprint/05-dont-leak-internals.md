@@ -17,6 +17,8 @@ The fix is Postel's Law applied to agents — **constrain the inputs, tolerate t
 
 There is a deliberate, bounded exception: sometimes the agent *needs* the failure trace to repair (Factor 03's feedback loop). The rule there is to hand over the **failing assertion only**, capped to one finding, not the execution environment (paths, env vars, full logs). One screwdriver, one cut, returned after use.
 
+Expect this exception to widen with model capability — better reasoners genuinely use traces for multi-step root-cause analysis that early models only got distracted by. The trajectory is *bounded structural extraction* (targeted assertion failures and compiler traces in, host details out), enforced at the mediation layer rather than by prompt redaction. Tolerant parsers in the BAML/SAP family (assume the model errs, repair toward the schema) are one implementation option for the same Postel's-law posture.
+
 ## Running example
 
 The rate-limit tests fail with a stack trace that includes an internal dashboard URL. The harness does not forward the raw trace. It forwards: `FAILED: sliding-window test timed out after 120s (suite: rate-limit)`. The agent, seeing only that, retries with a narrower window rather than trying to curl the dashboard. The full trace is still saved — on disk, for the human (see Factor 10) — just not in the agent's context.
@@ -34,3 +36,7 @@ Each retry injects only the failing assertion tail as a single `TactileTestGate`
 
 - Forrester/Greene — [Don't leak internals. Claude will use them.](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#dont-leak-internals-claude-will-use-them) (screwdriver problem, constrain inputs / tolerate outputs)
 - egg — [Untrusted agents work inside a zero-credential sandbox; gateway sidecar enforces the boundary](https://github.com/jwbron/egg) (credentials never reach the agent)
+
+## Longevity: Constraint-stable, mechanism-evolving
+
+The constraint — *no unmediated internals in agent context* — is permanent; smarter models exploit screwdrivers *better*, not worse. But the mechanism moves with capability: prompt redaction → bounded structural extraction → proxy-level mediation. Judge this factor by whether a mediation layer decides what the agent sees, not by how aggressively traces are stripped.

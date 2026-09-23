@@ -38,6 +38,8 @@ The eval set is the bridge between models. It only exists because you saved ever
 
 The conceptual unit is a **golden trajectory** — a validated trace capturing not just the final output but the complete reasoning chain, tool invocations, and decision points. Frameworks like LangSmith make this instrumented; bare logs do not. A golden trajectory lets you answer "did the agent change *how* it reaches a correct answer, even when the answer still looks correct?"
 
+Two qualifiers keep the practice honest. First, **trajectory matching punishes improvement**: a model upgrade that finds a *shorter valid path* registers as a regression in a rigid trajectory diff. Gate on outcomes + invariants, and review trajectory diffs as advisories — never auto-block on "different steps, same result." Second, **traces are data with a cost model**: terabytes of thinking blocks across CI runs need indexing budgets, retention windows, and privacy scrubbing (customer data and secrets land in traces exactly as easily as in code). Save everything, then govern the archive like production data — because it is.
+
 ## Running example
 
 The team ships a rate-limit middleware. Their eval harness has 20 golden trajectories: good patches, bad patches (missing header, wrong layer), and edge cases (authenticated vs. anonymous callers). Before the PR merges, the harness runs them all — including the thinking-block comparison. After a model upgrade, one golden trajectory that used to emit `scope: api/search` now emits `scope: api/*` — still green on the final test, but visibly broader. The team catches it before it ships overly broad rate-limiting to production.
@@ -59,3 +61,7 @@ Evaluation harness and thinking-block capture are explicitly deferred: no held-o
 - Bynum — [Agent Evals + Architecture context as shared infra](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (MLflow integration, pre-merge quality gates)
 - InfoQ — [Golden trajectories + behavioral regression testing](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) + [SWE-bench as a forcing function with known gaps](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (LangSmith traces, Python-dominated bug-fix bias, need for delegation-focused evals)
 - arXiv A-SDLC — [Five open problems: evaluation & governance as the bottleneck](https://arxiv.org/abs/2604.26275)
+
+## Longevity: Constraint-stable, mechanism-evolving — with one caution
+
+The constraint — *no change ships without passing a held-out eval grounded in real data* — is permanent; silent model drift is the failure that never retires. But the mechanism needs active gardening: span formats churn, thinking-block availability changes per runtime, trajectory diffs punish improvement (see above). And the one genuine aging risk in this blueprint lives here: **trajectory-matching is the only mechanism that can punish the model for getting better**. Treat trajectory diffs as advisories reviewed by a human, outcomes + invariants as the gates.

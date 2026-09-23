@@ -48,3 +48,7 @@ The triage adapter's `_sentinel_state` / `current_task.json` is a lightweight an
 - egg — [Zero-credential sandbox, gateway sidecar, no merging, phase-locked operations, broadcast-review-converge](https://github.com/jwbron/egg) (infrastructure enforcement over behavioral control)
 - Fowler — [Coding Assistants Threaten the Software Supply Chain](https://martinfowler.com/articles/exploring-gen-ai/software-supply-chain-attack-surface.html) (why provenance and mandate matter at the supply-chain boundary)
 - Fullsend agents — [skills as phase-locked governance surfaces](https://github.com/fullsend-ai/agents) (skill-level enforcement as one gate in the deterministic shell)
+
+## Longevity: Constraint-stable, mechanism-evolving
+
+The constraint — *authorization before action; intent outranks trace; every side effect replayable from evidence* — is access-control canon (RBAC/MAC/capabilities predate LLMs by decades). The mechanisms rotate: mandate files today, signed capability tokens and Macaroon-style attenuating credentials tomorrow, whatever attestation comes next. Adopt the token formats as they mature; never renegotiate the gate.

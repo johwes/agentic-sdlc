@@ -32,6 +32,14 @@ A vendor-neutral set of **14 factors** for running AI coding agents in productio
 | [13](13-everything-versioned.md) | Everything versioned (directives as code) | Prompts, skill files, policy bundles, and evals are version-controlled assets |
 | [14](14-mandate-and-provenance.md) | Mandate + provenance (govern the memory) | A principal-authored mandate gates every session; every artifact carries its lineage |
 
+## Aging (will this survive the next model generation?)
+
+12-factor apps aged well because each factor constrained an *interface*, not an implementation. Same test here — every factor page ends with a `Longevity` verdict:
+
+- **Permanent (01, 02, 03, 06, 07, 08, 09, 13):** constrain a boundary that isn't moving (probabilistic inference can't verify itself; instructions and data share one pipeline; optimization pressure always seeks the easy out). Capability growth *strengthens* most of these.
+- **Constraint-stable, mechanism-evolving (04, 05, 10, 11, 12, 14):** the constraint stands while the mechanism rotates (scripts → compiled tools, redaction → mediation, Jira → whatever's next). Re-read these when the tooling shifts; the check stays valid.
+- **One watch item:** Factor 10's trajectory-matching is the only mechanism that can punish the model for getting *better* — gate on outcomes + invariants, review trajectory diffs as advisories.
+
 ## Spine
 
 The blueprint's spine is **Forrester/Greene — [Engineering for Non-Deterministic Coworkers](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j)** (learnings from Red Hat running this in production). Each factor page links the passage it builds on, plus the corroborating sources:

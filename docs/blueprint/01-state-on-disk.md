@@ -26,6 +26,8 @@ You can verify this in your pipeline today:
 
 **Also check:** `grep` your skill files and agent prompts for phrases like "as before," "re-run the earlier step," or "using the rubric mentioned above." Replace each with an explicit file path and template. Two steps that share a rubric should point at the *same* file, not two paraphrases of the same instruction.
 
+**Cost discipline:** the same files double as prompt-cache architecture. Providers key their prompt cache on the exact bytes of the rendered prefix — stable instructions first, volatile content last. A timestamp or per-request ID near the front silently voids the cache for everything behind it (cache reads cost ~0.1× base input; misses re-bill at full price). So: order prompts static-first / dynamic-last, freeze tool lists deterministically, and alarm on cache-hit-rate (`cache_read_input_tokens` / total input) the way you'd alarm on latency. Parallel sub-agents sharing one checkout additionally need atomic writes (lockfiles or SQLite WAL) or they'll corrupt the very state disk was supposed to protect.
+
 ## In this repo
 
 This principle is structural: each attempt starts as a fresh process, the work order (`current_task.json`) is a file, and Temporal — not the conversation — is the source of truth (see `specs/01-principles.md` Destroy state to maintain precision).
@@ -35,3 +37,7 @@ This principle is structural: each attempt starts as a fresh process, the work o
 - Forrester/Greene — [Compaction doesn't just drop data](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#compaction-doesnt-just-drop-data-it-changes-behavior) (queues emptying, drift after compression, `{KEY}` templates, 98% consistency)
 - InfoQ — [Prompts, tool manifests, and evaluation datasets require versioning as IaC](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (same "if it isn't versioned on disk, it isn't real" consequence at the config layer)
 - HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) + [Factor 12: Make your agent a stateless reducer](https://github.com/humanlayer/12-factor-agents) (state-machine foundation for "disk is truth")
+
+## Longevity: Permanent
+
+Compaction economics don't retire with bigger windows: billing per token plus truncation means business state can't live in context at any size, and larger windows *increase* contamination surface. Prompt-cache mechanics (exact-prefix match, static-first ordering) are provider-agnostic physics both OpenAI and Anthropic document identically. This factor constrains an interface, not an implementation — it ages like 12-factor's config factor.

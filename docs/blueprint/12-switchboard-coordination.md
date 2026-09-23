@@ -35,3 +35,7 @@ The ledger states (`inbox → active → review → promoted | escalated`) and p
 - Bynum — [What's on our Factory Floor](https://cabynum.github.io/posts/software-factory-floor/) (job shop vs. assembly line, JQL-as-wiring, modular adoption — the defining passage for this factor)
 - Red Hat — [The end-to-end workflow: Plan / Build / Verify / Ship](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (four-phase backdrop this factor makes non-linear)
 - HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) (unified state as the precondition for switchboard routing)
+
+## Longevity: Constraint-stable, mechanism-evolving
+
+The constraint — *stations coordinate through visible shared state, no private channels* — outlives any tracker. Jira + labels today, another substrate tomorrow; the job-shop-over-assembly-line property is about coupling, not tooling. When migrating substrates, port the label contract first (every transition must stay expressible as a query) and the stations follow.

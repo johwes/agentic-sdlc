@@ -24,6 +24,8 @@ The rate-limit plan splits into three sub-tasks: middleware, tests, and docs. Ea
 
 **Also check:** `grep` your orchestrator for any place it appends one agent's result to the next agent's prompt as "context." Replace that with a file write and a pointer.
 
+**Structured exception:** total amnesia has a failure mode of its own — oscillation. A debugger that can't see which hypotheses already failed will retry the same two plausible implementations on alternating attempts forever. The fix isn't conversation, it's a **capped, text-only diagnostic receipt**: root cause + failed operations, no transcript, no reasoning trace. Enough to avoid the loop, too small to pollute.
+
 ## In this repo
 
 One attempt = one headless process, same baked prompt, conversational memory explicitly destroyed every turn (`specs/01-principles.md`). Prior attempts ride only as capped text diagnostics, never as conversation.
@@ -32,3 +34,7 @@ One attempt = one headless process, same baked prompt, conversational memory exp
 
 - Forrester/Greene — [Yesterday's context is today's bug](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#yesterdays-context-is-todays-bug) (assess inventing ideas, feasibility on wrong evidence)
 - CodeDelegator — [Ephemeral-Persistent State Separation](https://ar5iv.labs.arxiv.org/html/2601.14914) (ephemeral coder with fresh context, debugging traces discarded with the instance)
+
+## Longevity: Permanent
+
+Attention mechanics, not model versions: more context means more threads to follow wrongly, so larger windows *raise* the contamination risk this factor guards against. The capped-receipt exception is part of the factor, not a workaround — assess any "richer context passing" proposal against the oscillation-vs-pollution tradeoff explicitly.

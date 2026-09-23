@@ -23,6 +23,8 @@ A related case used a third state to stop forcing a binary. Feasibility original
 
 Whether the invariant is "tests pass" or "score 2 means a named customer," the move is identical: **write down what must remain true, anchor it against concrete points, then let the agent optimize within them.**
 
+One caution runs the other way: **over-calibration**. Anchors that are too narrow teach surface-matching — the model grades structural similarity to the examples instead of functional correctness. Keep anchors diverse (several 0s and 2s across different shapes of evidence), re-run the convergence check from the conformance section after adding them, and prefer a third `indeterminate` state over forcing genuinely ambiguous inputs into pass/fail.
+
 ## Running example
 
 The rate-limit task's invariant list (pinned at the top of the skill file) reads:
@@ -45,3 +47,7 @@ Each commit is judged against the tactile suite's *existing* assertions — test
 - Forrester/Greene — [Define invariants. Or the agent will "optimize."](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#define-invariants-or-the-agent-will-optimize) (easy out, calibration examples, indeterminate third state)
 - Bynum — [RFE quality rubric (five criteria) and STRAT scoring (four dimensions)](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (same anchoring habit at the planning stage)
 - Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × detectability" calculus)
+
+## Longevity: Permanent
+
+Optimization pressure toward "done" is a runtime property — every future harness will push for completion, so the easy out is forever. What evolves is enforcement: prompt invariants today, filesystem permissions and policy gates tomorrow. State the invariant in words *and* enforce it in structure; either alone halves the protection.

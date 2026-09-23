@@ -17,6 +17,10 @@ The most absurd case: CI watched for the exact string `FULL RUN COMPLETE`. The a
 
 The rule that survived: **if CI depends on it, code must execute it.** The spectrum runs from "split a 200-page spec into three issues (archive parent, create three children, link, close)" down to "print four words." Same rule everywhere.
 
+Two maintenance truths come with the pattern. First, **buttons have contracts**: when a helper's parameter shape changes, every skill definition that invokes it must update synchronously, or the model will call the new button with obsolete arguments and fail unrecoverably. Version buttons with the skills that call them (Factor 13). Second, **evidence for the constraint is measured**: replacing a generic shell with a constrained interface (100-line file viewer, 50-result search cap, edit bundled with a syntax linter) moved SWE-bench resolution from 3.8% (prior retrieval baseline) to 12.5% on identical model weights (SWE-agent, NeurIPS'24) — the interface, not the parameters, was the lever.
+
+At enterprise scale, statically baking every domain helper into every prompt stops working — codebases are too large. The grown-up form is a **verified tool registry**: agents query for validated atomic tools on demand, loading schemas only for the active sub-task. Same constraint (atomic, owned, transactional), discovered rather than preloaded.
+
 ## Running example
 
 The rate-limit feature involves a middleware file and a new test file. The agent doesn't call seven file and git APIs in sequence. It calls one helper: `submit_rate_limit_patch(files=[...])`, which stages, diffs, and commits atomically and returns a one-line outcome. If the commit fails, the helper reports `FAILED: dirty workdir` — not a raw stack trace the agent could act on (see Factor 05).
@@ -38,3 +42,7 @@ The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summa
 - Forrester/Greene — [Prefer buttons over a bag of parts](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#constrain-creativity-prefer-buttons-over-a-bag-of-parts) + [If CI depends on it, code must execute it](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#avoid-generic-mcp-use-helper-scripts)
 - HumanLayer 12-Factor — [Factor 4: Tools are just structured outputs](https://github.com/humanlayer/12-factor-agents)
 - Fullsend agents — `skills/` as task-scoped buttons (one skill per station, not one API per endpoint) — [fullsend-ai/agents](https://github.com/fullsend-ai/agents)
+
+## Longevity: Constraint-stable, mechanism-evolving
+
+The constraint — *multi-step world changes execute atomically through owned code* — is permanent; unconstrained primitives yield invalid states at any capability level. The form evolves: hand-maintained scripts → declarative API schemas compiled into transactional tools → registry-discovered verified tools. Review this factor when the button catalog, not the principle, starts creaking.

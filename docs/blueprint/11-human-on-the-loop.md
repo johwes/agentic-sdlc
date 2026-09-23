@@ -35,6 +35,8 @@ The rate-limit feature moves through triage → plan → code → review → ver
 2. **Intervention-load test:** count human approvals per feature end-to-end. If the number scales linearly with the number of agent steps (every draft, every tool call needs a click), you're *in* the loop. The target is a small constant (spec approval, merge approval, plus escalations) regardless of how many agent attempts ran underneath.
 3. **Overcommit test:** can your dashboard compare planned work against *historical* throughput and flag when the plan exceeds what the team (humans + agents) actually delivers? If not, planning is detached from the system's demonstrated capacity.
 
+Authorizations the pipeline carries should be **leases, not grants**: scoped, time-bounded, and revocable — task-scoped credentials that die with the task, delegation chains that can only narrow (never widen) authority, expiry enforced by the runtime clock rather than by hoping every holder cleans up. Multiple independent implementations (task-based authz with expiry + call-count conditions, signed capability tokens, HMAC-chained attenuating credentials) converge on the same shape: authority that attenuates by default and must be re-earned, so a compromised or stale agent's blast radius is bounded by time as well as scope.
+
 ## In this repo
 
 Humans approve the merge that ships the draft PR; the harness never auto-merges. The Temporal UI and ledger projection (`tasks/ledger.md`, `LEDGER_PATH=/tmp` for demos) are the PoC-scale version of the management layer — the production Org Pulse equivalent is explicitly a post-PoC slot.
@@ -44,3 +46,7 @@ Humans approve the merge that ships the draft PR; the harness never auto-merges.
 - Red Hat — [The "on the loop" philosophy + Org Pulse](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (in vs. on the loop, steering infra, metric tracking — the most quoted passage in this blueprint)
 - Forrester/Greene — [Define invariants or . . . branching & escalation caps](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (when to escalate *to* the human)
 - Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (continuous human risk calibration)
+
+## Longevity: Constraint-stable, mechanism-evolving
+
+The constraint — *bounded human attention at critical gates, scaled by risk* — survives autonomy growth; if anything, more capable agents raise the stakes of each gate. What evolves is the instrumentation: Org Pulse today, whatever observability substrate comes next. Keep the gate *set* (spec approval, merge approval, escalations) stable while the dashboard underneath churns, and re-derive the risk tiers each time agent capability steps up.

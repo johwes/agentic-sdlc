@@ -28,6 +28,8 @@ The middleware patch is drafted by coder agent A. Reviewer agent B is launched c
 2. **Degradation test:** seed a case where the revision *demonstrably* makes things worse (e.g. a test that used to pass now fails). The pipeline must block even though the producer reports `COMPLETE`. If human or automated review is the same context that produced the revision, this gate will never fire — the model will rationalize the regression.
 3. **"Double-check" grep:** `grep -i "double-check\|self-review\|verify your own"` across your skill files and agent prompts. Each hit is a place where the pipeline trusts an agent to be its own judge.
 
+Two known failure modes of the reviewer itself: **hyper-criticism** (a reviewer instructed to find flaws rejects correct work over style and traps the primary agent in revision ping-pong — bound it with the same revision caps as Factor 06 and require concrete failure scenarios in findings) and **reviewer blindness** (a fresh reviewer re-suggests approaches the producer already tried and discarded — the capped diagnostic receipt from Factor 02 is the reviewer's context too). Single-model review additionally carries correlated blind spots; heterogeneous quorum (distinct models cross-evaluating) is the enterprise answer when one reviewer's bias becomes the system's bias.
+
 ## In this repo
 
 Adversarial review is explicitly named as a post-PoC slot: a different-model review pass with quorum rules, held-out evals behind the forbidden-paths tripwire, and re-scoring on revision. The harness already separates "what the agent said" from "what the tests said" (`agent_summary` never overrides ground truth).
@@ -37,3 +39,7 @@ Adversarial review is explicitly named as a post-PoC slot: a different-model rev
 - Forrester/Greene — [The author can't review itself](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-author-cant-review-itself) (anchoring, fresh-context assessor, `autorevise_reject`, "ask a different agent")
 - Red Hat — [Engineering reliable agents: adversarial review](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) ("nothing should review its own work")
 - arXiv A-SDLC — [Six-layer governance, L5 as the bottleneck](https://arxiv.org/abs/2604.26275) + [Auditable separation of proposal from enforcement](https://arxiv.org/abs/2604.26275) (same separation, formalized)
+
+## Longevity: Permanent
+
+No future model grades its own homework fairly — reasoning depth increases the confidence of the rationalization along with everything else. Review separation is structural (different context, deterministic comparison of scores), so it survives reviewer upgrades: swap the reviewer model freely, keep the fresh-context launch and the external verdict arithmetic.

@@ -42,3 +42,7 @@ Skill files are component-scoped workflows running both interactively and headle
 - HumanLayer 12-Factor — [Factor 2: Own your prompts](https://github.com/humanlayer/12-factor-agents)
 - tikalk — [Factor XI: Directives as Code](https://github.com/tikalk/agentic-sdlc-12-factors)
 - Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec as executable versioned thinking)
+
+## Longevity: Permanent
+
+Change management is the oldest durable discipline in the set — 12-factor's own config/codebase factors aged through every deployment revolution for the same reason. New artifact kinds (memory schemas today, capability grants tomorrow) get absorbed into the same practice: versioned, diffed, approved, rollback-capable. If an artifact can change agent behavior and isn't versioned, that's the gap, regardless of what the artifact is called this year.
