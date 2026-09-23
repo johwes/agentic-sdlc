@@ -1,0 +1,57 @@
+site_name: agentic-sdlc — Enterprise Durable Ralph Loop
+site_description: Zero context rot via ephemeral process lifecycles and filesystem-driven state persistence.
+repo_url: https://github.com/johwes/agentic-sdlc
+
+theme:
+  name: material
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - javascripts/mermaid-init.js
+  - https://unpkg.com/mermaid@10.9.3/dist/mermaid.min.js
+
+# Rendered site is a pure function of Markdown in git:
+# docs/ holds the blueprint natively; index.md, specs/, AGENTS.md and
+# PROGRESS.md are symlinks to the repo-root sources (single source of
+# truth, no copies). tasks/ (ledger churn) is deliberately excluded.
+nav:
+  - Home: index.md
+  - Blueprint:
+    - Index: blueprint/README.md
+    - In 30 seconds: blueprint/SUMMARY.md
+    - 01 State on disk: blueprint/01-state-on-disk.md
+    - 02 Fresh contexts: blueprint/02-fresh-contexts.md
+    - 03 Deterministic shell: blueprint/03-deterministic-shell.md
+    - 04 Buttons, not parts: blueprint/04-buttons-not-bag-of-parts.md
+    - 05 Don't leak internals: blueprint/05-dont-leak-internals.md
+    - 06 Outside guardrails: blueprint/06-guardrails-outside-agent.md
+    - 07 Invariants + calibration: blueprint/07-invariants-and-calibration.md
+    - 08 Least-privilege sandbox: blueprint/08-least-privilege-sandbox.md
+    - 09 Adversarial review: blueprint/09-adversarial-review.md
+    - 10 Evals + save everything: blueprint/10-evaluations-and-save-everything.md
+    - 11 Human on the loop: blueprint/11-human-on-the-loop.md
+    - 12 Switchboard: blueprint/12-switchboard-coordination.md
+    - 13 Everything versioned: blueprint/13-everything-versioned.md
+    - 14 Mandate + provenance: blueprint/14-mandate-and-provenance.md
+  - Specs:
+    - Index: specs/README.md
+    - Intent (frozen): specs/intent.md
+    - 01 Principles: specs/01-principles.md
+    - 02 Control plane: specs/02-control-plane.md
+    - 03 Inner loop: specs/03-inner-loop.md
+    - 04 Worker cell: specs/04-worker-cell.md
+    - 05 Sensors: specs/05-sensors.md
+    - 06 Release: specs/06-release.md
+    - 07 Contracts: specs/07-contracts.md
+  - Working agreement: AGENTS.md
+  - Progress: PROGRESS.md
+
+strict: true
