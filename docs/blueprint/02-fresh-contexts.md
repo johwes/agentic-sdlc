@@ -24,6 +24,8 @@ The rate-limit plan splits into three sub-tasks: middleware, tests, and docs. Ea
 
 **Also check:** `grep` your orchestrator for any place it appends one agent's result to the next agent's prompt as "context." Replace that with a file write and a pointer.
 
+**Cold-start measurement:** fresh contexts re-pay orientation on every launch — but how much that costs depends on cache warmth, not on principle. Plot time-to-first-token *and* cache-hit-rate per attempt across 30 runs. Where the cache is warm (same model, stable prefix order, attempts inside the TTL window), re-ingest is cheap reads and the tax is latency only; where hit-rate collapses (long escalations, model switches, compaction rewrites), the tax is money. The gap between the two lines names your cold-start tax — optimize layout (Factor 01's static-first ordering) only where the gap is real, and beware proposals (pre-built indexes, preloaded contexts) whose build cost exceeds the measured gap.
+
 **Structured exception:** total amnesia has a failure mode of its own — oscillation. A debugger that can't see which hypotheses already failed will retry the same two plausible implementations on alternating attempts forever. The fix isn't conversation, it's a **capped, text-only diagnostic receipt**: root cause + failed operations, no transcript, no reasoning trace. Enough to avoid the loop, too small to pollute.
 
 ## In this repo
