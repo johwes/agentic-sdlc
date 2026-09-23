@@ -27,6 +27,7 @@ The rate-limit middleware is attempted. The agent says "done." The harness ignor
 1. **Shell ownership test:** `grep` for your main agent loop. You should find one `while` (or state-machine dispatch) in repository code, with the model call on one line and the tool dispatch + error handling on the next few. If the loop lives inside a framework object you can't step through in a debugger, you don't own your control flow.
 2. **Exit-code overrides nothing:** make the agent produce a patch that the tests reject, then have it claim the tests are wrong. The harness must still report `FAILED` and block any merge or promotion path. If any amount of model prose can flip a `FAILED` to `COMPLETE`, the shell has a hole.
 3. **Idle-agents test:** after a task completes, list running agent processes/pods. There should be none. If agents idle holding a conversation, the orchestrator doesn't own the lifecycle.
+4. **Flaky-rerun test:** fail the suite with an infrastructure blip (rate-limited registry, DNS timeout), not a code defect. The shell must re-execute the suite once to arbitrate flakiness *before* marking the attempt failed — a single nonzero exit from a flaky platform must never consume an agent revision or trigger a rewrite.
 
 ## In this repo
 

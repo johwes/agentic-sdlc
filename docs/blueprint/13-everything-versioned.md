@@ -30,6 +30,7 @@ The team wants to try a new rate-limit rubric wording. They open a PR that chang
 1. **Version-history test:** `git log -- prompts/ skills/ policy/` — every active prompt and skill file should appear in version control with an author, a diff, and a PR. If you can change agent behavior by editing a dashboard textarea with no commit, directives are not code.
 2. **Active-version test:** in production, can you answer "which exact prompt hash and eval-set hash served ticket N at time T"? If not, you can neither reproduce nor roll back the agent's behavior at that moment.
 3. **Progressive-delivery test:** change one prompt's calibration anchors (Factor 07) and deploy to 10% of traffic. Does your pipeline automatically compare behavioral metrics against the control before promoting to 100%? If rollout is "merge and hope," directives are versioned but not delivered as code.
+4. **Eval-delta test:** open a PR that touches only a prompt, skill, or policy file. The PR checks must report the eval-set delta (pass rate + cost differential vs. the base) before a human is asked to approve. If prompt PRs carry no behavioral evidence, reviewers are approving prose, not behavior.
 
 ## In this repo
 

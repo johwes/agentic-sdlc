@@ -23,6 +23,8 @@ The agent's first rate-limit patch fails the architecture review (middleware in 
 
 ## Conformance check
 
+**First-class invariant:** agent-revision budget and infrastructure-retry budget are separate counters. A red build caused by platform flakes must never consume an attempt, and must never invite the agent to "fix" correct code. If your harness has one retry counter for both, split it before anything else on this page.
+
 1. **Regression test:** make the agent produce a revision that *lowers* your quality metric (worse test coverage, slower benchmark, lower rubric score). The pipeline must block, not promote, even though the agent reports success. If it promotes, your guardrail is inside the agent.
 2. **Cap test:** set `max_attempts` low, then give the agent a task it cannot solve in one attempt. It should hit the cap, publish the final state, and escalate — not loop. If you can get it to loop forever by tweaking the prompt, the cap is a suggestion, not a guardrail.
 3. **Transient-vs-regression test:** fail the suite with an infrastructure error (rate-limited registry, DNS blip), not a code error. The harness should classify it as transient — back off and retry without consuming the *revision* budget or, worse, letting the agent "fix" correct code to satisfy a red build. If infra failures and test failures share one counter, a flaky platform burns the budget real bugs need.
