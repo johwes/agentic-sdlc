@@ -35,7 +35,7 @@ The rate-limit task's invariant list (pinned at the top of the skill file) reads
 
 ## Conformance check
 
-1. **Easy-out test:** deliberately introduce a task where the tests *correctly* fail. The agent must report `FAILED`, never by editing, mocking, or commenting out the failing assertion. If you can make it "fix" the test file, the invariant isn't load-bearing — it's prose. (The harness should structurally prevent it; see Factor 08.)
+1. **Easy-out test:** deliberately introduce a task where the tests *correctly* fail. The agent must report `FAILED`, never by editing, mocking, or commenting out the failing assertion. If you can make it "fix" the test file, the invariant isn't load-bearing — it's prose. (The harness should structurally prevent it; see Factor 08 — test directories mounted read-only, so modification is physically impossible regardless of what the prompt says.)
 2. **Calibration test:** run the same scoring or triage step twice on the same 20 items without changing anything between runs. Score variance beyond 1–2 items suggests prose-only criteria. Add anchored examples until re-runs converge.
 
 ## In this repo

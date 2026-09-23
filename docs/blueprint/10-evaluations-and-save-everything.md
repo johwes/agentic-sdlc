@@ -49,6 +49,7 @@ The team ships a rate-limit middleware. Their eval harness has 20 golden traject
 1. **Missing-evaluation test:** pick your most recent agent skill change and ask "which eval set gated it on merge?" If the answer is "we ran the product's own tests and they passed," you have no agent evaluation — product tests measure that the product works, not that the *agent* still behaves. Add a skill-level eval set (≥ 10 trajectories, at least half expected-to-fail) that must go green before the skill change lands.
 2. **Saved-artifacts test:** replay yesterday's run from saved artifacts alone — no re-running the agents. Can you reconstruct every tool call, every intermediate draft, and every thinking block? If thinking blocks are missing, enable them in your runtime and re-run. If only final outputs were saved, widen capture to include superseded drafts.
 3. **Cost-per-item test:** plot `input_tokens + output_tokens` per ticket over the last 30 runs. If you can't, you don't have the trace data Factor 10 requires. A 38% cost drift should be a visible line, not a surprise invoice.
+4. **Retention test:** state the archive's retention windows, redaction rules (PII, customer code, secrets scrubbed or segregated), and compliance mapping (GDPR/SOC2) in one page. If traces live forever unscrubbed "because storage is cheap," the eval archive is a liability file, not an asset.
 
 ## In this repo
 
