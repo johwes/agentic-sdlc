@@ -32,4 +32,4 @@ Fifteen rules for running AI coding agents in production. Each is one imperative
 
 - [XV. Let interactive sessions delegate to automated flows.](15-interactive-automated-tiers.md) Humans explore, machines execute, handoff is explicit.
 
-**Known gaps, not yet rules.** [16. What's missing](16-whats-missing-factor.md) — adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response. Unscored; no conformance check exists yet for any of them.
+**Known gaps, not yet rules.** [16. What's missing](16-whats-missing-factor.md) — adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, release/supply-chain provenance stitching. Unscored; no conformance check exists yet for any of them.

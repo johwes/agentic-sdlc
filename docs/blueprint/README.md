@@ -48,7 +48,7 @@ A vendor-neutral set of **15 factors** for running AI coding agents in productio
 
 ## Known gaps (not yet factors)
 
-Six real gaps don't have a conformance check yet: adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, and incident response. See [16 — What's missing](16-whats-missing-factor.md) for what's open on each. They're listed separately and unscored rather than folded into the 15 above, to keep the scored set to practices this blueprint can actually verify.
+Seven real gaps don't have a conformance check yet: adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, and release/supply-chain provenance stitching. See [16 — What's missing](16-whats-missing-factor.md) for what's open on each. They're listed separately and unscored rather than folded into the 15 above, to keep the scored set to practices this blueprint can actually verify.
 
 ## Spine
 

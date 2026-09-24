@@ -4,6 +4,8 @@
 
 Every autonomous session needs a **principal-authored mandate** before it is valid — the gate that determines whether work can begin at all. And every artifact the system produces must carry its **provenance** — who authorized it, what evidence it consumed, and what it changed — so audit and replay are possible without live services.
 
+**Terminology note:** "provenance" here means agent-session lineage — who authorized the session, what it consumed, what it changed. It is not SLSA-style build provenance (which source commit, which build system, which inputs produced a given binary) — that's release engineering's job, deliberately out of scope for this blueprint (see `specs/06-release.md`'s own non-goal: "release is deterministic, not agentic"). The two are complementary and currently unconnected; see [16 — What's missing](16-whats-missing-factor.md) for the open question of stitching them together.
+
 ## Why this matters
 
 ### The mandate gate

@@ -2,7 +2,7 @@
 
 ## Why this page exists
 
-Factors 01–15 are scored red / yellow / green because each is a checkable practice inside the pipeline itself — state, guardrails, review, coordination. The six gaps below sit *outside* that boundary. They're organizational, financial, and legal questions that determine whether an org should build any of this and whether it survives contact with the rest of the business — not whether the pipeline is built correctly. Grouping them here, unscored, keeps 01–15 disciplined (see [`README.md`](README.md) — playbook, not protocol) instead of quietly growing into a 21-factor list that mixes pipeline mechanics with org strategy.
+Factors 01–15 are scored red / yellow / green because each is a checkable practice inside the pipeline itself — state, guardrails, review, coordination. The seven gaps below sit *outside* that boundary. Most are organizational, financial, and legal questions that determine whether an org should build any of this and whether it survives contact with the rest of the business — not whether the pipeline is built correctly; one (release/supply-chain provenance) is a technical gap at the pipeline's own boundary. Grouping them here, unscored, keeps 01–15 disciplined (see [`README.md`](README.md) — playbook, not protocol) instead of quietly growing into a 22-factor list that mixes pipeline mechanics with org strategy.
 
 None of these has a conformance check yet. A gap graduates to a numbered, scored factor only when someone can write one and point at real running practice — until then it stays here as an open question, not a claim.
 
@@ -53,6 +53,14 @@ None of these has a conformance check yet. A gap graduates to a numbered, scored
 **Why it matters:** the audit trail from Factor 14 gives you the forensics, but not the process — is this postmortem different from a human-caused incident? Does "the agent decided X" change blame culture, on-call rotation, or the fix-forward vs. rollback calculus?
 
 **Open question:** does an agent-caused incident get a distinct postmortem template (e.g., trajectory review alongside the usual timeline), or does it fold into existing incident process unchanged?
+
+## 7. Release / supply-chain provenance stitching
+
+**What's missing:** a connection between this blueprint's notion of provenance (Factor 14 — agent-session lineage: who authorized it, what it consumed, what it changed) and supply-chain provenance in the SLSA/in-toto sense (which source commit, which build system, which inputs produced a given binary). Release engineering — SBOM generation, VEX statements, cryptographic signing, GitOps deployment — is deliberately out of scope for this blueprint; it's mature, well-specified practice that doesn't change based on who authored the diff. But nothing here answers whether an artifact's build attestation should also record that its source commits were agent-authored, under what mandate, gated by which eval run.
+
+**Why it matters:** an org running both disciplines will eventually be asked "show me every artifact in this release whose source was AI-generated, and what governed it" — a real audit/compliance question neither SLSA nor this blueprint currently answers. Without it, agent-session provenance (Factor 14) and build provenance (SLSA) stay two disconnected audit trails that happen to share a name.
+
+**Open question:** does agent-session provenance get embedded as a field in existing attestation formats (an in-toto predicate, a SLSA provenance extension), or does it stay a separate record cross-referenced by commit hash at audit time?
 
 ## Longevity: not applicable
 
