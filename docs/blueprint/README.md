@@ -48,11 +48,11 @@ The blueprint's spine is **Forrester/Greene — [Engineering for Non-Determinist
 
 - [Red Hat — Core Concepts of the Agentic SDLC](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (Huels) — Org Pulse, on-the-loop, Plan/Build/Verify/Ship
 - [Bynum — What's on our Factory Floor](https://cabynum.github.io/posts/software-factory-floor/) — job-shop, switchboard, shared infra
-- [InfoQ — From Prompts to Production](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) — decision-science capability matrix, versioning, golden trajectories
+- [InfoQ — From Prompts to Production](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) — capability matrix (deterministic vs. agentic boundaries), decision-science framing, versioning, golden trajectories
 - [HumanLayer — 12-Factor Agents](https://github.com/humanlayer/12-factor-agents) — own your context/prompts/control flow, human as tool call, stateless reducer
-- [Fowler — Exploring Generative AI](https://martinfowler.com/articles/exploring-gen-ai.html) — supply-chain attack surface, harness engineering, context discipline
+- [Fowler site (Böckeler et al.) — Exploring Generative AI](https://martinfowler.com/articles/exploring-gen-ai.html) — supply-chain attack surface, harness engineering, context discipline
 - [Walters — Agentic AI and software forges](https://blog.verbum.org/2026/08/21/agentic-ai-and-software-forges/) + [gh-aw](https://github.github.com/gh-aw/) — hybrid interactive/automated tiering, safe outputs, integrity filtering, steering issues
-- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors) + [arXiv A-SDLC](https://arxiv.org/abs/2604.26275) + [egg](https://github.com/jwbron/egg) / [GATE](https://assets.whitepaper.download/gate/v1.3/) / [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
+- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors) + [arXiv A-SDLC](https://arxiv.org/abs/2604.26275) + [egg](https://github.com/jwbron/egg) / [GATE](https://deterministicagents.ai/) / [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
 
 > **Scope:** `agentic-sdlc` (this repo's PoC loop) implements many of these factors already and is cited on factor pages where it does — but the blueprint is vendor-neutral and does not assume this repo.
 

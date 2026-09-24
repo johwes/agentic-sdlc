@@ -27,7 +27,7 @@ Headless-only today: every attempt is non-interactive by construction, and there
 ## Sources
 
 - Walters — [Agentic AI and software forges](https://blog.verbum.org/2026/08/21/agentic-ai-and-software-forges/) (hybrid prediction: interactive flows delegating to per-repo automated flows; tmate-style dynamic interactivity)
-- gh-aw — [`steer:` run-scoped steering issues](https://github.github.com/gh-aw/reference/safe-outputs/) (keyword comments read mid-run — the closest shipped handoff protocol)
+- gh-aw — [`steer:` run-scoped steering issues](https://github.github.com/gh-aw/reference/safe-outputs/) (keyword comments read mid-run — the closest shipped handoff protocol, though gh-aw's own docs still label it experimental)
 - egg — [HITL `provide_input` pause-and-resume](https://github.com/jwbron/egg) (state-preserving human answer as bounded input)
 
 ## Longevity: Constraint-stable, mechanism-evolving

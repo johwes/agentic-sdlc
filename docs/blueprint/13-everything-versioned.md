@@ -8,7 +8,7 @@ Treat every natural-language instruction — prompts, skill files, rubric anchor
 
 An agentic system has a fundamentally larger versioning surface than a conventional backend. Alongside application code, you now version:
 
-- **Prompts and skill files** — the primary way to control model behavior. An uncontrolled prompt tweak interacts unpredictably with a system update and is the most critical failure mode in production agent failures (per the RisingWave research the Playbook cites).
+- **Prompts and skill files** — the primary way to control model behavior. An uncontrolled prompt tweak interacts unpredictably with a system update and is, per RisingWave's research as cited (secondhand, via InfoQ) by the Playbook, the most critical failure mode in production agent failures.
 - **Tool manifests** — JSON/YAML specs of available functions, their parameters, and auth requirements. A tool addition changes what the agent *can* do, not just what it *does*.
 - **Policy configurations and memory schemas** — the guardrails of Factor 06 and the context contracts of Factor 01.
 - **Evaluation datasets and golden trajectories** — the ground truth of Factor 10. If the eval set isn't versioned, you can't tell whether a model upgrade helped or hurt.
@@ -40,10 +40,10 @@ Skill files are component-scoped workflows running both interactively and headle
 ## Sources
 
 - InfoQ — [Versioning as IaC: prompts, tool manifests, policy configs, memory schemas](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) + [Prompt drift as the most critical failure mode](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/)
-- Bynum — [Skills and plugins as versioned, distributable artifacts](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (skills registry, container images for CI)
+- Bynum — [Skills and plugins as versioned, distributable artifacts](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (skills registry, container images for CI)
 - HumanLayer 12-Factor — [Factor 2: Own your prompts](https://github.com/humanlayer/12-factor-agents)
 - tikalk — [Factor XI: Directives as Code](https://github.com/tikalk/agentic-sdlc-12-factors)
-- Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec as executable versioned thinking)
+- Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec-driven development as a versioning discipline — the source itself is skeptical of SDD's rigidity, cited here only for the versioning angle)
 
 ## Longevity: Permanent
 

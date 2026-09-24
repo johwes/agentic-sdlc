@@ -43,11 +43,11 @@ The triage adapter's `_sentinel_state` / `current_task.json` is a lightweight an
 
 ## Sources
 
-- ACM — [Governance-first context memory: the mandate gate, three-tier structure, capture-author separation](https://github.com/ntholm86/agent-context-memory)
-- GATE v1.3 — [Deterministic control-plane boundaries + replay-determinism](https://assets.whitepaper.download/gate/v1.3/) (tool/memory mediation, no bypass, layered enforcement, the C17–C19 hardening)
+- Holmager — [Agent Context Memory: the mandate gate, three-tier structure, capture-author separation](https://github.com/ntholm86/agent-context-memory) (an independent spec, not the ACM professional society)
+- GATE — [Deterministic control-plane boundaries + replay-determinism](https://deterministicagents.ai/) (tool/memory mediation, no bypass, layered enforcement; cited for the mediation/replay pattern, not a specific control number range)
 - egg — [Zero-credential sandbox, gateway sidecar, no merging, phase-locked operations, broadcast-review-converge](https://github.com/jwbron/egg) (infrastructure enforcement over behavioral control)
 - Fowler — [Coding Assistants Threaten the Software Supply Chain](https://martinfowler.com/articles/exploring-gen-ai/software-supply-chain-attack-surface.html) (why provenance and mandate matter at the supply-chain boundary)
-- Fullsend agents — [skills as phase-locked governance surfaces](https://github.com/fullsend-ai/agents) (skill-level enforcement as one gate in the deterministic shell)
+- Fullsend agents — [phase-gated policy/profile enforcement around skill execution](https://github.com/fullsend-ai/agents) (governance lives in `policies/`/`profiles/`, separate from `skills/` — cited here for the phase-gating pattern)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

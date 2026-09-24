@@ -60,8 +60,8 @@ Evaluation harness and thinking-block capture are explicitly deferred: no held-o
 
 - Forrester/Greene — [Save everything. You don't know what you'll need.](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#save-everything-you-dont-know-what-youll-need) (38% token cost, thinking blocks, golden eval set, pin production models)
 - Red Hat — [Evaluations gate every change](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (third reliability principle — eval harness grounded in real datasets)
-- Bynum — [Agent Evals + Architecture context as shared infra](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (MLflow integration, pre-merge quality gates)
-- InfoQ — [Golden trajectories + behavioral regression testing](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) + [SWE-bench as a forcing function with known gaps](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (LangSmith traces, Python-dominated bug-fix bias, need for delegation-focused evals)
+- Bynum — [Agent Evals + Architecture context as shared infra](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (MLflow integration; pre-merge quality gates tied to component-maturity checks, not the eval harness itself)
+- InfoQ — [Golden trajectories + behavioral regression testing](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (LangSmith traces)
 - arXiv A-SDLC — [Five open problems: evaluation & governance as the bottleneck](https://arxiv.org/abs/2604.26275)
 
 ## Longevity: Constraint-stable, mechanism-evolving — with one caution

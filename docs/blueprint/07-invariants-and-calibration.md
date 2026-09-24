@@ -40,13 +40,13 @@ The rate-limit task's invariant list (pinned at the top of the skill file) reads
 
 ## In this repo
 
-Each commit is judged against the tactile suite's *existing* assertions — tests are never weakened to pass — and prompt contracts carry explicit `UNTRUSTED DATA` + `FORBIDDEN vs. CORRECT` calibration pairs (baked into the cell image, see `specs/04-worker-cell.md`).
+Each commit is judged against the tactile suite's *existing* assertions — tests are never weakened to pass — and prompt contracts carry explicit `UNTRUSTED DATA` framing (baked into the cell image, see `specs/07-contracts.md`, `specs/03-inner-loop.md`).
 
 ## Sources
 
 - Forrester/Greene — [Define invariants. Or the agent will "optimize."](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#define-invariants-or-the-agent-will-optimize) (easy out, calibration examples, indeterminate third state)
 - Bynum — [RFE quality rubric (five criteria) and STRAT scoring (four dimensions)](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (same anchoring habit at the planning stage)
-- Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × detectability" calculus)
+- Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × impact × detectability" calculus)
 
 ## Longevity: Permanent
 

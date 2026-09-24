@@ -17,7 +17,7 @@ The fix is Postel's Law applied to agents — **constrain the inputs, tolerate t
 
 There is a deliberate, bounded exception: sometimes the agent *needs* the failure trace to repair (Factor 03's feedback loop). The rule there is to hand over the **failing assertion only**, capped to one finding, not the execution environment (paths, env vars, full logs). One screwdriver, one cut, returned after use.
 
-Expect this exception to widen with model capability — better reasoners genuinely use traces for multi-step root-cause analysis that early models only got distracted by. The trajectory is *bounded structural extraction* (targeted assertion failures and compiler traces in, host details out), enforced at the mediation layer rather than by prompt redaction. Tolerant parsers in the BAML/SAP family (assume the model errs, repair toward the schema) are one implementation option for the same Postel's-law posture.
+Expect this exception to widen with model capability — better reasoners genuinely use traces for multi-step root-cause analysis that early models only got distracted by. The trajectory is *bounded structural extraction* (targeted assertion failures and compiler traces in, host details out), enforced at the mediation layer rather than by prompt redaction. Tolerant parsers like BAML's Schema-Aligned Parsing (SAP) (assume the model errs, repair toward the schema) are one implementation option for the same Postel's-law posture.
 
 ## Running example
 
