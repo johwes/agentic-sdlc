@@ -12,9 +12,9 @@ accumulated conversation history. Static analysis moves upstream as sensory
 organs driving remediation loops instead of downstream gates needing human
 intervention.
 
-The loop itself is the easy part — cheap inference makes retrying free. The
-engineering is making sure the loop can't close until the result satisfies
-the specification, not the agent's own say-so.
+Inference is the cheap part — retrying costs little next to shipping the
+wrong result. The engineering is making sure the loop can't close until the
+result satisfies the specification, not the agent's own say-so.
 
 > **Status: proof of concept — live end-to-end rehearsal complete.** The full
 > loop (inbox file → cell → gates → ledger → draft PR) is wired and has
