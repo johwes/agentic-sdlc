@@ -6,6 +6,8 @@ A vendor-neutral set of **15 factors** for running AI coding agents in productio
 
 > **How to use it:** score each factor red / yellow / green against your pipeline. Red means the agent can hurt you in a way your current controls won't catch. The factors are ordered so earlier ones make later ones possible — start at 1.
 
+> **What's actually being engineered here isn't the loop.** Retrying is cheap. The hard part — and where factors 03, 06, and 07 live — is the gate that decides whether the loop is *allowed* to close.
+
 ## The four parts
 
 | Part | Question it answers | Factors |
