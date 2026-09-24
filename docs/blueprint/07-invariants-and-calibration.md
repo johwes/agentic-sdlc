@@ -47,6 +47,7 @@ Each commit is judged against the tactile suite's *existing* assertions — test
 - Forrester/Greene — [Define invariants. Or the agent will "optimize."](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#define-invariants-or-the-agent-will-optimize) (easy out, calibration examples, indeterminate third state)
 - Bynum — [RFE quality rubric (five criteria) and STRAT scoring (four dimensions)](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (same anchoring habit at the planning stage)
 - Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × impact × detectability" calculus)
+- DeepMind — [Specification gaming: the flip side of AI ingenuity](https://deepmind.google/blog/specification-gaming-the-flip-side-of-ai-ingenuity/) (the canonical ML-safety account of "the easy out" — literal-spec optimization finding unintended shortcuts, fixed by more explicit constraints)
 
 ## Longevity: Permanent
 

@@ -41,6 +41,9 @@ Worker cells run under an adopted upstream policy baseline with per-binary netwo
 - Fowler — [Coding Assistants Threaten the Software Supply Chain](https://martinfowler.com/articles/exploring-gen-ai/software-supply-chain-attack-surface.html) (expanded supply-chain attack surface from agentic assistants)
 - GATE — [Deterministic control-plane boundaries](https://deterministicagents.ai/) (tool/memory operations gated by authentication + policy + budgets, no bypass path)
 - egg — [Zero-credential sandbox + phase-locked operations](https://github.com/jwbron/egg) (gateway sidecar, `git merge` absent from the sandbox — push is allowed but branch-scoped — per-phase operation validation)
+- Simon Willison — [The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) (sensitive data + untrusted content + external communication together are the exploitable combination; capability restriction is the practical mitigation)
+- OWASP — [Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) (LLM01 Prompt Injection, LLM06 Excessive Agency)
+- Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (guardrails outside the model, "extensive testing in sandboxed environments")
 
 ## Longevity: Permanent
 

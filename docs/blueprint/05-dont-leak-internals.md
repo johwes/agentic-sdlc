@@ -38,6 +38,8 @@ Each retry injects only the failing assertion tail as a single `TactileTestGate`
 
 - Forrester/Greene — [Don't leak internals. Claude will use them.](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#dont-leak-internals-claude-will-use-them) (screwdriver problem, constrain inputs / tolerate outputs)
 - egg — [Untrusted agents work inside a zero-credential sandbox; gateway sidecar enforces the boundary](https://github.com/jwbron/egg) (credentials never reach the agent)
+- Simon Willison — [The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) (no protocol separates instructions from data; deterministic capability limits beat probabilistic filters)
+- OWASP — [Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) (LLM01 Prompt Injection, LLM06 Excessive Agency — standards-body consensus on constraining what reaches the model)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

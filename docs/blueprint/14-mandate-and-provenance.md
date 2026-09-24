@@ -48,6 +48,8 @@ The triage adapter's `_sentinel_state` / `current_task.json` is a lightweight an
 - egg — [Zero-credential sandbox, gateway sidecar, no merging, phase-locked operations, broadcast-review-converge](https://github.com/jwbron/egg) (infrastructure enforcement over behavioral control)
 - Fowler — [Coding Assistants Threaten the Software Supply Chain](https://martinfowler.com/articles/exploring-gen-ai/software-supply-chain-attack-surface.html) (why provenance and mandate matter at the supply-chain boundary)
 - Fullsend agents — [phase-gated policy/profile enforcement around skill execution](https://github.com/fullsend-ai/agents) (governance lives in `policies/`/`profiles/`, separate from `skills/` — cited here for the phase-gating pattern)
+- NIST — [Risk Management Framework, Authorize step](https://csrc.nist.gov/Projects/risk-management/about-rmf/authorize-step) (pre-LLM, official access-control lineage: a senior official must approve authorization before a system operates — "authorization before action," independently)
+- OWASP — [Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (OWASP's agentic-risk taxonomy generally; cited broadly here, not for a specific control number)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

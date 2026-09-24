@@ -44,6 +44,9 @@ The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summa
 - Forrester/Greene — [Prefer buttons over a bag of parts](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#constrain-creativity-prefer-buttons-over-a-bag-of-parts) + [If CI depends on it, code must execute it](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#avoid-generic-mcp-use-helper-scripts)
 - HumanLayer 12-Factor — [Factor 4: Tools are just structured outputs](https://github.com/humanlayer/12-factor-agents)
 - Fullsend agents — `skills/` as reusable, task-scoped definitions (our characterization of the pattern, not the repo's own framing) — [fullsend-ai/agents](https://github.com/fullsend-ai/agents)
+- SWE-agent — [arXiv:2405.15793](https://arxiv.org/abs/2405.15793) (Princeton/Stanford, NeurIPS'24 — the paper behind the 3.8%→12.5% SWE-bench stat cited above)
+- Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) ("poka-yoke your tools," the absolute-filepath fix)
+- OWASP — [LLM06:2025 Excessive Agency](https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/2_0_vulns/LLM06_ExcessiveAgency.md) (limit extensions to the minimum necessary; avoid open-ended tools)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

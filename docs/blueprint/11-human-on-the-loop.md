@@ -48,6 +48,7 @@ Humans approve the merge that ships the draft PR; the harness never auto-merges.
 - Red Hat — [The "on the loop" philosophy + Org Pulse](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (in vs. on the loop, steering infra, metric tracking — the most quoted passage in this blueprint)
 - Forrester/Greene — [Define invariants or . . . branching & escalation caps](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (when to escalate *to* the human)
 - Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (continuous human risk calibration)
+- Carnegie Council — [Seven Myths of Using the Term "Human on the Loop"](https://www.carnegiecouncil.org/media/article/7-myths-of-using-the-term-human-on-the-loop) (traces the term's real pre-LLM lineage in autonomy-policy discourse — and argues, as an honest counterpoint, that the phrase can mask reduced control if the "loop" itself isn't well-designed)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

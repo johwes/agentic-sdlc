@@ -63,6 +63,8 @@ Evaluation harness and thinking-block capture are explicitly deferred: no held-o
 - Bynum — [Agent Evals + Architecture context as shared infra](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (MLflow integration; pre-merge quality gates tied to component-maturity checks, not the eval harness itself)
 - InfoQ — [Golden trajectories + behavioral regression testing](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (LangSmith traces)
 - arXiv A-SDLC — [Five open problems: evaluation & governance as the bottleneck](https://arxiv.org/abs/2604.26275)
+- LangChain — [Trajectory evaluations](https://docs.langchain.com/langsmith/trajectory-evals) (official docs on comparing an agent's full tool-call sequence against a reference — the golden-trajectory concept, first-party)
+- LangChain — [LangSmith evaluation docs](https://docs.langchain.com/langsmith/evaluation) ("a failure you saw once becomes a test you run every time" — golden-dataset regression testing)
 
 ## Longevity: Constraint-stable, mechanism-evolving — with one caution
 
