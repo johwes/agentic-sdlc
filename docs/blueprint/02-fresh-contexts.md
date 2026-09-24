@@ -37,7 +37,7 @@ One attempt = one headless process, same baked prompt, conversational memory exp
 - Forrester/Greene — [Yesterday's context is today's bug](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#yesterdays-context-is-todays-bug) (assess inventing ideas, feasibility on wrong evidence)
 - CodeDelegator — [Ephemeral-Persistent State Separation](https://ar5iv.labs.arxiv.org/html/2601.14914) (ephemeral coder with fresh context, debugging traces discarded with the instance)
 - Anthropic — [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (specialized sub-agents handling focused tasks with clean context windows)
-- Cognition — [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (counterpoint, stated for honesty: sub-agents splitting *one* coherent task need shared context/traces, or they conflict — a boundary condition on this factor, not agreement with it)
+- Cognition — [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (the strongest dissent in this citation set: Cognition argues for shared full traces and a single-threaded agent over splitting work across isolated sub-agents at all. We hold isolation for independent attempts — this factor's actual claim — and concede the point for sub-agents jointly building one coherent task, where shared context is the right call)
 
 ## Longevity: Permanent
 
