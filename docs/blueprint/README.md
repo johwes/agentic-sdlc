@@ -2,6 +2,8 @@
 
 A vendor-neutral set of **15 factors** for running AI coding agents in production. Built on learnings from teams already doing this at scale, not on framework marketing.
 
+> **Playbook, not protocol.** The [12-factor app](https://12factor.net/) works as a clean contract because the interface — a process talking to a platform — is deterministic: config is either read from the environment or it isn't. An agentic SDLC governs judgment under uncertainty, not a fixed interface, so these factors score red/yellow/green rather than pass/fail, and get adapted with judgment rather than conformed to exactly. The numbering and naming are an homage to that discipline, not a claim to the same kind of contract.
+
 > **How to use it:** score each factor red / yellow / green against your pipeline. Red means the agent can hurt you in a way your current controls won't catch. The factors are ordered so earlier ones make later ones possible — start at 1.
 
 ## The four parts
