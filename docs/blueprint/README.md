@@ -44,6 +44,10 @@ A vendor-neutral set of **15 factors** for running AI coding agents in productio
 - **Constraint-stable, mechanism-evolving (04, 05, 10, 11, 12, 14, 15):** the constraint stands while the mechanism rotates (scripts → compiled tools, redaction → mediation, Jira → whatever's next; the interactive/automated boundary re-derived each capability step). Re-read these when the tooling shifts; the check stays valid.
 - **One watch item:** Factor 10's trajectory-matching is the only mechanism that can punish the model for getting *better* — gate on outcomes + invariants, review trajectory diffs as advisories.
 
+## Known gaps (not yet factors)
+
+Six real gaps don't have a conformance check yet: adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, and incident response. See [16 — What's missing](16-whats-missing-factor.md) for what's open on each. They're listed separately and unscored rather than folded into the 15 above, to keep the scored set to practices this blueprint can actually verify.
+
 ## Spine
 
 The blueprint's spine is **Forrester/Greene — [Engineering for Non-Deterministic Coworkers](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j)** (learnings from Red Hat running this in production). Each factor page links the passage it builds on, plus the corroborating sources:
