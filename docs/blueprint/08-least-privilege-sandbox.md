@@ -39,8 +39,8 @@ Worker cells run under an adopted upstream policy baseline with per-binary netwo
 
 - Forrester/Greene — [Constrain tools. Restrict permissions. Limit context.](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#constrain-tools-restrict-permissions-limit-context) (injection as SQL injection, layered defense, agent-to-agent path via HTML comments)
 - Fowler — [Coding Assistants Threaten the Software Supply Chain](https://martinfowler.com/articles/exploring-gen-ai/software-supply-chain-attack-surface.html) (expanded supply-chain attack surface from agentic assistants)
-- GATE — [Deterministic control-plane boundaries](https://assets.whitepaper.download/gate/v1.3/) (tool/memory operations gated by authentication + policy + budgets, no bypass path)
-- egg — [Zero-credential sandbox + phase-locked operations](https://github.com/jwbron/egg) (gateway sidecar, `git push` absent from the sandbox, per-phase operation validation)
+- GATE — [Deterministic control-plane boundaries](https://deterministicagents.ai/) (tool/memory operations gated by authentication + policy + budgets, no bypass path)
+- egg — [Zero-credential sandbox + phase-locked operations](https://github.com/jwbron/egg) (gateway sidecar, `git merge` absent from the sandbox — push is allowed but branch-scoped — per-phase operation validation)
 
 ## Longevity: Permanent
 

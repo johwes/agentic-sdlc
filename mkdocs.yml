@@ -41,6 +41,7 @@ nav:
     - 12 Switchboard: blueprint/12-switchboard-coordination.md
     - 13 Everything versioned: blueprint/13-everything-versioned.md
     - 14 Mandate + provenance: blueprint/14-mandate-and-provenance.md
+    - 15 Interactive tiers: blueprint/15-interactive-automated-tiers.md
   - Specs:
     - Index: specs/README.md
     - Intent (frozen): specs/intent.md

@@ -27,3 +27,7 @@ Fourteen rules for running AI coding agents in production. Each is one imperativ
 
 - [XIII. Version everything, including words.](13-everything-versioned.md) Prompts, skills, policies, and evals are code.
 - [XIV. Require a mandate; keep the provenance.](14-mandate-and-provenance.md) Authorization before action; every artifact carries its lineage.
+
+**E — Execution modes.** Which tier runs what.
+
+- [XV. Let interactive sessions delegate to automated flows.](15-interactive-automated-tiers.md) Humans explore, machines execute, handoff is explicit.

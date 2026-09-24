@@ -1,6 +1,6 @@
 # Blueprint — The Agentic SDLC
 
-A vendor-neutral set of **14 factors** for running AI coding agents in production. Built on learnings from teams already doing this at scale, not on framework marketing.
+A vendor-neutral set of **15 factors** for running AI coding agents in production. Built on learnings from teams already doing this at scale, not on framework marketing.
 
 > **How to use it:** score each factor red / yellow / green against your pipeline. Red means the agent can hurt you in a way your current controls won't catch. The factors are ordered so earlier ones make later ones possible — start at 1.
 
@@ -12,6 +12,7 @@ A vendor-neutral set of **14 factors** for running AI coding agents in productio
 | **B — Constraining the worker** | How do we stop the agent improvising its way into trouble? | [05](05-dont-leak-internals.md) [06](06-guardrails-outside-agent.md) [07](07-invariants-and-calibration.md) [08](08-least-privilege-sandbox.md) |
 | **C — Trust & flow** | How do we know the work is good, and how does it move? | [09](09-adversarial-review.md) [10](10-evaluations-and-save-everything.md) [11](11-human-on-the-loop.md) [12](12-switchboard-coordination.md) |
 | **D — Enterprise hardening** | How does this survive audit, scale, and the next model? | [13](13-everything-versioned.md) [14](14-mandate-and-provenance.md) |
+| **E — Execution modes** | Which tier runs what — and how do they hand off? | [15](15-interactive-automated-tiers.md) |
 
 ## Factor list
 
@@ -31,13 +32,14 @@ A vendor-neutral set of **14 factors** for running AI coding agents in productio
 | [12](12-switchboard-coordination.md) | Switchboard coordination (the factory floor) | Labels and issue state route work through a job-shop of independent workstations |
 | [13](13-everything-versioned.md) | Everything versioned (directives as code) | Prompts, skill files, policy bundles, and evals are version-controlled assets |
 | [14](14-mandate-and-provenance.md) | Mandate + provenance (govern the memory) | A principal-authored mandate gates every session; every artifact carries its lineage |
+| [15](15-interactive-automated-tiers.md) | Interactive sessions delegate to automated flows | Humans explore, machines execute, handoff is explicit |
 
 ## Aging (will this survive the next model generation?)
 
 12-factor apps aged well because each factor constrained an *interface*, not an implementation. Same test here — every factor page ends with a `Longevity` verdict:
 
 - **Permanent (01, 02, 03, 06, 07, 08, 09, 13):** constrain a boundary that isn't moving (probabilistic inference can't verify itself; instructions and data share one pipeline; optimization pressure always seeks the easy out). Capability growth *strengthens* most of these.
-- **Constraint-stable, mechanism-evolving (04, 05, 10, 11, 12, 14):** the constraint stands while the mechanism rotates (scripts → compiled tools, redaction → mediation, Jira → whatever's next). Re-read these when the tooling shifts; the check stays valid.
+- **Constraint-stable, mechanism-evolving (04, 05, 10, 11, 12, 14, 15):** the constraint stands while the mechanism rotates (scripts → compiled tools, redaction → mediation, Jira → whatever's next; the interactive/automated boundary re-derived each capability step). Re-read these when the tooling shifts; the check stays valid.
 - **One watch item:** Factor 10's trajectory-matching is the only mechanism that can punish the model for getting *better* — gate on outcomes + invariants, review trajectory diffs as advisories.
 
 ## Spine
@@ -46,10 +48,11 @@ The blueprint's spine is **Forrester/Greene — [Engineering for Non-Determinist
 
 - [Red Hat — Core Concepts of the Agentic SDLC](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (Huels) — Org Pulse, on-the-loop, Plan/Build/Verify/Ship
 - [Bynum — What's on our Factory Floor](https://cabynum.github.io/posts/software-factory-floor/) — job-shop, switchboard, shared infra
-- [InfoQ — From Prompts to Production](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) — decision-science capability matrix, versioning, golden trajectories
+- [InfoQ — From Prompts to Production](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) — capability matrix (deterministic vs. agentic boundaries), decision-science framing, versioning, golden trajectories
 - [HumanLayer — 12-Factor Agents](https://github.com/humanlayer/12-factor-agents) — own your context/prompts/control flow, human as tool call, stateless reducer
-- [Fowler — Exploring Generative AI](https://martinfowler.com/articles/exploring-gen-ai.html) — supply-chain attack surface, harness engineering, context discipline
-- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors) + [arXiv A-SDLC](https://arxiv.org/abs/2604.26275) + [egg](https://github.com/jwbron/egg) / [GATE](https://assets.whitepaper.download/gate/v1.3/) / [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
+- [Fowler site (Böckeler et al.) — Exploring Generative AI](https://martinfowler.com/articles/exploring-gen-ai.html) — supply-chain attack surface, harness engineering, context discipline
+- [Walters — Agentic AI and software forges](https://blog.verbum.org/2026/08/21/agentic-ai-and-software-forges/) + [gh-aw](https://github.github.com/gh-aw/) — hybrid interactive/automated tiering, safe outputs, integrity filtering, steering issues
+- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors) + [arXiv A-SDLC](https://arxiv.org/abs/2604.26275) + [egg](https://github.com/jwbron/egg) / [GATE](https://deterministicagents.ai/) / [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
 
 > **Scope:** `agentic-sdlc` (this repo's PoC loop) implements many of these factors already and is cited on factor pages where it does — but the blueprint is vendor-neutral and does not assume this repo.
 

@@ -8,7 +8,7 @@ Treat every natural-language instruction — prompts, skill files, rubric anchor
 
 An agentic system has a fundamentally larger versioning surface than a conventional backend. Alongside application code, you now version:
 
-- **Prompts and skill files** — the primary way to control model behavior. An uncontrolled prompt tweak interacts unpredictably with a system update and is the most critical failure mode in production agent failures (per the RisingWave research the Playbook cites).
+- **Prompts and skill files** — the primary way to control model behavior. An uncontrolled prompt tweak interacts unpredictably with a system update and is, per RisingWave's research as cited (secondhand, via InfoQ) by the Playbook, the most critical failure mode in production agent failures.
 - **Tool manifests** — JSON/YAML specs of available functions, their parameters, and auth requirements. A tool addition changes what the agent *can* do, not just what it *does*.
 - **Policy configurations and memory schemas** — the guardrails of Factor 06 and the context contracts of Factor 01.
 - **Evaluation datasets and golden trajectories** — the ground truth of Factor 10. If the eval set isn't versioned, you can't tell whether a model upgrade helped or hurt.
@@ -31,6 +31,7 @@ The team wants to try a new rate-limit rubric wording. They open a PR that chang
 2. **Active-version test:** in production, can you answer "which exact prompt hash and eval-set hash served ticket N at time T"? If not, you can neither reproduce nor roll back the agent's behavior at that moment.
 3. **Progressive-delivery test:** change one prompt's calibration anchors (Factor 07) and deploy to 10% of traffic. Does your pipeline automatically compare behavioral metrics against the control before promoting to 100%? If rollout is "merge and hope," directives are versioned but not delivered as code.
 4. **Eval-delta test:** open a PR that touches only a prompt, skill, or policy file. The PR checks must report the eval-set delta (pass rate + cost differential vs. the base) before a human is asked to approve. If prompt PRs carry no behavioral evidence, reviewers are approving prose, not behavior.
+5. **Source-artifact test:** the artifact the agent executes is *compiled* from versioned source through validation (schema, allowlisting, pinning, scanning) — never hand-edited in place. Ask "which validated artifact served ticket N?" If the answer is "the Markdown file itself," source and runtime are the same object and no validation stands between edit and execution.
 
 ## In this repo
 
@@ -39,10 +40,10 @@ Skill files are component-scoped workflows running both interactively and headle
 ## Sources
 
 - InfoQ — [Versioning as IaC: prompts, tool manifests, policy configs, memory schemas](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) + [Prompt drift as the most critical failure mode](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/)
-- Bynum — [Skills and plugins as versioned, distributable artifacts](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (skills registry, container images for CI)
+- Bynum — [Skills and plugins as versioned, distributable artifacts](https://cabynum.github.io/posts/software-factory-floor/#the-shared-infrastructure) (skills registry, container images for CI)
 - HumanLayer 12-Factor — [Factor 2: Own your prompts](https://github.com/humanlayer/12-factor-agents)
 - tikalk — [Factor XI: Directives as Code](https://github.com/tikalk/agentic-sdlc-12-factors)
-- Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec as executable versioned thinking)
+- Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec-driven development as a versioning discipline — the source itself is skeptical of SDD's rigidity, cited here only for the versioning angle)
 
 ## Longevity: Permanent
 

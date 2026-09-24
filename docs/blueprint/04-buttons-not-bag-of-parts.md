@@ -17,7 +17,7 @@ The most absurd case: CI watched for the exact string `FULL RUN COMPLETE`. The a
 
 The rule that survived: **if CI depends on it, code must execute it.** The spectrum runs from "split a 200-page spec into three issues (archive parent, create three children, link, close)" down to "print four words." Same rule everywhere.
 
-Two maintenance truths come with the pattern. First, **buttons have contracts**: when a helper's parameter shape changes, every skill definition that invokes it must update synchronously, or the model will call the new button with obsolete arguments and fail unrecoverably. Version buttons with the skills that call them (Factor 13). Second, **evidence for the constraint is measured**: replacing a generic shell with a constrained interface (100-line file viewer, 50-result search cap, edit bundled with a syntax linter) moved SWE-bench resolution from 3.8% (prior retrieval baseline) to 12.5% on identical model weights (SWE-agent, NeurIPS'24) — the interface, not the parameters, was the lever.
+Two maintenance truths come with the pattern. First, **buttons have contracts**: when a helper's parameter shape changes, every skill definition that invokes it must update synchronously, or the model will call the new button with obsolete arguments and fail unrecoverably. Version buttons with the skills that call them (Factor 13). Second, **evidence for the constraint is measured**: replacing a generic shell with a constrained interface (100-line file viewer, a bounded search command, edit bundled with a syntax linter) moved SWE-bench resolution from 3.8% (prior retrieval baseline) to 12.5% (SWE-agent, NeurIPS'24) — different GPT-4 variants, not identical weights, so read the gap as interface-attributable rather than controlled; a later SWE-Bench+ audit found part of that delta reflects benchmark contamination (leaked solutions, weak tests) rather than pure interface design.
 
 At enterprise scale, statically baking every domain helper into every prompt stops working — codebases are too large. The grown-up form is a **verified tool registry**: agents query for validated atomic tools on demand, loading schemas only for the active sub-task. Same constraint (atomic, owned, transactional), discovered rather than preloaded.
 
@@ -33,6 +33,7 @@ Splitting a ticket that bundles two concerns is the same: one `split_issue(paren
 2. **Completion-signal test:** `grep` your pipeline for any string the agent is asked to emit that a downstream step `watch`es for. Replace each with a script that emits the string deterministically, and make the downstream step watch the script's exit code, not the agent's prose.
 3. **Tool-surface test:** list the tools available in one agent's context. If the list is the entire API surface of a service, narrow it to one purpose-built script per task that agent actually performs. Everything else is menu pollution.
 4. **Idempotency test:** run any helper twice with identical inputs (kill it mid-flight the first time). The second run must converge to the same world state, and multi-step helpers must roll back partial mutations on failure (compensating actions, not just error returns). A button that can only run once cleanly is a bag of parts wearing a script costume.
+5. **Declared-effects test:** list every side effect the agent may request in one run, each with a per-run cardinality cap (`create-issue max:1`, `push max:1`). Anything undeclared is refused by the executor, not reviewed. If a compromised agent can emit unbounded writes, the allowlist describes tools, not effects.
 
 ## In this repo
 
@@ -42,7 +43,7 @@ The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summa
 
 - Forrester/Greene — [Prefer buttons over a bag of parts](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#constrain-creativity-prefer-buttons-over-a-bag-of-parts) + [If CI depends on it, code must execute it](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#avoid-generic-mcp-use-helper-scripts)
 - HumanLayer 12-Factor — [Factor 4: Tools are just structured outputs](https://github.com/humanlayer/12-factor-agents)
-- Fullsend agents — `skills/` as task-scoped buttons (one skill per station, not one API per endpoint) — [fullsend-ai/agents](https://github.com/fullsend-ai/agents)
+- Fullsend agents — `skills/` as reusable, task-scoped definitions (our characterization of the pattern, not the repo's own framing) — [fullsend-ai/agents](https://github.com/fullsend-ai/agents)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 
