@@ -33,6 +33,7 @@ Splitting a ticket that bundles two concerns is the same: one `split_issue(paren
 2. **Completion-signal test:** `grep` your pipeline for any string the agent is asked to emit that a downstream step `watch`es for. Replace each with a script that emits the string deterministically, and make the downstream step watch the script's exit code, not the agent's prose.
 3. **Tool-surface test:** list the tools available in one agent's context. If the list is the entire API surface of a service, narrow it to one purpose-built script per task that agent actually performs. Everything else is menu pollution.
 4. **Idempotency test:** run any helper twice with identical inputs (kill it mid-flight the first time). The second run must converge to the same world state, and multi-step helpers must roll back partial mutations on failure (compensating actions, not just error returns). A button that can only run once cleanly is a bag of parts wearing a script costume.
+5. **Declared-effects test:** list every side effect the agent may request in one run, each with a per-run cardinality cap (`create-issue max:1`, `push max:1`). Anything undeclared is refused by the executor, not reviewed. If a compromised agent can emit unbounded writes, the allowlist describes tools, not effects.
 
 ## In this repo
 

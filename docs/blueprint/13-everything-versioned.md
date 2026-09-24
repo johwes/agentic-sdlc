@@ -31,6 +31,7 @@ The team wants to try a new rate-limit rubric wording. They open a PR that chang
 2. **Active-version test:** in production, can you answer "which exact prompt hash and eval-set hash served ticket N at time T"? If not, you can neither reproduce nor roll back the agent's behavior at that moment.
 3. **Progressive-delivery test:** change one prompt's calibration anchors (Factor 07) and deploy to 10% of traffic. Does your pipeline automatically compare behavioral metrics against the control before promoting to 100%? If rollout is "merge and hope," directives are versioned but not delivered as code.
 4. **Eval-delta test:** open a PR that touches only a prompt, skill, or policy file. The PR checks must report the eval-set delta (pass rate + cost differential vs. the base) before a human is asked to approve. If prompt PRs carry no behavioral evidence, reviewers are approving prose, not behavior.
+5. **Source-artifact test:** the artifact the agent executes is *compiled* from versioned source through validation (schema, allowlisting, pinning, scanning) — never hand-edited in place. Ask "which validated artifact served ticket N?" If the answer is "the Markdown file itself," source and runtime are the same object and no validation stands between edit and execution.
 
 ## In this repo
 

@@ -28,6 +28,7 @@ The rate-limit tests fail with a stack trace that includes an internal dashboard
 1. **Error-surface test:** fail a helper script deliberately (e.g. a 500 from the issue tracker). Read what the agent actually sees in its next turn. If you can find an HTTP status, a stack frame, or an API shape in the agent's prompt, the helper is leaking. Narrow it to a structured verdict.
 2. **Output-tolerance test:** feed your harness three differently formatted but semantically identical agent outputs (score with and without markdown, JSON with trailing commas, prose with extra whitespace). All three should be accepted. If any is rejected for formatting, your parser is too strict and your next guardrail will be "add more prompt instructions" — which, per the research, makes variance worse.
 3. **Filter-spec test:** write down the extraction rule as data, not prose: strip environment variables, internal URLs, and host stack frames; preserve compiler diagnostic lines and failed assertion expressions. Run last week's three gnarliest failures through it — if the agent couldn't have root-caused from the filtered output, the filter is blindness, not hygiene.
+4. **Author-trust test:** gate input on provenance before content: `merged` → `approved` → `unapproved` → `none`, with code-writing flows defaulting to `approved` on public repos. A first-time contributor's real bug routes to human triage; it never reaches a code-writing agent as instructions. Content judgment (sufficiency, UNTRUSTED labels) runs second, on what survives the author gate.
 
 ## In this repo
 
