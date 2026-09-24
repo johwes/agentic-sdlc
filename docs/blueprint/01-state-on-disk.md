@@ -37,6 +37,8 @@ This principle is structural: each attempt starts as a fresh process, the work o
 - Forrester/Greene — [Compaction doesn't just drop data](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#compaction-doesnt-just-drop-data-it-changes-behavior) (queues emptying, drift after compression, `{KEY}` templates, 98% consistency)
 - InfoQ — [Prompts, tool manifests, and evaluation datasets require versioning as IaC](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (same "if it isn't versioned on disk, it isn't real" consequence at the config layer)
 - HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) + [Factor 12: Make your agent a stateless reducer](https://github.com/humanlayer/12-factor-agents) (state-machine foundation for "disk is truth")
+- Anthropic — [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (compaction, an agent-maintained `NOTES.md`, a memory tool for state outside the context window)
+- Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (the context window as a hard, small budget everything must be explained within)
 
 ## Longevity: Permanent
 

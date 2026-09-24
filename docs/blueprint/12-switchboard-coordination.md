@@ -36,6 +36,8 @@ The ledger states (`inbox → active → review → promoted | escalated`) and p
 - Bynum — [What's on our Factory Floor](https://cabynum.github.io/posts/software-factory-floor/) (job shop vs. assembly line, JQL-as-wiring, modular adoption — the defining passage for this factor)
 - Red Hat — [The end-to-end workflow: Plan / Build / Verify / Ship](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) (four-phase backdrop this factor makes non-linear)
 - HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) (unified state as the precondition for switchboard routing)
+- AWS Well-Architected Framework — [Agentic AI Lens, AGENTREL04](https://docs.aws.amazon.com/wellarchitected/latest/agentic-ai-lens/agentrel04.html) (peer-to-peer agent coordination causes deadlocks; recommends a shared, durable control plane instead — AWS's own default leans supervisor/arbiter rather than fully decentralized, worth reading with that nuance)
+- Microsoft — [AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) (Azure Architecture Center's current catalog of sequential/concurrent/handoff/group-chat orchestration patterns)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

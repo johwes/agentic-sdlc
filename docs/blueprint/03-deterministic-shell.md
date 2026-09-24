@@ -40,6 +40,8 @@ Each attempt is a fresh headless process; the wrapper (harness) owns the receipt
 - HumanLayer 12-Factor — [Factor 8: Own your control flow](https://github.com/humanlayer/12-factor-agents)
 - InfoQ — [Nondeterministic reasoning vs. deterministic state](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (capability-matrix framing: LLM reasoning only where alternative interpretations are possible)
 - arXiv A-SDLC — [Governance and Safety as the least mature layer](https://arxiv.org/abs/2604.26275) (L5 governance as the bottleneck)
+- Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (workflows — predefined code paths — vs. agents that direct their own process: the deterministic-shell distinction, stated directly)
+- Google Cloud / DORA — [2025 State of AI-Assisted Software Development](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report) (~5,000-respondent study: AI adoption without strong automated gates correlates with *worse* delivery stability — empirical evidence for why this factor's gate matters)
 
 ## Longevity: Permanent
 

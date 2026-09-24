@@ -39,6 +39,9 @@ Adversarial review is explicitly named as a post-PoC slot: a different-model rev
 - Forrester/Greene — [The author can't review itself](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-author-cant-review-itself) (anchoring, fresh-context assessor, `autorevise_reject`, "ask a different agent")
 - Red Hat — [Engineering reliable agents: adversarial review](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) ("nothing should review its own work")
 - arXiv A-SDLC — [Six-layer governance, L5 as the bottleneck](https://arxiv.org/abs/2604.26275) + [Auditable separation of proposal from enforcement](https://arxiv.org/abs/2604.26275) (same separation, formalized)
+- Huang et al. — [Large Language Models Cannot Self-Correct Reasoning Yet](https://arxiv.org/abs/2310.01798) (Google DeepMind + UIUC, ICLR 2024 — intrinsic self-correction without external feedback fails and can degrade performance)
+- Valmeekam et al. — [Can LLMs Really Improve by Self-Critiquing Their Own Plans?](https://arxiv.org/abs/2310.08118) (Arizona State — self-critique diminishes plan quality versus external sound verifiers)
+- Anthropic — [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) (isolated subagents with separate context windows report to an orchestrator, rather than reviewing each other)
 
 ## Longevity: Permanent
 

@@ -44,6 +44,7 @@ Skill files are component-scoped workflows running both interactively and headle
 - HumanLayer 12-Factor — [Factor 2: Own your prompts](https://github.com/humanlayer/12-factor-agents)
 - tikalk — [Factor XI: Directives as Code](https://github.com/tikalk/agentic-sdlc-12-factors)
 - Fowler — [Understanding Spec-Driven Development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) (spec-driven development as a versioning discipline — the source itself is skeptical of SDD's rigidity, cited here only for the versioning angle)
+- HashiCorp — [What is Infrastructure as Code](https://www.hashicorp.com/en/resources/what-is-infrastructure-as-code) (the real IaC analog this factor extends to prompts — version control giving "an incremental history of who changed what")
 
 ## Longevity: Permanent
 

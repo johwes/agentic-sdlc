@@ -38,6 +38,7 @@ Attempt budget (`max_attempts` 5, linear backoff), strike-2 reset + sprawl guard
 
 - Forrester/Greene — [The agent will always think it's "helping"](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (deletion of customer evidence, revision 0→0, two-cycle cap, six-child branching cap)
 - Bynum — [Epic Creator's adversarial review and dependency ordering](https://cabynum.github.io/posts/software-factory-floor/#epic-creator) (a separate reviewer checks that epics cover the strategy)
+- OWASP — [LLM06:2025 Excessive Agency](https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/2_0_vulns/LLM06_ExcessiveAgency.md) (limit what an agent can do to the minimum necessary — the standards-body case for external caps)
 
 ## Longevity: Permanent
 
