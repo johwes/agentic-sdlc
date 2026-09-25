@@ -28,35 +28,7 @@ result satisfies the specification, not the agent's own say-so.
 
 ## Architecture
 
-Target architecture (enterprise end-state, verbatim from `intent.md` §3 —
-prose below it describes the PoC delta):
-
-```mermaid
-flowchart TD
-    subgraph T1 [Tier 1: Macro Control Plane - Temporal Parent Workflow]
-        A1[Webhook Ingestion: Issue / PR / Label] --> A2[Task Decomposition Ledger]
-        A2 --> A3[Sensor Inversion: SonarQube / Snyk / DAST]
-        A3 --> A4[Multi-Agent Review Panel]
-        A4 --> A5[PR Promotion & Downstream Release Trigger]
-    end
-
-    subgraph T2 [Tier 2: Inner-Loop State Engine - Temporal Child Workflow]
-        B1[Project Task Frame: current_task.json] --> B2[Dispatch to Worker Pod]
-        B2 --> B3[Evaluate Deterministic Gates: Tree-sitter & Hold-Out Tests]
-        B3 -->|Pass| B4[Commit Checkpoint to Git Branch]
-        B3 -->|Fail| B5[Atomic Git Reset & continue_as_new]
-    end
-
-    subgraph T3 [Tier 3: Governed Worker Cell - OpenShift + Nvidia OpenShell]
-        C1[Nvidia OpenShell Policy Boundary] --> C2[Filesystem Jailing: Read-Only Root & Evals]
-        C1 --> C3[Egress Proxy with In-Flight Token Injection]
-        C1 --> C4[Ephemeral Worker CLI: Claude Code / OpenCode]
-    end
-
-    T1 -->|Spawns & Coordinates| T2
-    T2 -->|Executes Non-Interactive Command| T3
-    T3 -->|Emits task_receipt.json| T2
-```
+What actually runs is the PoC below. Enterprise target lives in `specs/02-control-plane.md` through `specs/06-release.md` (source: `specs/intent.md` §3); vendor-neutral best practice lives in `docs/blueprint/`.
 
 PoC reality (what actually runs — laptop-local, `/tmp` demo flow):
 
