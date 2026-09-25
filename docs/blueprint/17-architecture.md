@@ -6,46 +6,37 @@ Maintenance: re-check this diagram against §4 whenever a factor's principle or 
 
 ## 1. Matryoshka (trust stack, outside-in)
 
-Nesting = trust boundary. Outer constrains inner (subtractive).
-Inner cannot bypass outer. Follows Bean: Infrastructure → Sandbox → Harness → Runtime → Model,
+Read top-down as a trust stack: each layer contains and constrains the one
+below it (subtractive outward, additive inward). Inner cannot bypass outer.
+Follows Bean: Infrastructure → Sandbox → Harness → Runtime → Model,
 with the blueprint's deterministic shell made explicit (F03) and coordination kept out
-of the doll (see §2 — switchboard is a plane, not a layer).
+of the stack (see §2 — switchboard is a plane, not a layer).
 Shell is split: durable substrate (survives crashes, owns timers/retries)
 vs pure gate logic (testable offline). The ledger behind the switchboard
-is a durable projection of Infrastructure, not a doll layer.
+is a durable projection of Infrastructure, not a stack layer.
 
 ```mermaid
 flowchart TD
-    subgraph INFRA[Infrastructure — compute, network, schedule + durable execution]
-        direction TB
-        INFRA_NOTE["Survives crashes. Owns timers, retries, resume-from-state."]
-        subgraph SB[Sandbox — subtractive · F08 · F05]
-            direction TB
-            SB_NOTE["Allows nothing by default.<br/>Observes + attests. Zero credentials inside."]
-            subgraph SHELL[Deterministic shell — decides · F03 · F06]
-                direction TB
-                SHELL_SUB["Substrate: durable state machine — survives crashes,<br/>owns timers and retries."]
-                SHELL_LOGIC["Logic: gate evaluation + budget enforcement — pure,<br/>testable offline. Caps, regression blocks, verdict arithmetic.<br/>No model prose overrides exit codes."]
-                subgraph HARN[Agent harness — additive · F04 · F07 · F10 · F13]
-                    direction TB
-                    HARN_NOTE["Buttons not parts. Invariants + anchors.<br/>Versioned directives. Evals gate + archive."]
-                    subgraph RT[Agent runtime — executes]
-                        direction TB
-                        RT_NOTE["One-shot, fresh context per attempt · F02.<br/>State on disk, never in context · F01."]
-                        subgraph MODEL[Model + inference endpoint]
-                            MODEL_NOTE["Proposes only.<br/>Cannot verify, count, or bound itself."]
-                        end
-                    end
-                end
-            end
-        end
-    end
-    BOARD_PROJ["Switchboard projection<br/>Ledger states survive restarts."]
-    INFRA -. projects durably .-> BOARD_PROJ
-    MANDATE["Mandate gate · F14<br/>No valid session without principal-authored mandate.<br/>Intent outranks trace outranks evidence."]
-    MANDATE -. authorizes .-> SB
-    PROV["Provenance trail · F14 + save everything · F10<br/>Who authorized, what was consumed, what changed.<br/>Replayable without live services."]
-    SB -. emits .-> PROV
+    INFRA["Infrastructure<br/>compute · schedule · durable execution"]
+    SB["Sandbox · F08 · F05<br/>subtractive: allows nothing by default"]
+    SHELL_SUB["Shell substrate · F03<br/>durable state machine: timers · retries"]
+    SHELL_LOGIC["Shell logic · F03 · F06<br/>gates + budgets: pure, testable offline"]
+    HARN["Harness · F04 · F07 · F10 · F13<br/>additive: buttons · invariants · evals"]
+    RT["Runtime · F01 · F02<br/>one-shot, fresh context, state on disk"]
+    MODEL["Model<br/>proposes only"]
+    MANDATE["Mandate gate · F14<br/>no session without mandate"]
+    PROV["Provenance trail · F14 · F10<br/>who authorized · what changed"]
+    BOARD_PROJ["Switchboard projection<br/>ledger survives restarts"]
+
+    INFRA -->|"contains + constrains"| SB
+    SB -->|"contains + constrains"| SHELL_SUB
+    SHELL_SUB -->|"drives"| SHELL_LOGIC
+    SHELL_LOGIC -->|"decides for"| HARN
+    HARN -->|"enables"| RT
+    RT -->|"calls"| MODEL
+    MANDATE -.->|"authorizes"| SB
+    SB -.->|"emits"| PROV
+    INFRA -.->|"projects durably"| BOARD_PROJ
 ```
 
 Reading: a finding that the agent "fixed" something means nothing until SHELL
@@ -70,43 +61,28 @@ Flow = how work moves. No layer knows the layer beside it; all coupling goes
 through the switchboard (F12). Flat here because job-shop routing is not nesting.
 
 ```mermaid
-flowchart LR
-    subgraph HUMAN[Humans — on the loop · F11]
-        DASH["Dashboard: what is stuck, what is ready"]
-        STEER["Steer at gates: approve, redirect, escalate"]
-    end
-    subgraph BOARD[Switchboard — issues + labels + queries · F12]
-        direction TB
-        Q["Work items + label transitions<br/>Recommended routing, not forced sequence"]
-    end
-    subgraph PROD[Producers — any source, same schema]
-        EXT["Feature requests · bugs · CVEs<br/>Scanner adapters · release failures"]
-    end
-    subgraph TRIAGE[Review / triage workstations · F09 · F05]
-        MED["Mediate untrusted findings → bounded work orders<br/>Fresh context, structured verdicts only"]
-    end
-    subgraph WORK[Work workstations · F02 · F04]
-        FIX["Fix / implement inside SHELL+Sandbox doll (§1)"]
-    end
-    subgraph VERIFY[Verification · F09 · F10]
-        ADV["Fresh-context review + eval gates<br/>Outcomes + invariants gate; trajectory diffs advisory"]
-    end
-    subgraph OUT[Outputs]
-        PR["Merge proposal + provenance + eval evidence"]
-    end
+flowchart TD
+    PROD["Producers<br/>features · bugs · CVEs · scanners"]
+    BOARD["Switchboard · F12<br/>issues + labels + queries"]
+    TRIAGE["Triage · F09 · F05<br/>mediate untrusted findings"]
+    WORK["Work · F02 · F04<br/>fix inside the trust stack"]
+    VERIFY["Verify · F09 · F10<br/>fresh review + eval gates"]
+    OUT["Outputs<br/>proposal + provenance + evidence"]
+    HUMAN["Humans · F11<br/>dashboard · steer at gates"]
+
     PROD -->|"structured frame"| BOARD
     BOARD -->|"label query"| TRIAGE
-    TRIAGE -->|"bounded work order"| BOARD
-    BOARD -->|"claim: atomic, one winner"| WORK
+    TRIAGE -->|"work order"| BOARD
+    BOARD -->|"atomic claim"| WORK
     WORK -->|"receipt + diff"| BOARD
     BOARD -->|"label query"| VERIFY
     VERIFY -->|"pass"| OUT
-    VERIFY -->|"remediate, under budget"| BOARD
-    HUMAN <-->|"leases, not grants"| BOARD
-    OUT -->|"human merge decision"| HUMAN
+    VERIFY -->|"remediate"| BOARD
+    HUMAN <-->|"leases"| BOARD
+    OUT -->|"merge decision"| HUMAN
 ```
 
-TRIAGE, WORK, and VERIFY are each their own instance of the §1 doll — they differ in capability profile within Sandbox (e.g. read-only triage/verify vs Bash+git fix, per Factor 08's scorer-vs-implementer example), not in trust structure.
+TRIAGE, WORK, and VERIFY are each their own instance of the §1 trust stack — they differ in capability profile within Sandbox (e.g. read-only triage/verify vs Bash+git fix, per Factor 08's scorer-vs-implementer example), not in trust structure.
 
 Notes:
 
@@ -172,8 +148,8 @@ Factor 16's gaps are unscored and sit outside this map by design.
 
 ## 5. Resolved deltas + one proposal
 
-1. Pre-PR gate set — resolved: synchronous in-doll gates (syntax, local unit-test
-   subset, secret scan, `forbidden_paths` tripwire); asynchronous out-of-doll
+1. Pre-PR gate set — resolved: synchronous in-stack gates (syntax, local unit-test
+   subset, secret scan, `forbidden_paths` tripwire); asynchronous out-of-stack
    producers (integration matrices, SAST/DAST, multi-arch builds).
 2. Direct inject vs review-agent mediation — resolved: worker's own execution
    outputs inject as capped diagnostic receipts (F02); all external findings pass

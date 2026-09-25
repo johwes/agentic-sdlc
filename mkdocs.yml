@@ -18,6 +18,9 @@ extra_javascript:
   - javascripts/mermaid-init.js
   - https://unpkg.com/mermaid@10.9.3/dist/mermaid.min.js
 
+extra_css:
+  - stylesheets/mermaid.css
+
 # Rendered site is a pure function of Markdown in git:
 # docs/ holds the blueprint natively; index.md, specs/, AGENTS.md and
 # PROGRESS.md are symlinks to the repo-root sources (single source of

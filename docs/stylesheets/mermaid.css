@@ -1,0 +1,10 @@
+/* Let wide mermaid diagrams scroll horizontally instead of shrinking
+   their text to illegibility (mermaid defaults to useMaxWidth). */
+.mermaid {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.mermaid svg {
+  max-width: none !important;
+  height: auto;
+}
