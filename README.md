@@ -1,10 +1,9 @@
-# agentic-sdlc — Enterprise Durable Ralph Loop
+# agentic-sdlc — Durable Ralph Loop (PoC)
 
-An industrial-grade autonomous coding loop based on the "Ralph Wiggum Loop":
+A proof-of-concept autonomous coding loop based on the "Ralph Wiggum Loop":
 **zero context rot via ephemeral process lifecycles and filesystem-driven
-state persistence**, replacing brittle shell scripts with a durable
-distributed fabric (Temporal orchestration + governed worker cells +
-deterministic release at the PR boundary).
+state persistence**, replacing brittle shell scripts with local Temporal
+orchestration + sandboxed worker cells + deterministic checks at the PR boundary.
 
 Workers start fresh on every attempt. Context comes strictly from an
 ephemeral projected task frame plus local disk diffs — never from
