@@ -28,7 +28,7 @@ result satisfies the specification, not the agent's own say-so.
 
 ## Architecture
 
-What actually runs is the PoC below. Enterprise target lives in `specs/02-control-plane.md` through `specs/06-release.md` (source: `specs/intent.md` §3); vendor-neutral best practice lives in `docs/blueprint/`.
+This repo is a PoC — what runs is below, and it will not grow into an enterprise platform. `docs/blueprint/` is the vendor-neutral best-practice input for building that; `specs/02`–`06` (source: `specs/intent.md` §3) record this PoC's design and its known stubs.
 
 PoC reality (what actually runs — laptop-local, `/tmp` demo flow):
 
