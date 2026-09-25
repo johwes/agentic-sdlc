@@ -38,6 +38,10 @@ A vendor-neutral set of **15 factors** for running AI coding agents in productio
 | [14](14-mandate-and-provenance.md) | Mandate + provenance (govern the memory) | A principal-authored mandate gates every session; every artifact carries its lineage |
 | [15](15-interactive-automated-tiers.md) | Interactive sessions delegate to automated flows | Humans explore, machines execute, handoff is explicit |
 
+## Architecture (how the factors fit together)
+
+The factor pages are the contract; [17 — Architecture](17-architecture.md) is the picture — trust stack (matryoshka), coordination flow (switchboard swimlanes), tier handoff, and the factor→box map. Vendor-neutral, no repo paths.
+
 ## Aging (will this survive the next model generation?)
 
 12-factor apps aged well because each factor constrained an *interface*, not an implementation. Same test here — every factor page ends with a `Longevity` verdict:

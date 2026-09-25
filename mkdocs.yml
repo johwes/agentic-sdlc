@@ -27,6 +27,7 @@ nav:
   - Blueprint:
     - Index: blueprint/README.md
     - In 30 seconds: blueprint/SUMMARY.md
+    - Architecture: blueprint/17-architecture.md
     - 01 State on disk: blueprint/01-state-on-disk.md
     - 02 Fresh contexts: blueprint/02-fresh-contexts.md
     - 03 Deterministic shell: blueprint/03-deterministic-shell.md
