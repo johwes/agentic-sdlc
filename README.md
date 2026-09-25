@@ -23,7 +23,7 @@ result satisfies the specification, not the agent's own say-so.
 > Start with `specs/README.md` (spec index) and `specs/intent.md` (frozen
 > provenance); if code conflicts with specs, the specs win.
 > New to agentic SDLC as a discipline? Start with the
-> [Blueprint in 30 seconds](https://github.com/johwes/agentic-sdlc/blob/main/docs/blueprint/SUMMARY.md) — fourteen rules,
+> [Blueprint in 30 seconds](https://github.com/johwes/agentic-sdlc/blob/main/docs/blueprint/SUMMARY.md) — fifteen rules,
 > one line each, each linking to the full treatment.
 
 ## Architecture
