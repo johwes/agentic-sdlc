@@ -17,7 +17,7 @@ The most absurd case: CI watched for the exact string `FULL RUN COMPLETE`. The a
 
 The rule that survived: **if CI depends on it, code must execute it.** The spectrum runs from "split a 200-page spec into three issues (archive parent, create three children, link, close)" down to "print four words." Same rule everywhere.
 
-Two maintenance truths come with the pattern. First, **buttons have contracts**: when a helper's parameter shape changes, every skill definition that invokes it must update synchronously, or the model will call the new button with obsolete arguments and fail unrecoverably. Version buttons with the skills that call them (Factor 13). Second, **evidence for the constraint is measured**: replacing a generic shell with a constrained interface (100-line file viewer, a bounded search command, edit bundled with a syntax linter) moved SWE-bench resolution from 3.8% (prior retrieval baseline) to 12.5% (SWE-agent, NeurIPS'24) — different GPT-4 variants, not identical weights, so read the gap as interface-attributable rather than controlled; a later SWE-Bench+ audit found part of that delta reflects benchmark contamination (leaked solutions, weak tests) rather than pure interface design.
+Two maintenance truths come with the pattern. First, **buttons have contracts**: when a helper's parameter shape changes, every skill definition that invokes it must update synchronously, or the model will call the new button with obsolete arguments and fail unrecoverably. Version buttons with the skills that call them (Factor 13). Second, **evidence for the constraint is measured**: replacing a generic shell with a constrained interface (100-line file viewer, a bounded search command, edit bundled with a syntax linter) moved SWE-bench resolution from 3.8% (prior retrieval baseline; Jimenez et al., ICLR'24) to 12.5% (SWE-agent ACI; Yang et al., NeurIPS'24) — different GPT-4 variants, not identical weights, so read the gap as interface-attributable rather than controlled; a later SWE-Bench+ audit found part of that delta reflects benchmark contamination (leaked solutions, weak tests) rather than pure interface design.
 
 At enterprise scale, statically baking every domain helper into every prompt stops working — codebases are too large. The grown-up form is a **verified tool registry**: agents query for validated atomic tools on demand, loading schemas only for the active sub-task. Same constraint (atomic, owned, transactional), discovered rather than preloaded.
 
@@ -37,12 +37,12 @@ Splitting a ticket that bundles two concerns is the same: one `split_issue(paren
 
 ## In this repo
 
-The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains.
+The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains; out-of-sandbox side effects are mediated host-side, never from inside the cell.
 
 ## Sources
 
 - Forrester/Greene — [Prefer buttons over a bag of parts](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#constrain-creativity-prefer-buttons-over-a-bag-of-parts) + [If CI depends on it, code must execute it](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#avoid-generic-mcp-use-helper-scripts)
-- HumanLayer 12-Factor — [Factor 4: Tools are just structured outputs](https://github.com/humanlayer/12-factor-agents)
+- HumanLayer 12-Factor — [Factor 4: Tools are just structured outputs](https://github.com/humanlayer/12-factor-agents/blob/main/content/factor-04-tools-are-structured-outputs.md)
 - Fullsend agents — `skills/` as reusable, task-scoped definitions (our characterization of the pattern, not the repo's own framing) — [fullsend-ai/agents](https://github.com/fullsend-ai/agents)
 - SWE-agent — [arXiv:2405.15793](https://arxiv.org/abs/2405.15793) (Princeton/Stanford, NeurIPS'24 — the paper behind the 3.8%→12.5% SWE-bench stat cited above)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) ("poka-yoke your tools," the absolute-filepath fix)
