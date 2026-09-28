@@ -8,7 +8,7 @@ There is no central conveyor belt. There are **specialized workstations** — ea
 
 The early metaphor for an agentic SDLC was a pipeline: left-to-right, RFE → Feature → Epic → Code → Test → Docs → Build. The real factory floor is a **job shop**: the pipeline diagram is the *recommended routing*, but the shop is more flexible. The test-plan generator can pull directly from a feature's acceptance criteria without waiting for code. The bug fixer handles issues from any source, independent of where they sit in the usual sequence. Modular adoption is the payoff — you don't need the whole pipeline to get value from one station.
 
-The switchboard pattern is what makes this possible without a central orchestrator knowing every component:
+The switchboard pattern (a modern instantiation of the classical **blackboard architecture**) is what makes this possible without a central orchestrator knowing every component:
 
 - Issues are the work items. Labels signal state transitions. Queries are how each agent finds its work.
 - When an agent finishes, it updates the issue — and the next station's query matches.
@@ -25,7 +25,7 @@ The rate-limit ticket lands as an issue labeled `type: feature`. The triage work
 1. **Switchboard test:** list every label and status that drives a transition in your SDLC. If a transition requires opening the orchestrator's code to understand, it's not on the switchboard yet — promote it to a visible label whose query you can run from the tracker alone.
 2. **Job-shop test:** pick a station (e.g. docs generation) and trigger it directly from a feature's acceptance criteria, bypassing the code station. If the only way to produce docs is to run the full pipeline left-to-right, every station is coupled to one linear flow — the factory is an assembly line, not a job shop.
 3. **Adoption test:** can one team adopt a single station (say, the autofix agent) without enrolling in the entire factory? If not, the stations share more coupling than their label contract suggests.
-4. **Claim-atomicity test:** point two workers at the same open ticket simultaneously. Exactly one must win the claim; the loser gets a clean error, never a second claim — enforce with compare-and-swap (single atomic claim statement, lease token checked at finalization so a stale worker can't overwrite the winner) — this specific mechanism is this blueprint's own recommendation, not drawn from the sources below. If both workers start, the switchboard needs a lease primitive before it needs more stations.
+4. **Claim-atomicity test:** point two workers at the same open ticket simultaneously. Exactly one must win the claim; the loser gets a clean error, never a second claim — enforce with compare-and-swap (single atomic claim statement, lease token checked at finalization so a stale worker can't overwrite the winner) — this specific mechanism is this blueprint's own recommendation, not drawn from the sources below. (Note: because commercial issue trackers rarely expose atomic CAS over REST, implementations typically back this check with an external durable lease broker or conditional ETag/version check). If both workers start, the switchboard needs a lease primitive before it needs more stations.
 
 ## In this repo
 
@@ -38,6 +38,7 @@ The ledger states (`inbox → active → review → promoted | escalated`) and p
 - HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) (unified state as the precondition for switchboard routing)
 - AWS Well-Architected Framework — [Agentic AI Lens, AGENTREL04](https://docs.aws.amazon.com/wellarchitected/latest/agentic-ai-lens/agentrel04.html) (peer-to-peer agent coordination causes deadlocks; recommends a shared, durable control plane instead — AWS's own default leans supervisor/arbiter rather than fully decentralized, worth reading with that nuance)
 - Microsoft — [AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) (Azure Architecture Center's current catalog of sequential/concurrent/handoff/group-chat orchestration patterns)
+- Buschmann et al. — [Pattern-Oriented Software Architecture, Vol 1: A System of Patterns](https://dl.acm.org/doi/10.5555/249013) (Wiley, 1996; the classical Blackboard pattern underpinning decentralized, query-driven coordination)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 
