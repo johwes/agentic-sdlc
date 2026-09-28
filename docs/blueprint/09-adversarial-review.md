@@ -27,8 +27,20 @@ The middleware patch is drafted by coder agent A. Reviewer agent B is launched c
 1. **Context-separation test:** log the context IDs (or conversation/session handles) for the producer and the verifier on the same item. They must be different. If you find the verifier's prompt contains the producer's chain-of-thought, the launch isn't isolated — see Factor 02.
 2. **Degradation test:** seed a case where the revision *demonstrably* makes things worse (e.g. a test that used to pass now fails). The pipeline must block even though the producer reports `COMPLETE`. If human or automated review is the same context that produced the revision, this gate will never fire — the model will rationalize the regression.
 3. **"Double-check" grep:** `grep -i "double-check\|self-review\|verify your own"` across your skill files and agent prompts. Each hit is a place where the pipeline trusts an agent to be its own judge.
+4. **Ping-pong bounding test:** Simulate a persistent reviewer rejection on subjective criteria. Verify that the pipeline halts at the revision limit (Factor 06), tags the task with an autorevise rejection receipt, and escalates to human-on-the-loop review rather than looping indefinitely.
 
-Two known failure modes of the reviewer itself: **hyper-criticism** (a reviewer instructed to find flaws rejects correct work over style and traps the primary agent in revision ping-pong — bound it with the same revision caps as Factor 06 and require concrete failure scenarios in findings) and **reviewer blindness** (a fresh reviewer re-suggests approaches the producer already tried and discarded — the capped diagnostic receipt from Factor 02 is the reviewer's context too). Single-model review additionally carries correlated blind spots; heterogeneous quorum (distinct models cross-evaluating) is the enterprise answer when one reviewer's bias becomes the system's bias. Scale the depth by risk: mechanically-tested low-risk changes can bypass full LLM review; security-sensitive or structural changes mandate it — review everything equally and the cost doubles for no safety gain.
+### Reviewer failure modes and enterprise mitigations
+
+A fresh reviewer introduces distinct failure modes that must be governed structurally:
+
+1. **Hyper-criticism (Review ping-pong):** A reviewer instructed to find flaws will inevitably flag subjective stylistic choices, trapping the primary agent in an endless revision loop.
+   - *Mitigation:* Bound review cycles using Factor 06 revision caps (maximum 2 attempts) and require concrete failure scenarios (reproducible test failures or violated requirements) in all review findings.
+2. **Reviewer blindness (Amnesia loop):** A clean reviewer lacking context may re-propose approaches the primary agent already attempted and discarded.
+   - *Mitigation:* Supply the reviewer with Factor 02's capped diagnostic receipt (`prior_diagnostics` tail and execution logs) without exposing the producer's subjective chain-of-thought.
+3. **Correlated blind spots:** Single-model evaluation carries shared pre-training and inductive biases. If the model family has a systemic blind spot, both coder and reviewer will overlook it.
+   - *Mitigation:* Enforce a **heterogeneous quorum** (cross-evaluation across distinct foundation model families or formal linters) when evaluating critical paths.
+4. **Uniform-cost overkill:** Running exhaustive multi-agent quorums on trivial changes doubles compute latency without safety gains.
+   - *Mitigation:* Scale review depth by blast-radius risk. Mechanically tested, low-risk changes bypass full LLM review; structural, cryptographic, or security-sensitive changes mandate adversarial quorum.
 
 ## In this repo
 
@@ -38,7 +50,7 @@ Adversarial review is explicitly named as a post-PoC slot: a different-model rev
 
 - Forrester/Greene — [The author can't review itself](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-author-cant-review-itself) (anchoring, fresh-context assessor, `autorevise_reject`, "ask a different agent")
 - Red Hat — [Engineering reliable agents: adversarial review](https://www.redhat.com/en/blog/building-future-core-concepts-red-hats-agentic-software-development-life-cycle) ("nothing should review its own work")
-- arXiv A-SDLC — [Six-layer governance, L5 as the bottleneck](https://arxiv.org/abs/2604.26275) + [Auditable separation of proposal from enforcement](https://arxiv.org/abs/2604.26275) (same separation, formalized)
+- arXiv A-SDLC — [Agentic AI in the Software Development Lifecycle](https://arxiv.org/abs/2604.26275) (Bhati, 2026 — six-layer governance, L5 review bottleneck, and the auditable separation of proposal from enforcement)
 - Huang et al. — [Large Language Models Cannot Self-Correct Reasoning Yet](https://arxiv.org/abs/2310.01798) (Google DeepMind + UIUC, ICLR 2024 — intrinsic self-correction without external feedback fails and can degrade performance)
 - Valmeekam et al. — [Can LLMs Really Improve by Self-Critiquing Their Own Plans?](https://arxiv.org/abs/2310.08118) (Arizona State — self-critique diminishes plan quality versus external sound verifiers)
 - Anthropic — [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) (isolated subagents with separate context windows report to an orchestrator, rather than reviewing each other)
