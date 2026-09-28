@@ -15,14 +15,19 @@ here — it lives in §2, not inside any single doll.
 
 ```mermaid
 flowchart TB
-    subgraph INFRA[Infrastructure<br/>machines · clusters · VMs]
-        subgraph SB[Sandbox · F08 · F05<br/>locked room · no credentials]
-            subgraph SHELL[Shell · F03 · F06<br/>loop engine + referee]
-                SHELL_SUB[Substrate<br/>timers · retries]
-                SHELL_LOGIC[Logic<br/>pass-fail · budgets]
-                subgraph HARN[Harness · F04 · F07 · F10 · F13<br/>helpers · rules · evals]
-                    subgraph RT[Runtime · F01 · F02<br/>fresh run · reads files]
-                        MODEL[Model<br/>suggests only]
+    subgraph INFRA[Infrastructure]
+        subgraph SB[Sandbox]
+            subgraph SHELL[Shell]
+                SHELL_SUB[Substrate]
+                SHELL_LOGIC[Logic]
+                subgraph HARN[Harness]
+                    subgraph RT[Runtime]
+                        MODEL[Model]
+                    end
+                end
+            end
+        end
+    end
                     end
                 end
             end
