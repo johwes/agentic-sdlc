@@ -8,7 +8,7 @@ A vendor-neutral set of **15 factors** for running AI coding agents in productio
 
 > **What's actually being engineered here isn't the loop.** Inference is the cheap part — retrying costs little next to shipping the wrong result. The hard part — and where factors 03, 06, and 07 live — is the gate that decides whether the loop is *allowed* to close.
 
-## The four parts
+## The five parts
 
 | Part | Question it answers | Factors |
 |------|---------------------|---------|
@@ -64,7 +64,7 @@ The blueprint's spine is **Forrester/Greene — [Engineering for Non-Determinist
 - [HumanLayer — 12-Factor Agents](https://github.com/humanlayer/12-factor-agents) — own your context/prompts/control flow, human as tool call, stateless reducer
 - [Fowler site (Böckeler et al.) — Exploring Generative AI](https://martinfowler.com/articles/exploring-gen-ai.html) — supply-chain attack surface, harness engineering, context discipline
 - [Walters — Agentic AI and software forges](https://blog.verbum.org/2026/08/21/agentic-ai-and-software-forges/) + [gh-aw](https://github.github.com/gh-aw/) — hybrid interactive/automated tiering, safe outputs, integrity filtering, steering issues
-- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors) + [arXiv A-SDLC](https://arxiv.org/abs/2604.26275) + [egg](https://github.com/jwbron/egg) / [GATE](https://deterministicagents.ai/) / [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
+- [tikalk — The Twelve-Factor Agentic SDLC](https://github.com/tikalk/agentic-sdlc-12-factors), [arXiv A-SDLC](https://arxiv.org/abs/2604.26275), [egg](https://github.com/jwbron/egg), [GATE](https://deterministicagents.ai/), [CodeDelegator](https://ar5iv.labs.arxiv.org/html/2601.14914) — cross-checks for scope, governance, and isolation
 
 > **Scope:** `agentic-sdlc` (this repo's PoC loop) implements many of these factors already and is cited on factor pages where it does — but the blueprint is vendor-neutral and does not assume this repo.
 
