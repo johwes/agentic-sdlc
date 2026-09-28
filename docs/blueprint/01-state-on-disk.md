@@ -10,7 +10,7 @@ A long-running agent conversation gets **compacted** to stay inside the model's 
 
 Writing to disk is necessary but not sufficient. Compaction also **changes behavior**: an orchestrator told to "re-run assessment" on revised items invented its *own* rubric after its memory was wiped — five neat criteria, applied with full confidence, none of them the ones the team had specified. Same agent, same prompt, different understanding of the job on the other side of compaction. The fix was replacing every natural-language pointer with the *same explicit template* (same file paths, same substitution variables like `{KEY}`, `{DATA_FILE}`) pasted verbatim into both steps. Consistency went from coin-flip to 49/50 identical.
 
-Saving state to disk controls **data loss**. Reusing identical templates controls **behavior drift**. You need both.
+Saving state to disk controls **data loss**. Reusing identical templates controls **behavior drift**. Making step boundaries idempotent controls **re-entry loops**. You need all three.
 
 ## Running example
 
@@ -26,17 +26,19 @@ You can verify this in your pipeline today:
 
 **Also check:** `grep` your skill files and agent prompts for phrases like "as before," "re-run the earlier step," or "using the rubric mentioned above." Replace each with an explicit file path and template. Two steps that share a rubric should point at the *same* file, not two paraphrases of the same instruction.
 
-**Cost discipline:** the same files double as prompt-cache architecture. Providers key their prompt cache on the exact bytes of the rendered prefix — stable instructions first, volatile content last. A timestamp or per-request ID near the front silently voids the cache for everything behind it (as of 2026, both major providers price cache reads at ~0.1× base input — a market convergence, not a protocol guarantee; misses re-bill at full price). So: order prompts static-first / dynamic-last, freeze tool lists deterministically, and alarm on cache-hit-rate (`cache_read_input_tokens` / total input) the way you'd alarm on latency. Parallel sub-agents need **isolated workspaces first** (per-task git worktrees or discard-on-failure overlays, merged back through an orchestrator-managed reducer) — shared checkouts with lockfiles or SQLite WAL prevent corruption but not stale reads, so locks are the fallback, not the default. Every shared-state write is atomic (tmp file + rename — our receipt path already does this at `harness/wrapper.py:947-950`); no watchdog or orchestrator should ever read a half-flushed file mid-compaction.
+**Prompt-cache cost discipline:** The same files double as prompt-cache architecture. Providers key their prompt cache on the exact bytes of the rendered prefix — stable instructions first, volatile content last. A timestamp or per-request ID near the front silently voids the cache for everything behind it (as of 2026, Anthropic and open-weights engines price cache reads at ~0.1× base input, with OpenAI at 0.5×; misses re-bill at full price). Order prompts static-first / dynamic-last, freeze tool lists deterministically, and alarm on cache-hit-rate (`cache_read_input_tokens` / total input) the way you'd alarm on latency.
+
+**Concurrency & storage integrity:** Parallel sub-agents need **isolated workspaces first** (per-task git worktrees or discard-on-failure overlays, merged back through an orchestrator-managed reducer) — shared checkouts with lockfiles or SQLite WAL prevent corruption but not stale reads, so locks are the fallback, not the default. Every shared-state write must be atomic (write to a sibling `.tmp` file and rename — our receipt path implements this at `harness/wrapper.py:947-950` with post-write read-back verification); no watchdog or orchestrator should ever read a half-flushed file mid-compaction.
 
 ## In this repo
 
-This principle is structural: each attempt starts as a fresh process, the work order (`current_task.json`) is a file, and Temporal — not the conversation — is the source of truth (see `specs/01-principles.md` Destroy state to maintain precision).
+This principle is structural: each attempt starts as a fresh process, the work order (`current_task.json`) is a file, and Temporal — not the conversation — is the source of truth (see `specs/01-principles.md` "Destroy state to maintain precision").
 
 ## Sources
 
 - Forrester/Greene — [Compaction doesn't just drop data](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#compaction-doesnt-just-drop-data-it-changes-behavior) (queues emptying, drift after compression, `{KEY}` templates, 98% consistency)
 - InfoQ — [Prompts, tool manifests, and evaluation datasets require versioning as IaC](https://www.infoq.com/articles/prompts-to-production-playbook-for-agentic-development/) (same "if it isn't versioned on disk, it isn't real" consequence at the config layer)
-- HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents) + [Factor 12: Make your agent a stateless reducer](https://github.com/humanlayer/12-factor-agents) (state-machine foundation for "disk is truth")
+- HumanLayer 12-Factor — [Factor 5: Unify execution state and business state](https://github.com/humanlayer/12-factor-agents/blob/main/content/factor-05-unify-execution-state.md) + [Factor 12: Make your agent a stateless reducer](https://github.com/humanlayer/12-factor-agents/blob/main/content/factor-12-stateless-reducer.md) (state-machine foundation for "disk is truth")
 - Anthropic — [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (compaction, an agent-maintained `NOTES.md`, a memory tool for state outside the context window)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (the context window as a hard, small budget everything must be explained within)
 
