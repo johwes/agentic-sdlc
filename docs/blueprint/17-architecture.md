@@ -4,7 +4,7 @@ Source: factors `01`–`15` in this folder + [Red Hat — What even is the harne
 No vendor names. No repo paths. PoC bindings kept out of the normative diagrams (one labeled non-normative footnote at the end of §1).
 Maintenance: re-check this diagram against §4 whenever a factor's principle or scope changes — this is a snapshot synthesis and goes stale silently otherwise.
 
-## 1. Matryoshka (trust stack, outside-in)
+## 1. Matryoshka doll (outside-in)
 
 Read outside-in like Russian dolls: each layer sits inside the one above it
 and cannot get around it. The picture shows structure only — what each layer
@@ -65,7 +65,7 @@ flowchart TD
     PROD["Producers<br/>features · bugs · CVEs · scanners"]
     BOARD["Switchboard · F12<br/>issues + labels + queries"]
     TRIAGE["Triage · F09 · F05<br/>mediate untrusted findings"]
-    WORK["Work · F02 · F04<br/>fix inside the trust stack"]
+    WORK["Work · F02 · F04<br/>fix inside the doll"]
     VERIFY["Verify · F09 · F10<br/>fresh review + eval gates"]
     OUT["Outputs<br/>proposal + provenance + evidence"]
     HUMAN["Humans · F11<br/>dashboard · steer at gates"]
@@ -82,7 +82,7 @@ flowchart TD
     OUT -->|"merge decision"| HUMAN
 ```
 
-TRIAGE, WORK, and VERIFY are each their own instance of the §1 trust stack — they differ in capability profile within Sandbox (e.g. read-only triage/verify vs Bash+git fix, per Factor 08's scorer-vs-implementer example), not in trust structure.
+TRIAGE, WORK, and VERIFY are each their own instance of the §1 doll — they differ in capability profile within Sandbox (e.g. read-only triage/verify vs Bash+git fix, per Factor 08's scorer-vs-implementer example), not in trust structure.
 
 Notes:
 
@@ -148,8 +148,8 @@ Factor 16's gaps are unscored and sit outside this map by design.
 
 ## 5. Resolved deltas + one proposal
 
-1. Pre-PR gate set — resolved: synchronous in-stack gates (syntax, local unit-test
-   subset, secret scan, `forbidden_paths` tripwire); asynchronous out-of-stack
+1. Pre-PR gate set — resolved: synchronous in-doll gates (syntax, local unit-test
+   subset, secret scan, `forbidden_paths` tripwire); asynchronous out-of-doll
    producers (integration matrices, SAST/DAST, multi-arch builds).
 2. Direct inject vs review-agent mediation — resolved: worker's own execution
    outputs inject as capped diagnostic receipts (F02); all external findings pass
