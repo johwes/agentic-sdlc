@@ -28,11 +28,6 @@ flowchart TB
             end
         end
     end
-                    end
-                end
-            end
-        end
-    end
 ```
 
 | Layer (outer → inner) | Factors | What it does, in plain english |
