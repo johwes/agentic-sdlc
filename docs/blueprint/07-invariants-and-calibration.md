@@ -35,7 +35,7 @@ The rate-limit task's invariant list (pinned at the top of the skill file) reads
 
 ## Conformance check
 
-1. **Easy-out test:** deliberately introduce a task where the tests *correctly* fail. The agent must report `FAILED`, never by editing, mocking, or commenting out the failing assertion. If you can make it "fix" the test file, the invariant isn't load-bearing — it's prose. (The harness should structurally prevent it; see Factor 08 — test directories mounted read-only, so modification is physically impossible regardless of what the prompt says.)
+1. **Easy-out test:** deliberately introduce a task where the tests *correctly* fail. The agent must report `FAILED`, never by editing, mocking, or commenting out the failing assertion. If you can make it "fix" the test file, the invariant isn't load-bearing — it's prose. (The harness should structurally prevent it; see Factor 08 — test directories mounted read-only, so modification is physically impossible regardless of what the prompt says — paired with explicit `FORBIDDEN` / `CORRECT` calibration anchors in the worker contract prompt.)
 2. **Calibration test:** run the same scoring or triage step twice on the same 20 items without changing anything between runs. Score variance beyond 1–2 items suggests prose-only criteria. Add anchored examples until re-runs converge.
 
 ## In this repo
@@ -46,7 +46,7 @@ Each commit is judged against the tactile suite's *existing* assertions — test
 
 - Forrester/Greene — [Define invariants. Or the agent will "optimize."](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#define-invariants-or-the-agent-will-optimize) (easy out, calibration examples, indeterminate third state)
 - Bynum — [RFE quality rubric (five criteria) and STRAT scoring (four dimensions)](https://cabynum.github.io/posts/software-factory-floor/#rfe-creator--assess-rfe) (same anchoring habit at the planning stage)
-- Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × impact × detectability" calculus)
+- Böckeler / Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (constant risk calibration by the engineer, same "probability × impact × detectability" calculus)
 - DeepMind — [Specification gaming: the flip side of AI ingenuity](https://deepmind.google/blog/specification-gaming-the-flip-side-of-ai-ingenuity/) (the canonical ML-safety account of "the easy out" — literal-spec optimization finding unintended shortcuts, fixed by more explicit constraints)
 
 ## Longevity: Permanent
