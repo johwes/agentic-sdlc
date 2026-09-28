@@ -6,50 +6,50 @@ Maintenance: re-check this diagram against §4 whenever a factor's principle or 
 
 ## 1. Matryoshka (trust stack, outside-in)
 
-Read top-down as a trust stack: each layer contains and constrains the one
-below it (subtractive outward, additive inward). Inner cannot bypass outer.
-Follows Bean: Infrastructure → Sandbox → Harness → Runtime → Model,
-with the blueprint's deterministic shell made explicit (F03) and coordination kept out
-of the stack (see §2 — switchboard is a plane, not a layer).
-Shell is split: durable substrate (survives crashes, owns timers/retries)
-vs pure gate logic (testable offline). The ledger behind the switchboard
-is a durable projection of Infrastructure, not a stack layer.
+Read outside-in like Russian dolls: each layer sits inside the one above it
+and cannot get around it. The picture shows structure only — what each layer
+does is in the table below. Follows Bean: Infrastructure → Sandbox → Harness
+→ Runtime → Model, with the blueprint's deterministic shell made explicit (F03).
+Coordination (outer loop control plane + switchboard) is deliberately absent
+here — it lives in §2, not inside any single doll.
 
 ```mermaid
-flowchart TD
-    INFRA["Infrastructure<br/>compute · schedule · durable execution"]
-    SB["Sandbox · F08 · F05<br/>subtractive: allows nothing by default"]
-    SHELL_SUB["Shell substrate · F03<br/>durable state machine: timers · retries"]
-    SHELL_LOGIC["Shell logic · F03 · F06<br/>gates + budgets: pure, testable offline"]
-    HARN["Harness · F04 · F07 · F10 · F13<br/>additive: buttons · invariants · evals"]
-    RT["Runtime · F01 · F02<br/>one-shot, fresh context, state on disk"]
-    MODEL["Model<br/>proposes only"]
-    MANDATE["Mandate gate · F14<br/>no session without mandate"]
-    PROV["Provenance trail · F14 · F10<br/>who authorized · what changed"]
-    BOARD_PROJ["Switchboard projection<br/>ledger survives restarts"]
-
-    INFRA -->|"contains + constrains"| SB
-    SB -->|"contains + constrains"| SHELL_SUB
-    SHELL_SUB -->|"drives"| SHELL_LOGIC
-    SHELL_LOGIC -->|"decides for"| HARN
-    HARN -->|"enables"| RT
-    RT -->|"calls"| MODEL
-    MANDATE -.->|"authorizes"| SB
-    SB -.->|"emits"| PROV
-    INFRA -.->|"projects durably"| BOARD_PROJ
+flowchart TB
+    subgraph INFRA[Infrastructure<br/>(machines · clusters · VMs)]
+        subgraph SB[Sandbox · F08 · F05<br/>(locked room · no credentials)]
+            subgraph SHELL[Shell · F03 · F06<br/>(loop engine + referee)]
+                SHELL_SUB[Substrate<br/>(timers · retries)]
+                SHELL_LOGIC[Logic<br/>(pass-fail · budgets)]
+                subgraph HARN[Harness · F04 · F07 · F10 · F13<br/>(helpers · rules · evals)]
+                    subgraph RT[Runtime · F01 · F02<br/>(fresh run · reads files)]
+                        MODEL[Model<br/>(suggests only)]
+                    end
+                end
+            end
+        end
+    end
 ```
 
-Reading: a finding that the agent "fixed" something means nothing until SHELL
-logic re-ran the check on the durable substrate and SB attests what was actually
-touched. Substrate without logic retries blindly; logic without substrate forgets
-across crashes. HARN makes the agent *competent*; SB makes it *safe*. Different
-owners, different failure modes —
+| Layer (outer → inner) | Factors | What it does, in plain english |
+|---|---|---|
+| Infrastructure | — | The machines everything runs on (clusters, VMs, bare metal). Keeps work alive across crashes: timers, retries, resume where it left off. Also stores the switchboard ledger durably. |
+| Sandbox | F08 · F05 | The locked room the agent works in. Denies everything by default, watches and records what the agent touches, and holds no real passwords or keys. Sends the provenance trail out. |
+| Shell substrate | F03 | The loop engine: runs each attempt, waits, retries. |
+| Shell logic | F03 · F06 | The referee: checks results against fixed rules and budgets. Plain rules with no AI involved, testable on their own. Attempt limits, quality regression blocks, pass/fail counting. What the tests say beats what the agent says. |
+| Harness | F04 · F07 · F10 · F13 | Everything we teach the agent: ready-made helper scripts instead of raw APIs, must-stay-true rules with good and bad examples, version-controlled instructions, and the test suite that gates changes plus the archive of past runs. |
+| Runtime | F01 · F02 | One fresh agent run per attempt: no memory of earlier runs, reads its instructions from files on disk every time. |
+| Model | — | The AI itself. It only suggests answers. It cannot check, count, or limit itself. |
+| Mandate gate *(permits Sandbox)* | F14 | The written permission slip from a human: no slip, no work. The original instruction always beats whatever the agent decided later. The slip itself never changes; steering only adds dated amendments. |
+| Provenance trail *(leaves Sandbox)* | F14 · F10 | The receipt: who allowed the work, what the agent looked at, what it changed. Complete enough to replay later without live systems. Covers the agent session only, not build signing ([Gap 7](16-whats-missing-factor.md)). Records the exact inputs the agent saw, not just file versions. |
+| Outside the doll (see §2) | — | The outer loop control plane + switchboard: traffic control *between* separate workstation copies, not a security layer *inside* one. Each §2 station (triage, work, verify) runs its own copy of this doll. |
+
+Reading: a finding that the agent "fixed" something means nothing until the Shell
+logic re-ran the check and the Sandbox confirms what was actually touched.
+The loop engine without the referee retries blindly; the referee without the
+engine forgets across crashes. The Harness makes the agent *competent*; the
+Sandbox makes it *safe*. Different owners, different failure modes —
 a sandbox failure (did what it shouldn't) is not a harness failure (did poorly
 what it should).
-
-Agent-session lineage only — not SLSA/build provenance (see [16 — What's missing](16-whats-missing-factor.md), gap 7).
-Replay needs the effective rendered inputs (templates + variables + tool schemas +
-anchors as served), not just source-file commits.
 
 Non-normative PoC binding (for readers coming from this repo, not part of the
 vendor-neutral diagram): inner-loop workflow = Shell logic + substrate;
