@@ -18,6 +18,8 @@ Three patterns kept reappearing in the research:
 - **Orchestrator-owned event loop:** agents never idle and never wait on a message bus. The orchestrator owns all waiting and spawns a short-lived, one-shot agent only when there is actionable work. Long-horizon autonomy fails when the model holds control flow: it forgets what it was supposed to do next.
 - **Detection before judgment:** the monitoring plane is a layer of cheap deterministic detectors. Only a genuinely ambiguous finding spawns an overseer model to adjudicate — and its verdict is advisory, executed by the orchestrator through a bounded vocabulary (`nudge`, `respawn`, `escalate`).
 
+Two vocabularies sharpen this shell (Böckeler's harness framing): **guides** (feedforward — skills, invariants, bootstrap scripts) steer the agent *before* it acts and live in versioned files; **sensors** (feedback — tests, linters, type checks, judges) observe *after* it acts and drive correction. Either alone fails: feedback-only repeats the same mistakes, feedforward-only never learns whether it worked. Sensors split further by execution kind: **computational** sensors (deterministic, CPU-fast) run on every change beside the agent; **inferential** sensors (LLM judges — slower, nondeterministic, costlier) are reserved for semantic judgment no computational check can express, and inherit the reviewer discipline of Factor 09 (fresh context, deterministic score comparison, cost-tracked per Factor 10). Signals may be optimised for legibility — terse, structured, assertion-scoped — never for authority: nothing a tool emits becomes an instruction (see Factor 05).
+
 ## Running example
 
 The rate-limit middleware is attempted. The agent says "done." The harness ignores the word and runs the test suite. The suite fails → the harness marks the attempt `FAILED`, decides (by a rule, not by asking the model) whether to repair or reset the workspace, and re-queues the next attempt with a *text-only* failure trace. The agent never decides its own retry policy.
@@ -42,6 +44,7 @@ Each attempt is a fresh headless process; the wrapper (harness) owns the receipt
 - arXiv A-SDLC — [Governance and Safety as the least mature layer](https://arxiv.org/abs/2604.26275) (L5 governance as the bottleneck)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (workflows — predefined code paths — vs. agents that direct their own process: the deterministic-shell distinction, stated directly)
 - Google Cloud / DORA — [2025 State of AI-Assisted Software Development](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report) (~5,000-respondent study: AI adoption without strong automated gates correlates with *worse* delivery stability — empirical evidence for why this factor's gate matters)
+- Böckeler / Fowler — [Harness engineering for coding agent users](https://martinfowler.com/articles/harness-engineering.html) (guides vs sensors, computational vs inferential controls, keep-quality-left lifecycle)
 
 ## Longevity: Permanent
 

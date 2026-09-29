@@ -34,6 +34,8 @@ The bigger payoff arrives at model-upgrade time. The principles that survived ar
 
 The eval set is the bridge between models. It only exists because you saved everything.
 
+Distribute sensors across the lifecycle by cost (keep quality left): fast computational checks run pre-commit beside every change; expensive inferential review runs post-integration alongside repeated fast controls; continuous drift sensors (dead code, coverage quality, dependency scans, SLO and sampling judges) run against the codebase outside the change lifecycle entirely. The earlier a sensor fires, the cheaper the fix.
+
 ### Behavioral regression testing
 
 The conceptual unit is a **golden trajectory** — a validated trace capturing not just the final output but the complete reasoning chain, tool invocations, and decision points. Frameworks like LangSmith make this instrumented; bare logs do not. A golden trajectory lets you answer "did the agent change *how* it reaches a correct answer, even when the answer still looks correct?"
@@ -65,6 +67,7 @@ Evaluation harness and thinking-block capture are explicitly deferred: no held-o
 - arXiv A-SDLC — [Five open problems: evaluation & governance as the bottleneck](https://arxiv.org/abs/2604.26275)
 - LangChain — [Trajectory evaluations](https://docs.langchain.com/langsmith/trajectory-evals) (official docs on comparing an agent's full tool-call sequence against a reference — the golden-trajectory concept, first-party)
 - LangChain — [LangSmith evaluation docs](https://docs.langchain.com/langsmith/evaluation) ("a failure you saw once becomes a test you run every time" — golden-dataset regression testing)
+- Böckeler / Fowler — [Harness engineering for coding agent users](https://martinfowler.com/articles/harness-engineering.html) (keep-quality-left lifecycle: pre-commit, post-integration, and continuous drift sensors)
 
 ## Longevity: Constraint-stable, mechanism-evolving — with one caution
 

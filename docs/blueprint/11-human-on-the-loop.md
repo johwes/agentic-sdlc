@@ -25,7 +25,7 @@ The mechanism that makes this possible is a **central management layer** — a d
 
 The trust contract is explicit: the pipeline *proposes* — humans *approve* merges, deployments, and critical decisions. The dashboard is how humans know when a proposal is ready and whether it's worth their time.
 
-Think of it as a factory, not a workbench: when the loop escalates, the human fixes the *factory* — the skill, the gate, the eval, the dashboard — so the next run comes out right, rather than hand-fixing this run's output. A hand-fixed artifact leaves the defect in place for every future ticket; a factory fix retires a whole class of escalations. Break-glass hand-fixes stay available for genuine urgency, but they are declared, time-boxed, logged apart from normal approvals, and always indebted: every one owes a versioned factory change afterward. Escalations are factory telemetry first, tickets second.
+Think of it as a factory, not a workbench: when the loop escalates, the human fixes the *factory* — the skill, the gate, the eval, the dashboard — so the next run comes out right, rather than hand-fixing this run's output. A hand-fixed artifact leaves the defect in place for every future ticket; a factory fix retires a whole class of escalations. Break-glass hand-fixes stay available for genuine urgency, but they are declared, time-boxed, logged apart from normal approvals, and always indebted: every one owes a versioned factory change afterward. Escalations are factory telemetry first, tickets second. Böckeler's steering loop states the same rule from the harness side: whenever an issue repeats, improve the feedforward and feedback controls — and agents themselves may draft those improvements (new structural tests, candidate rules, scaffolded linters), but only the pipeline lands them: versioned, eval-gated, human-approved, never self-applied.
 
 ## Running example
 
@@ -53,6 +53,7 @@ Humans approve the merge that ships the draft PR; the harness never auto-merges.
 - Forrester/Greene — [The agent will always think it's helping: escalation caps & regression detection](https://dev.to/jessica_jason/engineering-for-non-deterministic-coworkers-p0j#the-agent-will-always-think-its-helping) (when to escalate *to* the human)
 - Böckeler / Fowler — [To vibe or not to vibe](https://martinfowler.com/articles/exploring-gen-ai/to-vibe-or-not-vibe.html) (continuous human risk calibration)
 - Carnegie Council — [Seven Myths of Using the Term "Human on the Loop"](https://www.carnegiecouncil.org/media/article/7-myths-of-using-the-term-human-on-the-loop) (traces the term's real pre-LLM lineage in autonomy-policy discourse — and argues, as an honest counterpoint, that the phrase can mask reduced control if the "loop" itself isn't well-designed)
+- Böckeler / Fowler — [Harness engineering for coding agent users](https://martinfowler.com/articles/harness-engineering.html) (steering loop: iterate the harness on repeat issues; agents may draft controls, pipeline lands them)
 - egg — [HITL `provide_input` pause-and-resume](https://github.com/jwbron/egg) (state-preserving human steering via pause-and-resume)
 
 ## Longevity: Constraint-stable, mechanism-evolving

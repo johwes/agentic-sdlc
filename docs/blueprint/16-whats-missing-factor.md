@@ -10,7 +10,7 @@ None of these has a conformance check yet. A gap graduates to a numbered, scored
 
 **What's missing:** guidance for going from "we have Copilot" to "we run this pipeline," sequenced for a team with legacy code, no Temporal cluster, and no existing eval harness. The [`README.md`](README.md)'s "start at 1" is an ordering principle for the factors, not a rollout plan for an organization.
 
-**Why it matters:** without a crawl/walk/run sequence, teams either try to build all 15 factors at once (stalls) or cherry-pick [Factor 03](03-deterministic-shell.md) and [Factor 09](09-adversarial-review.md) while skipping [Factor 01](01-state-on-disk.md) and [Factor 02](02-fresh-contexts.md) (the foundational primitives that make the others possible) and wonder why it doesn't hold together.
+**Why it matters:** without a crawl/walk/run sequence, teams either try to build all 15 factors at once (stalls) or cherry-pick [Factor 03](03-deterministic-shell.md) and [Factor 09](09-adversarial-review.md) while skipping [Factor 01](01-state-on-disk.md) and [Factor 02](02-fresh-contexts.md) (the foundational primitives that make the others possible) and wonder why it doesn't hold together. Harnessability also varies by codebase: typed languages and clean module boundaries give you sensors for free, while legacy debt denies you the controls — the harness is most needed where it is hardest to build.
 
 **Open question:** what's the minimum viable subset that's safe to run in production (e.g. 01, 02, 04 before 03, 07, 08), and what's the deliberate operational sequence to add the rest without stalling on infrastructure setup?
 
