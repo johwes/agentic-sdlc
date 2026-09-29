@@ -36,7 +36,7 @@ flowchart TB
 | Sandbox | F08 · F05 | The locked room the agent works in. Denies everything by default, watches and records what the agent touches, and holds no real passwords or keys. Sends the provenance trail out. |
 | Shell substrate | F03 | The loop engine: runs each attempt, waits, retries. |
 | Shell logic | F03 · F06 | The referee: checks results against fixed rules and budgets. Plain rules with no AI involved, testable on their own. Attempt limits, quality regression blocks, pass/fail counting. What the tests say beats what the agent says. |
-| Harness | F04 · F07 · F10 · F13 | Everything we teach the agent: ready-made helper scripts instead of raw APIs, must-stay-true rules with good and bad examples, version-controlled instructions, and the test suite that gates changes plus the archive of past runs. |
+| Harness | F04 · F07 · F10 · F13 | Everything we teach the agent: ready-made helper scripts instead of raw APIs, must-stay-true rules with good and bad examples, version-controlled instructions, and the test suite that gates changes plus the archive of past runs. In Böckeler's terms: feedforward guides steer *before* acting, feedback sensors correct *after* (see Factor 03). |
 | Runtime | F01 · F02 | One fresh agent run per attempt: no memory of earlier runs, reads its instructions from files on disk every time. |
 | Model | — | The AI itself. It only suggests answers. It cannot check, count, or limit itself. |
 | Mandate gate *(permits Sandbox)* | F14 | The written permission slip from a human: no slip, no work. The original instruction always beats whatever the agent decided later. The slip itself never changes; steering only adds dated amendments. |
