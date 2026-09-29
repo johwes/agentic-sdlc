@@ -8,17 +8,17 @@ Research, planning, and live debugging stay **interactive** — a human present,
 
 Each tier covers the other's failure mode. Interactive sessions are efficient precisely where autonomy is unsafe: ambiguous goals, live debugging against warm state, judgment calls with no rubric. Automated flows are safe precisely where interactivity doesn't scale: retries, gates, promotion, audit. Collapsing them — autonomous agents asked to do open-ended research, or humans babysitting bounded retries — gets the worst of both: drift without a watcher, bottlenecks without judgment.
 
-The handoff is the design surface: what state transfers (the ticket, the spec, the failing trace — files, per Factor 01), what gets re-derived (never trust transferred conclusions; the flow re-verifies), and who owns the session at each moment. An automated flow never initiates an interactive session on its own authority; an interactive session never executes side effects except by delegating to a bounded flow.
+The handoff is the design surface: what state transfers (the ticket, the spec, the failing trace — files, per Factor 01), what gets re-derived (never trust transferred conclusions; the flow re-verifies via an executable falsification predicate, per Factor 07), and who owns the session at each moment. An automated flow never initiates an interactive session on its own authority; an interactive session never executes side effects except by delegating to a bounded flow.
 
 ## Running example
 
-The rate-limit investigation starts interactive: the engineer and the agent poke at production traffic together and conclude gateway-level limiting is right. That conclusion is filed as a bounded ticket (scope, acceptance, proof command). The automated flow picks it up, implements, gates, and opens the draft PR. Mid-run the agent hits an ambiguous tradeoff (gateway vs. service); instead of guessing, it escalates to a steering comment — the engineer's reply arrives as a new bounded input, not as a hijacked session.
+The rate-limit investigation starts interactive: the engineer and the agent poke at production traffic together and conclude gateway-level limiting is right. That conclusion is filed as a bounded ticket (scope, acceptance, proof command). The automated flow picks it up, implements, gates, and opens the draft PR. Mid-run the agent hits an ambiguous tradeoff (gateway vs. service); instead of guessing, it escalates to a steering comment — the engineer's reply arrives as a new bounded input, not as a hijacked session (a live shell into the runner breaks auditability and tier discipline; bounded signals preserve both).
 
 ## Conformance check
 
 1. **Handoff test:** start an interactive investigation, then hand its output to the automated flow as the *only* input. The flow must complete without asking a question the investigation already answered — and must re-verify every transferred conclusion rather than trusting it. If the flow re-opens exploration, the handoff wasn't bounded.
 2. **Tier-discipline test:** audit one week of runs. No automated flow may have initiated an interactive session; no interactive session may have executed a side effect directly (push, merge, close) except through a bounded flow. Each violation is a tier breach, regardless of outcome.
-3. **Escalation-roundtrip test:** force an ambiguity mid-run. The flow must pause into a steering prompt, accept a bounded human answer, and resume with history intact — not restart, not guess, not wait silently forever.
+3. **Escalation-roundtrip test:** force an ambiguity mid-run (Factor 11). The flow must pause into a steering prompt, accept a bounded human answer, and resume with history intact — not restart, not guess, not wait silently forever.
 
 ## In this repo
 
