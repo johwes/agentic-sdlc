@@ -40,7 +40,7 @@ flowchart TB
 | Runtime | F01 · F02 | One fresh agent run per attempt: no memory of earlier runs, reads its instructions from files on disk every time. |
 | Model | — | The AI itself. It only suggests answers. It cannot check, count, or limit itself. |
 | Mandate gate *(permits Sandbox)* | F14 | The written permission slip from a human: no slip, no work. The original instruction always beats whatever the agent decided later. The slip itself never changes; steering only adds dated amendments. |
-| Provenance trail *(leaves Sandbox)* | F14 · F10 | The receipt: who allowed the work, what the agent looked at, what it changed. Complete enough to replay later without live systems. Covers the agent session only, not build signing ([Gap 7](16-whats-missing-factor.md)). Records the exact inputs the agent saw, not just file versions. |
+| Provenance trail *(leaves Sandbox)* | F14 · F10 | The receipt: who allowed the work, what the agent looked at, what it changed. Complete enough to replay later without live systems. Covers the agent session only, not build signing ([Gap 7](16-whats-missing-factor.md#7-release-supply-chain-provenance-stitching)). Records the exact inputs the agent saw, not just file versions. |
 | Outside the doll (see §2) | — | The outer loop control plane + switchboard: traffic control *between* separate workstation copies, not a security layer *inside* one. Each §2 station (triage, work, verify) runs its own copy of this doll. |
 
 Reading: a finding that the agent "fixed" something means nothing until the Shell
@@ -50,6 +50,8 @@ engine forgets across crashes. The Harness makes the agent *competent*; the
 Sandbox makes it *safe*. Different owners, different failure modes —
 a sandbox failure (did what it shouldn't) is not a harness failure (did poorly
 what it should).
+
+*Note on physical topology:* the doll shows logical containment and constraint, not process hosting. In distributed implementations (e.g., a workflow orchestrator + container sandboxes), the Shell substrate executes on the infrastructure control plane outside the container, dispatching attempt executions into the Sandbox via isolated exec primitives. This keeps a compromised or crashing sandbox from taking the outer retry state down with it.
 
 Non-normative PoC binding (for readers coming from this repo, not part of the
 vendor-neutral diagram): inner-loop workflow = Shell logic + substrate;
@@ -90,7 +92,9 @@ Notes:
   release failure all file the same shape and leave.
 * Triage vs fix is a trust split, not a pipeline stage: untrusted external
   findings go through mediation (F05); trusted first-party checks (local
-  lint/type/test the author would run pre-PR) inject directly.
+  lint/type/test the author would run pre-PR) inject directly into the Switchboard
+  as ready work orders. (Within an active attempt, worker diagnostic outputs also
+  inject directly into attempt N+1 per §5 delta 2).
 * Verification is a *different context* from production (F09). Regression
   blocks and attempt budgets live in code outside both (F06).
 * Humans never sit in the step (F11). Constant approvals per feature,
