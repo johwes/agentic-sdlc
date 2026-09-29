@@ -34,4 +34,4 @@ Fifteen rules for running AI coding agents in production. Each is one imperative
 
 **Architecture map.** [17. Blueprint architecture](17-architecture.md) — how the factors fit together (Matryoshka doll, switchboard swimlanes, and tier handoff).
 
-**Known gaps, not yet rules.** [16. What's missing](16-whats-missing-factor.md) — adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, release/supply-chain provenance stitching. Unscored; no conformance check exists yet for any of them.
+**Known gaps, not yet rules.** [16. What's missing](16-whats-missing-factor.md) — adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, release/supply-chain provenance stitching, continuous model churn/silent drift. Unscored; no conformance check exists yet for any of them.

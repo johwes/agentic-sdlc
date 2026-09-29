@@ -52,7 +52,7 @@ The factor pages are the contract; [17 — Architecture](17-architecture.md) is 
 
 ## Known gaps (not yet factors)
 
-Seven real gaps don't have a conformance check yet: adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, and release/supply-chain provenance stitching. See [16 — What's missing](16-whats-missing-factor.md) for what's open on each. They're listed separately and unscored rather than folded into the 15 above, to keep the scored set to practices this blueprint can actually verify.
+Eight real gaps don't have a conformance check yet: adoption path, economics/ROI, org & people, legal/IP/compliance, cross-repo/cross-team coordination, incident response, release/supply-chain provenance stitching, and continuous model churn/silent drift. See [16 — What's missing](16-whats-missing-factor.md) for what's open on each. They're listed separately and unscored rather than folded into the 15 above, to keep the scored set to practices this blueprint can actually verify.
 
 ## Spine
 
