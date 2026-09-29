@@ -144,6 +144,12 @@ live in Temporal history.
   bounds the whole attempt; `tactile_timeout_seconds` (default 180s) is
   enforced by the wrapper inside it; Temporal activity timeouts bound the
   outermost layer.
+- Timeout distinctly (cf. fullsend ADR-0105): a tactile timeout (exit `124`)
+  completes the attempt with a verdict — the next attempt carries genuine
+  feedback ("timed out at Ns"), not an identical replay, so Ralph retries are
+  exempt from the no-retry-on-timeout rule. But `124` folds into `FAILED`, so
+  budget-exhaustion is indistinguishable from wrong-output in the ledger —
+  record timeout as a distinct verdict.
 - The Temporal worker owns cell deletion: `openshell sandbox delete` when
   the task reaches a terminal state (`promoted` / `escalated`), in a
   `finally` block (or on activity timeout). No orphaned sandboxes. The cell
@@ -161,6 +167,13 @@ live in Temporal history.
   path; only the promotion step pushes).
 - Unbounded loops on stochastic systems (budget + backoff + `HALT` states
   bound every task).
+- Exec-timeout kill with no receipt bypasses `HALT`/escalation (cf. fullsend
+  ADR-0105): `run_attempt` raises, Temporal retries the identical killed
+  attempt until `schedule_to_close` expiry, and the task dies as a workflow
+  failure — never reaching `decide_next`, the ledger's `escalated` state, or
+  human triage. Convert kill-with-no-receipt into a named timeout verdict
+  (`HALT:BLOCKED` with timeout detail) and cap activity-level retries on
+  `run_attempt`.
 
 ## Open questions
 

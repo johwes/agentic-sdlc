@@ -24,12 +24,17 @@ The rate-limit investigation starts interactive: the engineer and the agent poke
 
 Headless-only today: every attempt is non-interactive by construction, and there is no interactive tier to hand off from — the human authors the frame by hand (see `specs/02-control-plane.md` override) and approves the merge. The steering primitives in Factor 11 are specified; the interactive side that would invoke them is future work.
 
+Two fullsend results shape the automated side. First, scripted pipelines beat coordinator agents for determinism (ADR-0018): their coordinator LLM skipped declared subagents, so the pipeline executor — not an LLM — must guarantee each stage runs; that is the Temporal parent/child role here. Second, each pipeline step gets its own agent, harness, and least-privilege sandbox (ADR-0020); the PoC runs one cell per task (closer to ADR-0020's bundled Option A than to per-step sandboxes), acceptable while steps share one capability profile but a documented enterprise direction. Future work: external triggers need an actor-authorization gate before dispatch (ADR-0054) — write-level permission via the collaborator API, since `author_association` misreports private org membership.
+
 ## Sources
 
 - Walters — [Agentic AI and software forges](https://blog.verbum.org/2026/08/21/agentic-ai-and-software-forges/) (hybrid prediction: interactive flows delegating to per-repo automated flows; tmate-style dynamic interactivity)
 - gh-aw — [`steer:` run-scoped steering issues](https://github.github.com/gh-aw/reference/safe-outputs/) (keyword comments read mid-run — the closest shipped handoff protocol, though gh-aw's own docs still label it experimental)
 - egg — [HITL `provide_input` pause-and-resume](https://github.com/jwbron/egg) (state-preserving human answer as bounded input)
 - Microsoft — [VS Code Custom Agents — Handoffs](https://code.visualstudio.com/docs/agent-customization/custom-agents) (a shipping product feature implementing exactly this planning→implementation handoff, human-approval-by-default)
+- Fullsend — [ADR-0018: Scripted pipeline for multi-agent orchestration](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0018-scripted-pipeline-for-multi-agent-orchestration.md) (LLM coordinators skip steps; the pipeline executor, not an LLM, guarantees each stage runs)
+- Fullsend — [ADR-0020: Composable single-responsibility agents with individual sandboxes](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0020-composable-single-responsibility-agents-with-individual-sandboxes.md) (one agent, one harness, one least-privilege sandbox per step)
+- Fullsend — [ADR-0054: Require authorization on all agent dispatch paths](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0054-require-authorization-on-all-agent-dispatch-paths.md) (actor auth gate on every dispatch path; collaborator permission API over `author_association`)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

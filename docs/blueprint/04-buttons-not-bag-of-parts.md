@@ -37,7 +37,7 @@ Splitting a ticket that bundles two concerns is the same: one `split_issue(paren
 
 ## In this repo
 
-The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains; out-of-sandbox side effects are mediated host-side, never from inside the cell.
+The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains; out-of-sandbox side effects are mediated host-side, never from inside the cell. Steering-vs-security split (cf. fullsend ADR-0027): the allowlist and purpose-built helpers steer the agent onto intended paths and save tokens, but containment rests on the sandbox boundary, not on tool availability. A restriction expressed only in prompt prose is steering — never a guardrail.
 
 ## Sources
 
@@ -47,6 +47,7 @@ The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summa
 - SWE-agent — [arXiv:2405.15793](https://arxiv.org/abs/2405.15793) (Princeton/Stanford, NeurIPS'24 — the paper behind the 3.8%→12.5% SWE-bench stat cited above)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) ("poka-yoke your tools," the absolute-filepath fix)
 - OWASP — [LLM06:2025 Excessive Agency](https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/2_0_vulns/LLM06_ExcessiveAgency.md) (limit extensions to the minimum necessary; avoid open-ended tools)
+- Fullsend — [ADR-0027: Allowed and disallowed tools for agents](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0027-allowed-and-disallowed-tools-for-agents.md) (sandbox as sole enforcement layer; tool-level deny rules are steering, not security)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

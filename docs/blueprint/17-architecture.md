@@ -11,7 +11,14 @@ and cannot get around it. The picture shows structure only — what each layer
 does is in the table below. Follows Bean: Infrastructure → Sandbox → Harness
 → Runtime → Model, with the blueprint's deterministic shell made explicit (F03).
 Coordination (outer loop control plane + switchboard) is deliberately absent
-here — it lives in §2, not inside any single doll.
+here — it lives in §2, not inside any single doll. Control flows strictly
+downward (cf. fullsend ADR-0016): no layer configures a layer above it — the
+Model cannot rewrite the Harness, the Harness cannot widen the Sandbox. A layer
+missing a capability fails or escalates; it never self-provisions. Upward travel
+is data only (verdicts, receipts, telemetry). Agent self-modification in place is
+prohibited: humans reconfigure from above through an authorized pause (§3,
+F11/F14), and agent-proposed harness improvements take effect in future
+invocations through review.
 
 ```mermaid
 flowchart TB

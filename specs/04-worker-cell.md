@@ -87,6 +87,10 @@ helper was considered and rejected (agent-overridable via `git -c`,
 cf. fullsend ADR-0032 (tier 1 default for public repos) and ADR-0017
 (credentials never enter the sandbox).
 
+Transfer-path audit (cf. fullsend ADR-0030): the bundle handoff structurally avoids both sandbox-escape vectors named there — no worktree rsync (so no symlink-escape class needing `--no-links`) and no `.git/hooks/` execution surface (bundles carry objects and refs; nothing executes on fetch). Residual: the host squash-merge materializes candidate tree content including symlinks, so the scan-before-push ordering is load-bearing, not cosmetic.
+
+Env-layering rule (cf. fullsend ADR-0081): environment entering the cell carries infrastructure plumbing only — repo-path overrides, exec timeouts, non-secret identity. Agent behavior rides the versioned frame (`current_task.json`), never env.
+
 Scope note on the `github` skill: the skill's "do not use git except
 cloning" rule binds the *agent*. The wrapper is harness infrastructure, not
 the agent — its `git rev-parse` / `git diff` / `git commit` plumbing calls

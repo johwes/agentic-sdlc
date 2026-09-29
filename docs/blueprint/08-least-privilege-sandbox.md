@@ -33,7 +33,7 @@ The agent that scores the rate-limit proposal runs with Read + Write, no Bash. I
 
 ## In this repo
 
-Worker cells run under an adopted upstream policy baseline with per-binary network perimeters, ephemeral OpenShift/OpenShell sandboxing per task, and provider-injected `OPENCODE_API_KEY` that never touches disk or shell history (see `specs/04-worker-cell.md`). Guardrail scripts enforce write boundaries; the dataset layout and mount ACLs make exfil beyond the allowed paths structurally difficult.
+Worker cells run under an adopted upstream policy baseline with per-binary network perimeters, ephemeral OpenShift/OpenShell sandboxing per task, and provider-injected `OPENCODE_API_KEY` that never touches disk or shell history (see `specs/04-worker-cell.md`). Guardrail scripts enforce write boundaries; the dataset layout and mount ACLs make exfil beyond the allowed paths structurally difficult. Credential posture maps onto fullsend's four-tier delivery ladder (ADR-0025): forge and git credentials stay at tier 1 — they never enter the cell, push happens host-side — while the model key rides provider injection. Tiers 3 (host-side REST proxy) and 4 (credential files in-cell) are absent by design; if a future integration needs them, per-step sandboxes (Factor 15) bound the blast radius.
 
 ## Sources
 
@@ -44,6 +44,7 @@ Worker cells run under an adopted upstream policy baseline with per-binary netwo
 - Simon Willison — [The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) (sensitive data + untrusted content + external communication together are the exploitable combination; capability restriction is the practical mitigation)
 - OWASP — [Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) (LLM01 Prompt Injection, LLM06 Excessive Agency)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (guardrails outside the model, "extensive testing in sandboxed environments")
+- Fullsend — [ADR-0025: Provider-based credential delivery](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0025-provider-credential-delivery-for-sandboxed-agents.md) (four-tier ladder: prefetch + post-process → providers + L7 → REST server → host files; use the highest tier possible)
 
 ## Longevity: Permanent
 
