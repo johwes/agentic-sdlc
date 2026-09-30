@@ -34,10 +34,11 @@ Splitting a ticket that bundles two concerns is the same: one `split_issue(paren
 3. **Tool-surface test:** list the tools available in one agent's context. If the list is the entire API surface of a service, narrow it to one purpose-built script per task that agent actually performs. Everything else is menu pollution.
 4. **Idempotency test:** run any helper twice with identical inputs (kill it mid-flight the first time). The second run must converge to the same world state, and multi-step helpers must roll back partial mutations on failure (compensating actions, not just error returns). A button that can only run once cleanly is a bag of parts wearing a script costume.
 5. **Declared-effects test:** list every side effect the agent may request in one run, each with a per-run cardinality cap (`create-issue max:1`, `push max:1`). Anything undeclared is refused by the executor, not reviewed. If a compromised agent can emit unbounded writes, the allowlist describes tools, not effects.
+6. **Self-authorship test:** have the agent write a new helper mid-run and attempt to use it in the same run. The helper must land as a reviewed file for future runs — never execute in the current one. If the live allowlist can grow by agent authorship, the tool boundary is advisory.
 
 ## In this repo
 
-The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains; out-of-sandbox side effects are mediated host-side, never from inside the cell. Steering-vs-security split (cf. fullsend ADR-0027): the allowlist and purpose-built helpers steer the agent onto intended paths and save tokens, but containment rests on the sandbox boundary, not on tool availability. A restriction expressed only in prompt prose is steering — never a guardrail.
+The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summary trailer); cell git ops are a fixed allowlist; promotion and triage are helper scripts rather than agent tool chains; out-of-sandbox side effects are mediated host-side, never from inside the cell. Steering-vs-security split (cf. fullsend ADR-0027): the allowlist and purpose-built helpers steer the agent onto intended paths and save tokens, but containment rests on the sandbox boundary, not on tool availability. A restriction expressed only in prompt prose is steering — never a guardrail. Tool-authorship boundary: an agent may emit a helper script as task output, but it may never execute an unreviewed self-authored tool in its own live runtime — a tool that writes its way around the harness's assumptions is the Voyager hazard (Cockcroft et al., When Agents Decide). Promotion is review + versioning for future invocations (Factors 09, 13; 17-architecture §1); the current run's allowlist never grows mid-run.
 
 ## Sources
 
@@ -47,6 +48,7 @@ The wrapper owns the `task_receipt.json` envelope (the LLM only supplies a summa
 - SWE-agent — [arXiv:2405.15793](https://arxiv.org/abs/2405.15793) (Princeton/Stanford, NeurIPS'24 — the paper behind the 3.8%→12.5% SWE-bench stat cited above)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) ("poka-yoke your tools," the absolute-filepath fix)
 - OWASP — [LLM06:2025 Excessive Agency](https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/2_0_vulns/LLM06_ExcessiveAgency.md) (limit extensions to the minimum necessary; avoid open-ended tools)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (Voyager hazard: self-extending agents can write around assumptions — draft allowed, unreviewed self-execution prohibited)
 - Fullsend — [ADR-0027: Allowed and disallowed tools for agents](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0027-allowed-and-disallowed-tools-for-agents.md) (sandbox as sole enforcement layer; tool-level deny rules are steering, not security)
 
 ## Longevity: Constraint-stable, mechanism-evolving

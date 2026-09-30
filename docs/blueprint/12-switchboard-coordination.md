@@ -14,7 +14,7 @@ The switchboard pattern (a modern instantiation of the classical **blackboard ar
 - When an agent finishes, it updates the issue — and the next station's query matches.
 - None of the stations know about each other directly. They know about the switchboard.
 
-The switchboard also surfaces **institutional memory** — architecture context, component mapping, feasibility checks — as shared infrastructure the stations query, not as context each agent has to be spoon-fed. Specialized registries (architecture docs, eval harness, skills catalog) serve the whole floor rather than one stage.
+The switchboard also surfaces **institutional memory** — architecture context, component mapping, feasibility checks — as shared infrastructure the stations query, not as context each agent has to be spoon-fed. Specialized registries (architecture docs, eval harness, skills catalog) serve the whole floor rather than one stage. Durable team-shared memory takes the same shape: an in-repo wiki — plain markdown in git, diffable and branch-aware — that stations read every run and update only through reviewed merge requests (adversarial review per Factor 09, versioning per Factor 13), never by direct write. Ephemeral scratch (prompt patches, per-run notes) stays out of the wiki entirely — it lives and dies inside one attempt (Factor 02). A read-only external ontology as immutable ground truth is the named third tier (Cockcroft et al., When Agents Decide) and an open gap: specified nowhere in this blueprint yet.
 
 ## Running example
 
@@ -39,6 +39,7 @@ The ledger states (`inbox → active → review → promoted | escalated`) and p
 - AWS Well-Architected Framework — [Agentic AI Lens, AGENTREL04](https://docs.aws.amazon.com/wellarchitected/latest/agentic-ai-lens/agentrel04.html) (peer-to-peer agent coordination causes deadlocks; recommends a shared, durable control plane instead — AWS's own default leans supervisor/arbiter rather than fully decentralized, worth reading with that nuance)
 - Microsoft — [AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) (Azure Architecture Center's current catalog of sequential/concurrent/handoff/group-chat orchestration patterns)
 - Buschmann et al. — [Pattern-Oriented Software Architecture, Vol 1: A System of Patterns](https://dl.acm.org/doi/10.5555/249013) (Wiley, 1996; the classical Blackboard pattern underpinning decentralized, query-driven coordination)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (tiered memory by volatility/authority: ephemeral patches, in-repo wiki, external ontology; memory as what each autonomy rung costs)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 
