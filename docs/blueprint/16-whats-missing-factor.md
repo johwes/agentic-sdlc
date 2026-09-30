@@ -22,6 +22,8 @@ None of these has a conformance check yet. A gap graduates to a numbered, scored
 
 **Open question:** what are the leading indicators (cycle time, defect rate, cost per shipped feature) an org should track from week one, before Org Pulse-style dashboards exist?
 
+**Candidate mechanism (still unscored):** value-per-token routing (Cockcroft et al., When Agents Decide; Eder, "Tokenomics for Code") — classify each request and send it to the cheapest model still meeting the SLO, with hierarchical fallback to stronger models; extend FinOps to token spend (cost per shipped feature, cache-hit economics). Mechanism, not a check: the gap stays open until someone proposes how to verify it.
+
 ## 3. Org & people
 
 **What's missing:** what roles this needs (who owns the switchboard? who's on call for escalations?), how review load shifts onto senior engineers, and how to handle the trust-building problem with engineers whose job just changed underneath them.
@@ -37,6 +39,8 @@ None of these has a conformance check yet. A gap graduates to a numbered, scored
 **Why it matters:** this is usually the first question legal asks, and "we have provenance records" doesn't answer it — provenance tells you what happened, not whether it was permitted.
 
 **Open question:** does license/IP screening belong as a deterministic gate inside [Factor 03](03-deterministic-shell.md) / [Factor 10](10-evaluations-and-save-everything.md)'s eval harness, or as a separate compliance layer that sits outside the pipeline entirely?
+
+**Candidate mechanism (still unscored):** regulators already describe the substrate — NIST AI RMF, ISO/IEC 42001, and the EU AI Act converge on traceability, auditability, and controlled execution (Cockcroft et al., When Agents Decide). An org that builds decision tracking + policy enforcement for its agents pre-builds most of what compliance will require; "the agent decided" alone is not an answer a court accepts.
 
 ## 5. Cross-repo / cross-team coordination
 
@@ -66,7 +70,7 @@ None of these has a conformance check yet. A gap graduates to a numbered, scored
 
 **What's missing:** an operational lifecycle for managing upstream model deprecations and silent behavioral drift. Model vendors retire API endpoints on 3–6 month cadences and silently alter inference optimizations and alignment weights under fixed tags.
 
-**Why it matters:** an enterprise cannot manually re-calibrate prompts, invariant anchors ([Factor 07](07-invariants-and-calibration.md)), and adversarial review thresholds ([Factor 09](09-adversarial-review.md)) across dozens of production pipelines whenever a foundational model is deprecated.
+**Why it matters:** an enterprise cannot manually re-calibrate prompts, invariant anchors ([Factor 07](07-invariants-and-calibration.md)), and adversarial review thresholds ([Factor 09](09-adversarial-review.md)) across dozens of production pipelines whenever a foundational model is deprecated. Cockcroft et al. (When Agents Decide) give this failure its anecdote: an 18-month-old forecasting platform still running while its models were replaced three times underneath, tooling acquired, and a framework breaking-changed — "a museum" answering last week's questions.
 
 **Open question:** how should the eval harness ([Factor 10](10-evaluations-and-save-everything.md)) automate upstream model canary qualification before a new model checkpoint is permitted to take over production switchboard queues?
 

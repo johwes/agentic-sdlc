@@ -41,6 +41,8 @@ A fresh reviewer introduces distinct failure modes that must be governed structu
    - *Mitigation:* Enforce a **heterogeneous quorum** (cross-evaluation across distinct foundation model families or formal linters) when evaluating critical paths.
 4. **Uniform-cost overkill:** Running exhaustive multi-agent quorums on trivial changes doubles compute latency without safety gains.
    - *Mitigation:* Scale review depth by blast-radius risk. Mechanically tested, low-risk changes bypass full LLM review; structural, cryptographic, or security-sensitive changes mandate adversarial quorum.
+5. **Multi-agent oscillation (system dynamics):** individually well-governed reviewers interacting through delayed signals can amplify noise into oscillation — with no single faulty decision for any gate to catch.
+   - *Mitigation:* govern the loop, not just the decision — revision caps, freshness-scoped re-review, and severity decay (a finding surviving N rounds downgrades to advise + human, never round N+1).
 
 ## In this repo
 
@@ -54,6 +56,7 @@ Adversarial review is explicitly named as a post-PoC slot: a different-model rev
 - Huang et al. — [Large Language Models Cannot Self-Correct Reasoning Yet](https://arxiv.org/abs/2310.01798) (Google DeepMind + UIUC, ICLR 2024 — intrinsic self-correction without external feedback fails and can degrade performance)
 - Valmeekam et al. — [Can LLMs Really Improve by Self-Critiquing Their Own Plans?](https://arxiv.org/abs/2310.08118) (Arizona State — self-critique diminishes plan quality versus external sound verifiers)
 - Anthropic — [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) (isolated subagents with separate context windows report to an orchestrator, rather than reviewing each other)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (multi-agent system dynamics: delayed signals amplify noise into oscillation — govern the loop, not just the decision)
 
 ## Longevity: Permanent
 

@@ -23,7 +23,7 @@ The mechanism that makes this possible is a **central management layer** — a d
 - **Release and team visibility:** where every feature sits, where bottlenecks form, without hunting through five reports.
 - **Steering infrastructure:** the signals that tell humans *when* to intervene, surfaced at the exact moment intervention is required — distinguishing this from "in the loop" where humans are required at every iteration.
 
-The trust contract is explicit: the pipeline *proposes* — humans *approve* merges, deployments, and critical decisions. The dashboard is how humans know when a proposal is ready and whether it's worth their time.
+The trust contract is explicit: the pipeline *proposes* — humans *approve* merges, deployments, and critical decisions. The dashboard is how humans know when a proposal is ready and whether it's worth their time. That contract sits at Stage 2–3 of the autonomy ladder (Cockcroft et al., When Agents Decide): bounded execution under KPI watch with exceptions to humans — per-step approval (Stage 1) explicitly retired, zero-touch (Stage 4) explicitly unclaimed. Rubber-stamp approval would void it: oversight that never refuses is control on the org chart only.
 
 Think of it as a factory, not a workbench: when the loop escalates, the human fixes the *factory* — the skill, the gate, the eval, the dashboard — so the next run comes out right, rather than hand-fixing this run's output. A hand-fixed artifact leaves the defect in place for every future ticket; a factory fix retires a whole class of escalations. Break-glass hand-fixes stay available for genuine urgency, but they are declared, time-boxed, logged apart from normal approvals, and always indebted: every one owes a versioned factory change afterward. Escalations are factory telemetry first, tickets second. Böckeler's steering loop states the same rule from the harness side: whenever an issue repeats, improve the feedforward and feedback controls — and agents themselves may draft those improvements (new structural tests, candidate rules, scaffolded linters), but only the pipeline lands them: versioned, eval-gated, human-approved, never self-applied.
 
@@ -55,6 +55,7 @@ Humans approve the merge that ships the draft PR; the harness never auto-merges.
 - Carnegie Council — [Seven Myths of Using the Term "Human on the Loop"](https://www.carnegiecouncil.org/media/article/7-myths-of-using-the-term-human-on-the-loop) (traces the term's real pre-LLM lineage in autonomy-policy discourse — and argues, as an honest counterpoint, that the phrase can mask reduced control if the "loop" itself isn't well-designed)
 - Böckeler / Fowler — [Harness engineering for coding agent users](https://martinfowler.com/articles/harness-engineering.html) (steering loop: iterate the harness on repeat issues; agents may draft controls, pipeline lands them)
 - egg — [HITL `provide_input` pause-and-resume](https://github.com/jwbron/egg) (state-preserving human steering via pause-and-resume)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (autonomy ladder Stage 1–4 — earn each rung with evidence; rubber-stamp oversight as false confidence; interrupt metrics as promotion evidence)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

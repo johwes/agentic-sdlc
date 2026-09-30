@@ -37,7 +37,9 @@ This address holds even while the suite is a no-op.
 
 Every sensor normalizes to SARIF/JSON with, at minimum: `tool_name`,
 `rule_id`, `file_path`, `line_number`, `severity` (tool-native),
-`message`/evidence payload. Temporal curates normalized findings to the
+`message`/evidence payload, plus `source_tier` (`authoritative` |
+`operational` | `advisory` — the CxBOM trust tiers, Cockcroft et al., *When
+Agents Decide*) and `retrieved_at` (ISO-8601). Temporal curates normalized findings to the
 immediate file/line target before projecting into `sensor_context` — raw
 megabyte-sized SARIF dumps never enter task frames (see
 `07-contracts.md`).
@@ -71,8 +73,12 @@ are surfaced to human review, never dropped silently.
 
 ## Curation budget
 
-Max ~10 findings per frame projection, file/line-targeted, highest severity
-first. Bounds Temporal payloads and worker token spend.
+Max ~10 findings per frame projection, file/line-targeted. Ordering is
+severity × tier: only authoritative- and operational-tier findings may force
+remediation re-entry — advisory-tier findings ride along as context but never
+block, regardless of severity. Within an action class, authoritative orders
+before operational before advisory: relevance never outranks trust. Bounds
+Temporal payloads and worker token spend.
 
 ## DAST scoping requirement
 
@@ -92,6 +98,11 @@ hosted scanner (SonarQube/Snyk) is the documented follow-up, not the first.
 - Unactionable findings (no file/line/rule mapping) — must not spawn empty loops.
 - Sensor flakiness causing infinite remediation (severity thresholds above
   plus attempt budget bound it; persistent flake → escalate, see `02`).
+- Stale findings laundered through re-summarization (a confident summary
+  stripped of the provenance that would flag it as out of date): findings
+  older than the candidate checkout are dropped at curation, never
+  forwarded (cf. Cockcroft et al., *When Agents Decide*, upstream context
+  risk).
 - DAST environment drift (target must be pinned per run).
 - A sensor suite that silently stops running and degrades to an unlogged
   no-op (the receipt annotation is the tripwire — no annotation, no trust).

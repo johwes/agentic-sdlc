@@ -23,7 +23,7 @@ This is the RBAC principle — *authorization before action* — applied to agen
 Mandate alone isn't enough when multiple agents collaborate across trust boundaries. Three more mechanisms complete the hardening:
 
 - **No bypass, layered gates:** every side-effecting operation (tool use, memory writes, promotion, publishing) traverses deterministic enforcement points — authentication, schema validation, policy evaluation, budgets — with no network or IAM path around them. Where one control is probabilistic (e.g. injection detection), at least one downstream control is deterministic. High-impact actions require multiple independent gates.
-- **Data quality at the retrieval boundary:** the memory gateway enforces ACLs and provenance checks (TTL, confidence, provenance-required flags) — the last point at which the control plane can apply minimum quality gates before content reaches the model.
+- **Data quality at the retrieval boundary:** the memory gateway enforces ACLs and provenance checks (TTL, confidence, provenance-required flags) — the last point at which the control plane can apply minimum quality gates before content reaches the model. Source trust follows the CxBOM tiers (Cockcroft et al., When Agents Decide): authoritative (owned, versioned — may shape decisions), operational (time-bound, attributed — may inform, not override), advisory (weak provenance — advisory only); relevance never outranks trust.
 - **Deterministic replay + cryptographic audit trail:** every run emits replay traces with request/response hashes and immutable, hash-linked, signed evidence (decision records, ledger events). A run is *replay-deterministic* if, given the trace and snapshots, the system reproduces the same tool/memory operations without live services.
 
 Together: the mandate says *whether* to start, the trace says *what was decided*, the evidence says *what was observed*, and the gates say *whether the next side effect may proceed*.
@@ -52,6 +52,7 @@ The triage script's `tasks/inbox/TASK-*.json` and the worker's `current_task.jso
 - Fullsend agents — [phase-gated policy/profile enforcement around skill execution](https://github.com/fullsend-ai/agents) (governance lives in `policies/`/`profiles/`, separate from `skills/` — cited here for the phase-gating pattern)
 - NIST — [Risk Management Framework, Authorize step](https://csrc.nist.gov/Projects/risk-management/about-rmf/authorize-step) (pre-LLM, official access-control lineage: a senior official must approve authorization before a system operates — "authorization before action," independently)
 - OWASP — [Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (OWASP's agentic-risk taxonomy generally; cited broadly here, not for a specific control number)
+- Cockcroft et al. — [When Agents Decide: Continuous Decision Intelligence and the Substrate Beneath It](https://itrevolution.com/product/when-agents-decide/) (Enterprise Technology Leadership Journal, Fall 2026 — decision topology/provenance/governance substrate; Context Bill of Materials bound to the change: sources, owners, retrieval time, policy score)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 

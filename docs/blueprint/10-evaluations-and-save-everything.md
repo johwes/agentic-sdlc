@@ -68,7 +68,7 @@ The team ships a rate-limit middleware. Their eval harness has 20 golden traject
 
 ## In this repo
 
-Evaluation harness and thinking-block capture are explicitly deferred: no held-out suite is required to run, but the `forbidden_paths` tripwire on eval locations is enforced today so agents habituate to the boundary (see `specs/05-sensors.md`, `specs/03-inner-loop.md` reserved-but-inactive gates). The PoC sensor review is a logged no-op — the slot is there; the evals are not. Token metrics are best-effort (`task_receipt.json: token_metrics`).
+Evaluation harness and thinking-block capture are explicitly deferred: no held-out suite is required to run, but the `forbidden_paths` tripwire on eval locations is enforced today so agents habituate to the boundary (see `specs/05-sensors.md`, `specs/03-inner-loop.md` reserved-but-inactive gates). The PoC sensor review is a logged no-op — the slot is there; the evals are not. Token metrics are best-effort (`task_receipt.json: token_metrics`). Interrupt accounting is ledger-native: per-task attempts, `HALT` escalations, and break-glass overrides derive interrupt rate, category breakdown, and recurrence — the autonomy-ladder KPIs (Cockcroft et al., When Agents Decide) — without new instrumentation. Post-PoC hypothesis only: non-generative "System One" classifiers (e.g. TypeSafe Jev — vendor-claimed 200x speedup, unverified, closed early-access) as fast finding-triage/router components in the sensor slot; pattern corroborated beyond the vendor (arXiv:2609.28940 pentest harness, LangChain Jev harness piece), adoption gated on open evaluation.
 
 ## Sources
 
@@ -81,6 +81,7 @@ Evaluation harness and thinking-block capture are explicitly deferred: no held-o
 - LangChain — [LangSmith evaluation docs](https://docs.langchain.com/langsmith/evaluation) ("a failure you saw once becomes a test you run every time" — golden-dataset regression testing)
 - Anthropic — [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) (task/trial/grader/transcript/outcome vocabulary; code/model/human graders; capability vs regression evals; pass@k/pass^k)
 - Böckeler / Fowler — [Harness engineering for coding agent users](https://martinfowler.com/articles/harness-engineering.html) (keep-quality-left lifecycle: pre-commit, post-integration, and continuous drift sensors)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (Continuous Decision Intelligence: evaluation + decision tracking + policy enforcement as a runtime loop; interrupt rate/category/recurrence + autonomous completion as the ladder KPIs; hill-climbing eval harness)
 
 ## Longevity: Constraint-stable, mechanism-evolving — with one caution
 

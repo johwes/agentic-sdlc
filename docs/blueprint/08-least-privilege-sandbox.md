@@ -44,6 +44,7 @@ Worker cells run under an adopted upstream policy baseline with per-binary netwo
 - Simon Willison — [The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) (sensitive data + untrusted content + external communication together are the exploitable combination; capability restriction is the practical mitigation)
 - OWASP — [Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) (LLM01 Prompt Injection, LLM06 Excessive Agency)
 - Anthropic — [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (guardrails outside the model, "extensive testing in sandboxed environments")
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) (enterprise tool harness: curated approved tools, sidecar auth so agents never hold raw credentials, scoped permissions — third independent arrival at least-privilege + credential isolation)
 - Fullsend — [ADR-0025: Provider-based credential delivery](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0025-provider-credential-delivery-for-sandboxed-agents.md) (four-tier ladder: prefetch + post-process → providers + L7 → REST server → host files; use the highest tier possible)
 
 ## Longevity: Permanent

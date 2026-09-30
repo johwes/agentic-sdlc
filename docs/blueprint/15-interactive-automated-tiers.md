@@ -22,7 +22,7 @@ The rate-limit investigation starts interactive: the engineer and the agent poke
 
 ## In this repo
 
-Headless-only today: every attempt is non-interactive by construction, and there is no interactive tier to hand off from — the human authors the frame by hand (see `specs/02-control-plane.md` override) and approves the merge. The steering primitives in Factor 11 are specified; the interactive side that would invoke them is future work.
+Headless-only today: every attempt is non-interactive by construction, and there is no interactive tier to hand off from — the human authors the frame by hand (see `specs/02-control-plane.md` override) and approves the merge. The steering primitives in Factor 11 are specified; the interactive side that would invoke them is future work. The frame schema is the PoC's decision topology: what the flow may decide (bounded scope, declared effects) vs what returns to humans (ambiguity, halt states) is written before execution, not improvised at runtime (cf. Cockcroft et al., When Agents Decide — "draw the decision topology first").
 
 Two fullsend results shape the automated side. First, scripted pipelines beat coordinator agents for determinism (ADR-0018): their coordinator LLM skipped declared subagents, so the pipeline executor — not an LLM — must guarantee each stage runs; that is the Temporal parent/child role here. Second, each pipeline step gets its own agent, harness, and least-privilege sandbox (ADR-0020); the PoC runs one cell per task (closer to ADR-0020's bundled Option A than to per-step sandboxes), acceptable while steps share one capability profile but a documented enterprise direction. Future work: external triggers need an actor-authorization gate before dispatch (ADR-0054) — write-level permission via the collaborator API, since `author_association` misreports private org membership.
 
@@ -35,6 +35,7 @@ Two fullsend results shape the automated side. First, scripted pipelines beat co
 - Fullsend — [ADR-0018: Scripted pipeline for multi-agent orchestration](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0018-scripted-pipeline-for-multi-agent-orchestration.md) (LLM coordinators skip steps; the pipeline executor, not an LLM, guarantees each stage runs)
 - Fullsend — [ADR-0020: Composable single-responsibility agents with individual sandboxes](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0020-composable-single-responsibility-agents-with-individual-sandboxes.md) (one agent, one harness, one least-privilege sandbox per step)
 - Fullsend — [ADR-0054: Require authorization on all agent dispatch paths](https://github.com/fullsend-ai/fullsend/blob/main/docs/ADRs/0054-require-authorization-on-all-agent-dispatch-paths.md) (actor auth gate on every dispatch path; collaborator permission API over `author_association`)
+- Cockcroft et al. — [When Agents Decide](https://itrevolution.com/product/when-agents-decide/) ("draw the decision topology first" — what gets decided where, by whom, on what authority; the autonomy ladder operationalizes it)
 
 ## Longevity: Constraint-stable, mechanism-evolving
 
