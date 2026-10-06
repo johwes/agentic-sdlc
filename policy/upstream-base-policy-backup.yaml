@@ -54,7 +54,7 @@ network_policies:
   claude_code:
     name: claude-code
     endpoints:
-      - { host: api.anthropic.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: api.anthropic.com, port: 443, protocol: rest, enforcement: enforce, access: full, tls: terminate }
       - { host: statsig.anthropic.com, port: 443 }
       - { host: sentry.io, port: 443 }
       - { host: raw.githubusercontent.com, port: 443 }
@@ -69,6 +69,7 @@ network_policies:
       - host: github.com
         port: 443
         protocol: rest
+        tls: terminate
         enforcement: enforce
         rules:
           # Git Smart HTTP read-only: allow clone, fetch, pull
@@ -103,6 +104,7 @@ network_policies:
       - host: api.github.com
         port: 443
         protocol: rest
+        tls: terminate
         enforcement: enforce
         access: read-only
     binaries:
@@ -191,16 +193,10 @@ network_policies:
       port: 443
     - host: opencode.ai
       port: 443
-      protocol: rest
-      enforcement: enforce
-      access: read-write
     # Proven live 2026-09-17: free-catalog routing also calls models.opencode.ai
     # (policy_denied until approved in probe-inference runtime policy, then OK).
     - host: models.opencode.ai
       port: 443
-      protocol: rest
-      enforcement: enforce
-      access: read-write
     - host: integrate.api.nvidia.com
       port: 443
     binaries:

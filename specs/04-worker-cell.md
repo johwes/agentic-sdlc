@@ -140,7 +140,15 @@ server-side in both cases. So the spawner (`scripts/spawn-cell.sh`
 `create`) backgrounds the call and polls `sandbox get -o json` until
 `phase == Ready` (bounded `CREATE_WAIT_TRIES` × `CREATE_WAIT_INTERVAL`),
 with best-effort delete on failure/timeout. Sandbox names must be lowercase
-alphanumerics/hyphens.
+alphanumerics/hyphens, max 19 chars (newer gateways reject longer names).
+Dual-gateway note (locked 2026-10-06): newer gateway/CLI generations return
+from `create` after the image-pull stage while the cell is still
+`Provisioning` (it reaches `Ready` on its own minutes later), and print a
+log preamble on stdout ahead of `-o json` payloads — so the spawner treats
+an exited `create` as failure only when the cell itself is gone (otherwise
+it keeps polling), and strips the phase payload through the first `{`.
+Older gateways (attached `create`, pure-JSON `get`) satisfy the same code
+path unchanged.
 
 ```bash
 openshell sandbox create \

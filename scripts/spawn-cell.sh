@@ -51,6 +51,22 @@ resolve_policy() {
   printf '%s' "$p"
 }
 
+# Gateway-portable phase probe: newer gateway/CLIs print a log preamble
+# (e.g. `WARN openshell_cli::tls: ...`) on *stdout* ahead of the `-o json`
+# payload, which breaks a naive `json.load` on the pipe (observed live:
+# `Extra data: line 1 column 5`). Stripping through the first `{` accepts
+# pure JSON (older gateways) and preamble+JSON (newer) alike; a missing or
+# unparsable payload yields an empty phase, never an error.
+cell_phase() {
+  openshell sandbox get "$1" -o json 2>&1 | sed -n '/^{/,$p' | python3 -c 'import json,sys; print(json.load(sys.stdin).get("phase",""))' 2>/dev/null || true
+}
+
+# Existence check by exit code only (payload intentionally discarded, so
+# stdout preamble noise cannot affect it).
+cell_exists() {
+  openshell sandbox get "$1" -o json >/dev/null 2>&1
+}
+
 do_create() {
   : "${TASK_ID:?set TASK_ID}" "${WORKSPACE_DIR:?set WORKSPACE_DIR}"
   if [[ ! -d "${WORKSPACE_DIR}" ]]; then
@@ -62,12 +78,22 @@ do_create() {
   # frame task_id (TASK-403) and the --label below keep canonical case —
   # the sandbox name is opaque after creation (see specs/04-worker-cell.md).
   local cell="cell-$(printf '%s' "${TASK_ID}" | tr '[:upper:]' '[:lower:]')-${uuid}"
+  # Both known gateways accept <=19 chars (newer ones reject longer names
+  # outright: "name exceeds maximum length (24 > 19)"). Fail fast here so
+  # a too-long TASK_ID surfaces as a spawner error, never a gateway error.
+  if ((${#cell} > 19)); then
+    echo "cell name '${cell}' exceeds gateway limit (19 chars) — shorten TASK_ID" >&2
+    return 1
+  fi
   local policy
   policy="$(resolve_policy)"
-  # The create CLI stays attached to the runtime keepalive and does not
-  # return on its own (observed >240s both with and without an initial
-  # command, cell Ready server-side meanwhile). Run it in the background
-  # and poll `sandbox get` until PHASE=Ready (bounded); best-effort delete
+  # Create-detach behavior differs by gateway generation (see specs/04):
+  # older gateways hold the `create` CLI attached to the runtime keepalive
+  # (observed >240s, cell Ready server-side meanwhile); newer ones return
+  # after the image-pull stage while the cell is still Provisioning (it
+  # reaches Ready minutes later on its own). So the backgrounded `create`
+  # exiting is NOT a failure signal on its own — only a missing cell is.
+  # Poll `sandbox get` until PHASE=Ready (bounded); best-effort delete
   # on failure/timeout so retries never orphan cells.
   local log="${TMPDIR:-/tmp}/${cell}-create.log"
   local tries="${CREATE_WAIT_TRIES:-60}" interval="${CREATE_WAIT_INTERVAL:-10}"
@@ -83,19 +109,20 @@ do_create() {
     --label "task=${TASK_ID}" \
     >"${log}" 2>&1 &
   local pid=$!
-  local i phase
+  local i phase create_gone="" create_status=0
   for ((i = 0; i < tries; i++)); do
-    if ! kill -0 "${pid}" 2>/dev/null; then
-      wait "${pid}" || true
-      echo "create exited before Ready; log tail:" >&2
-      tail -20 "${log}" >&2 || true
-      openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
-      return 1
+    if [[ -z "${create_gone}" ]] && ! kill -0 "${pid}" 2>/dev/null; then
+      wait "${pid}" || create_status=$?
+      create_gone=1
+      echo "create CLI exited (status ${create_status}); polling ${cell} until Ready" >&2
+      tail -5 "${log}" >&2 || true
     fi
-    phase="$(openshell sandbox get "${cell}" -o json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("phase",""))' 2>/dev/null || true)"
+    phase="$(cell_phase "${cell}")"
     if [[ "${phase}" == "Ready" ]]; then
-      kill "${pid}" 2>/dev/null || true
-      wait "${pid}" 2>/dev/null || true
+      if [[ -z "${create_gone}" ]]; then
+        kill "${pid}" 2>/dev/null || true
+        wait "${pid}" 2>/dev/null || true
+      fi
       # Seed the checkout now that the cell is Ready (post-create, so a
       # seeding failure deletes the cell instead of orphaning a repo-less
       # one — a repo-less cell can never produce a valid attempt).
@@ -105,6 +132,15 @@ do_create() {
       fi
       printf '%s\n' "${cell}"
       return 0
+    fi
+    # The create CLI is gone and no cell ever materialized (genuine
+    # failure: bad policy/provider/name) — fail fast instead of polling
+    # a cell that will never exist.
+    if [[ -z "${phase}" && -n "${create_gone}" ]] && ! cell_exists "${cell}"; then
+      echo "create exited (status ${create_status}) with no cell ${cell}; log tail:" >&2
+      tail -20 "${log}" >&2 || true
+      openshell sandbox delete "${cell}" >/dev/null 2>&1 || true
+      return 1
     fi
     sleep "${interval}"
   done
