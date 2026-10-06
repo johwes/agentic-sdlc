@@ -398,8 +398,8 @@ def _run_triage_in_cell(
     model: str,
     triage_contract: str,
     timeout: int,
-) -> tuple[dict[str, Any], str]:
-    """Create a triage cell, run glm-5.3-flash, return (parsed_json, raw_output).
+) -> tuple[dict[str, Any], str, str]:
+    """Create a triage cell, run glm-5.3-flash, return (parsed_json, raw_output, prompt_text).
 
     Cell lifecycle: clone repo_url into workspace, create cell, upload prompt,
     exec opencode, download output, destroy. Raises on failure.
@@ -534,7 +534,7 @@ def _run_triage_in_cell(
     parsed = _parse_triage_output(raw_output)
     if parsed is None:
         raise RuntimeError(f"triage output not JSON: {raw_output[:1000]}")
-    return parsed, raw_output
+    return parsed, raw_output, prompt_text
 
 
 def main() -> int:
@@ -581,6 +581,7 @@ def main() -> int:
     contract = _triage_contract_path(args.triage_contract)
     triage_raw: dict[str, Any]
     triage_text = ""
+    triage_prompt = ""
     triage_source = ""
     if args.dry_run:
         triage_raw = _deterministic_triage(issue, args.repo.strip())
@@ -593,7 +594,7 @@ def main() -> int:
             if not os.environ.get("OPENSHELL_BIN") and not subprocess.run(["which", "openshell"], capture_output=True).returncode == 0:
                 # which failure is okay, openshell may still be on PATH via other means
                 pass
-            triage_raw, triage_text = _run_triage_in_cell(issue, args.repo.strip(), args.model, contract, int(args.triage_timeout))
+            triage_raw, triage_text, triage_prompt = _run_triage_in_cell(issue, args.repo.strip(), args.model, contract, int(args.triage_timeout))
             triage_source = f"in-cell {args.model}"
             print(f"Triage cell output ({args.model}): {triage_text[:500]}", file=sys.stderr)
         except Exception as e:
@@ -664,19 +665,32 @@ def main() -> int:
     tmp.write_text(json.dumps(frame, indent=2) + "\n", encoding="utf-8")
     tmp.replace(out_path)
     print(f"Wrote {out_path} (task_id {frame['task_id']}, branch {frame['target_branch']}, tactile {frame['tactile_command']!r})", file=sys.stderr)
-    # Persist the raw triage output next to the frame: the 500-char stderr
+    # Persist the raw triage session next to the frame: the 500-char stderr
     # preview is not enough to debug schema complaints, and the triage cell
-    # is destroyed. Lines starting with '#' are provenance header; the rest
-    # is the verbatim model (or deterministic) output. Best-effort — triage
+    # is destroyed. Both sections are verbatim (ANSI escapes and exec wrapper
+    # noise preserved — never sanitize debug output). Best-effort — triage
     # must never fail over logging.
     raw_log_path = out_path.with_name(out_path.stem + ".triage-raw.log")
     try:
-        header = (
+        if triage_prompt:
+            input_section = triage_prompt
+        else:
+            input_section = "N/A (no model prompt captured — dry-run or deterministic fallback)"
+        body = (
             f"# source: {triage_source}\n"
             f"# model: {args.model}\n"
-            f"# issue: {issue.get('url', '')}\n\n"
+            f"# issue: {issue.get('url', '')}\n"
+            f"#\n"
+            f"# Lines starting with '#' are provenance header. INPUT and OUTPUT\n"
+            f"# sections below are verbatim.\n"
+            f"\n===== INPUT (prompt sent to `opencode run`; also uploaded in-cell "
+            f"as /sandbox/.task/triage_prompt.txt) =====\n"
+            f"{input_section}\n"
+            f"\n===== OUTPUT (`opencode run` combined stdout+stderr; leading WARN "
+            f"lines are openshell CLI noise, not model text) =====\n"
+            f"{triage_text}\n"
         )
-        raw_log_path.write_text(header + triage_text + "\n", encoding="utf-8")
+        raw_log_path.write_text(body, encoding="utf-8")
         print(f"Triage raw log: {raw_log_path}", file=sys.stderr)
     except OSError as e:
         print(f"Triage raw log unwritable (non-fatal): {e}", file=sys.stderr)
