@@ -187,6 +187,7 @@ def _deterministic_triage(issue: dict[str, Any], repo_url: str) -> dict[str, Any
         "tactile_command": tactile,
         "slug": slug,
         "triage_summary": f"Deterministic triage: {title[:120]}",
+        "verdict": "sufficient",
     }
 
 
@@ -580,9 +581,11 @@ def main() -> int:
     contract = _triage_contract_path(args.triage_contract)
     triage_raw: dict[str, Any]
     triage_text = ""
+    triage_source = ""
     if args.dry_run:
         triage_raw = _deterministic_triage(issue, args.repo.strip())
         triage_text = json.dumps(triage_raw, indent=2)
+        triage_source = "dry-run deterministic (no cell created)"
         print(f"Dry-run triage (deterministic): {triage_text}", file=sys.stderr)
     else:
         try:
@@ -591,11 +594,13 @@ def main() -> int:
                 # which failure is okay, openshell may still be on PATH via other means
                 pass
             triage_raw, triage_text = _run_triage_in_cell(issue, args.repo.strip(), args.model, contract, int(args.triage_timeout))
+            triage_source = f"in-cell {args.model}"
             print(f"Triage cell output ({args.model}): {triage_text[:500]}", file=sys.stderr)
         except Exception as e:
             print(f"Triage in-cell failed: {e}\nFalling back to deterministic triage", file=sys.stderr)
             triage_raw = _deterministic_triage(issue, args.repo.strip())
             triage_text = json.dumps(triage_raw, indent=2)
+            triage_source = "deterministic fallback (in-cell failed: " + " ".join(str(e).split())[:300] + ")"
 
     # Schema gate: malformed triage never becomes a frame. Invalid output
     # falls back to deterministic triage (same as an exec failure); a valid
@@ -613,6 +618,7 @@ def main() -> int:
                 print(f"  - {e}", file=sys.stderr)
             print("Falling back to deterministic triage", file=sys.stderr)
             triage_raw = _deterministic_triage(issue, args.repo.strip())
+            triage_source += " + deterministic fallback (schema-invalid output kept in triage raw log)"
 
     if _verdict_of(triage_raw) == "insufficient":
         question = str(triage_raw.get("clarifying_question") or "").strip()
@@ -658,6 +664,22 @@ def main() -> int:
     tmp.write_text(json.dumps(frame, indent=2) + "\n", encoding="utf-8")
     tmp.replace(out_path)
     print(f"Wrote {out_path} (task_id {frame['task_id']}, branch {frame['target_branch']}, tactile {frame['tactile_command']!r})", file=sys.stderr)
+    # Persist the raw triage output next to the frame: the 500-char stderr
+    # preview is not enough to debug schema complaints, and the triage cell
+    # is destroyed. Lines starting with '#' are provenance header; the rest
+    # is the verbatim model (or deterministic) output. Best-effort — triage
+    # must never fail over logging.
+    raw_log_path = out_path.with_name(out_path.stem + ".triage-raw.log")
+    try:
+        header = (
+            f"# source: {triage_source}\n"
+            f"# model: {args.model}\n"
+            f"# issue: {issue.get('url', '')}\n\n"
+        )
+        raw_log_path.write_text(header + triage_text + "\n", encoding="utf-8")
+        print(f"Triage raw log: {raw_log_path}", file=sys.stderr)
+    except OSError as e:
+        print(f"Triage raw log unwritable (non-fatal): {e}", file=sys.stderr)
     # Describe like starter --dry-run
     try:
         sys.path.insert(0, "temporal")

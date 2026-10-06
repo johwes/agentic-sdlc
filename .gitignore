@@ -7,3 +7,5 @@ site/
 tasks/inbox/TASK-*.json
 !tasks/inbox/TASK-402.json
 !tasks/inbox/TASK-403.json
+# Triage raw LLM logs (written next to --out frames for debugging).
+*.triage-raw.log
