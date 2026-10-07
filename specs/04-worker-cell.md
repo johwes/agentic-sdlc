@@ -198,6 +198,12 @@ The child stages fixed filenames (`current_task.json`,
 `worker_prompt.txt`), so source and target routinely coincide — those
 already land in place and the `mv` is skipped (it would fail "same
 file"; observed live on the first Temporal run).
+Host-side `sandbox exec` capture (checkpoint/reset git reads in
+`temporal/child.py`) strips leading openshell CLI log lines
+(`openshell_cli::` preamble newer gateways print on stdout when piped —
+observed live 2026-10-07: it made a clean `status --porcelain` read
+dirty and broke `checkpoint_commit`); git failures attach the stdout
+tail too (git reports e.g. "nothing to commit" on stdout).
 
 Flag notes (all verified in CLI help unless marked):
 - `--policy` needs an **absolute, readable path** — relative paths fail

@@ -45,6 +45,7 @@ import dataclasses
 import datetime as _dt
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -734,8 +735,14 @@ def run_cell_git(
 ) -> Any:
     """Run one allowlisted git op in the cell. Returns the result.
 
-    Raises RuntimeError on non-git op names or nonzero exit (stderr tail
-    attached); Temporal retries the activity.
+    Host-side `sandbox exec` capture carries the openshell CLI's own log
+    preamble on stdout (observed live on newer gateways: a timestamped
+    `WARN openshell_cli::...` line ahead of the payload when piped), so the
+    returned stdout is preamble-stripped before callers parse it (older
+    gateways emit pure payloads — the strip is a no-op there). Raises
+    RuntimeError on non-git op names or nonzero exit (stderr + stdout tails
+    attached — git reports e.g. "nothing to commit" on stdout); Temporal
+    retries the activity.
     """
     op = git_args[0] if git_args else ""
     if op not in ALLOWED_CELL_GIT_OPS:
@@ -746,12 +753,30 @@ def run_cell_git(
         r = run(argv, capture_output=True, text=True, timeout=timeout + 60)
     except FileNotFoundError as e:
         raise RuntimeError(f"openshell CLI not found: {e}")
+    r.stdout = _strip_cli_preamble(r.stdout or "")
     if r.returncode != 0:
         raise RuntimeError(
             f"cell git {' '.join(list(git_args)[:3])} failed: "
-            f"{(r.stderr or '').strip()}"[:2000]
+            f"{(r.stderr or '').strip()} | stdout: {(r.stdout or '').strip()}"[:2000]
         )
     return r
+
+
+# Matches the openshell CLI's own log lines (e.g. `2026-10-06T12:24:30Z
+# WARN openshell_cli::tls: ...`), which newer gateways print on stdout
+# ahead of `sandbox exec` payloads when piped. Git output never contains
+# this marker; only leading marker lines are dropped (payload first).
+_OPENSHELL_PREAMBLE_RE = re.compile(r"openshell_cli::")
+
+
+def _strip_cli_preamble(text: str) -> str:
+    """Drop leading openshell CLI log lines from captured exec output."""
+    lines = (text or "").splitlines()
+    i = 0
+    while i < len(lines) and _OPENSHELL_PREAMBLE_RE.search(lines[i]):
+        i += 1
+    rest = lines[i:]
+    return "\n".join(rest) + ("\n" if rest else "")
 
 
 def validate_baseline(ref: Any) -> str | None:
